@@ -1,3 +1,10 @@
+# BEING MODIFIED - TARGET IS DUET3D DWC PLUGIN
+# - CONNECT WITH DUET3D PRINTERS
+# - STANDALONE, NO UI 
+# - ONLY USE HTTP VIDEO STREAM (NO SCANNING FOR USB CAMERAS)
+
+
+
 # PrintGuard - Local 3D Printing Failure Detection and Monitoring
 [![PyPI - Version](https://img.shields.io/pypi/v/printguard?style=for-the-badge&logo=pypi&logoColor=white&logoSize=auto&color=yellow)](https://pypi.org/project/printguard/)
 [![GitHub Repo stars](https://img.shields.io/github/stars/oliverbravery/printguard?style=for-the-badge&logo=github&logoColor=white&logoSize=auto&color=yellow)](https://github.com/oliverbravery/printguard)
