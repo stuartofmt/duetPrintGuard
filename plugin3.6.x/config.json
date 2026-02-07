@@ -1,0 +1,32 @@
+{
+  "version": "1.0.0",
+  "vapid_public_key": null,
+  "vapid_subject": null,
+  "startup_mode": "local",
+  "site_domain": "localhost",
+  "tunnel_provider": null,
+  "push_subscriptions": [],
+  "camera_states": {
+    "f615bdc5-f42f-4729-9482-c53d6942973f": {
+      "nickname": "usb",
+      "source": "http://localhost:8090/stream",
+      "current_alert_id": null,
+      "detection_history": [],
+      "live_detection_running": false,
+      "last_result": null,
+      "last_time": null,
+      "start_time": null,
+      "error": null,
+      "brightness": 1.0,
+      "contrast": 1.0,
+      "focus": 1.0,
+      "sensitivity": 1.0,
+      "countdown_time": 60.0,
+      "countdown_action": "dismiss",
+      "majority_vote_threshold": 2,
+      "majority_vote_window": 5,
+      "printer_id": null,
+      "printer_config": null
+    }
+  }
+}
