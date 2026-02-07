@@ -1,8 +1,8 @@
 import logging
 
-from ..models import SavedConfig, SavedKey, SiteStartupMode
+from models import SavedConfig, SavedKey, SiteStartupMode
 
-from .config import SSL_CERT_FILE, get_config, get_key
+from utils.config import SSL_CERT_FILE, get_config, get_key
 
 
 def setup_ngrok_tunnel(close: bool = False) -> bool:

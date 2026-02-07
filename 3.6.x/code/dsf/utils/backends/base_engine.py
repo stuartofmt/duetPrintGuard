@@ -8,7 +8,7 @@ from typing import Any, List, Optional, Tuple
 from PIL import Image
 from torchvision import transforms
 
-from ..inference_engine import InferenceEngine
+from utils.inference_engine import InferenceEngine
 
 
 class BaseInferenceEngine(InferenceEngine, ABC):

@@ -1,6 +1,6 @@
 import logging
 from typing import Optional
-from .inference_engine import UniversalInferenceEngine, InferenceBackend
+from utils.inference_engine import UniversalInferenceEngine, InferenceBackend
 
 _inference_engine: Optional[UniversalInferenceEngine] = None
 

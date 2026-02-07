@@ -6,11 +6,11 @@ import cv2  # pylint: disable=E0401
 from fastapi import APIRouter, Body, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
-from ..utils.camera_utils import (add_camera, find_available_serial_cameras,
+from utils.camera_utils import (add_camera, find_available_serial_cameras,
                                   get_camera_state)
-from ..utils.camera_utils import remove_camera as remove_camera_util
-from ..utils.shared_video_stream import get_shared_stream_manager
-from ..utils.stream_utils import generate_frames
+from utils.camera_utils import remove_camera as remove_camera_util
+from utils.shared_video_stream import get_shared_stream_manager
+from utils.stream_utils import generate_frames
 
 router = APIRouter()
 

@@ -5,15 +5,15 @@ from fastapi import Form, Request, APIRouter
 from fastapi.exceptions import HTTPException
 from fastapi.responses import RedirectResponse
 
-from ..utils.config import (STREAM_MAX_FPS, STREAM_TUNNEL_FPS,
+from utils.config import (STREAM_MAX_FPS, STREAM_TUNNEL_FPS,
                             STREAM_JPEG_QUALITY, STREAM_MAX_WIDTH,
                             DETECTION_INTERVAL_MS, PRINTER_STAT_POLLING_RATE_MS,
                             MIN_SSE_DISPATCH_DELAY_MS,
                             update_config, get_config)
-from ..utils.camera_utils import update_camera_state
-from ..utils.camera_state_manager import get_camera_state_manager
-from ..utils.stream_utils import stream_optimizer
-from ..models import FeedSettings, SavedConfig
+from utils.camera_utils import update_camera_state
+from utils.camera_state_manager import get_camera_state_manager
+from utils.stream_utils import stream_optimizer
+from models import FeedSettings, SavedConfig
 
 router = APIRouter()
 
@@ -28,7 +28,7 @@ async def serve_index(request: Request):
         TemplateResponse: Rendered index.html template with camera states and settings.
     """
     # pylint: disable=import-outside-toplevel
-    from ..app import templates
+    from app import templates
     camera_state_manager = get_camera_state_manager()
     camera_uuids = await camera_state_manager.get_all_camera_uuids()
     if not camera_uuids:

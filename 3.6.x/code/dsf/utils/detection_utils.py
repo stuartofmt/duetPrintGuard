@@ -3,14 +3,14 @@ import uuid
 import logging
 import cv2
 
-from .alert_utils import (dismiss_alert, alert_to_response_json,
+from utils.alert_utils import (dismiss_alert, alert_to_response_json,
                           get_alert, append_new_alert)
-from .sse_utils import append_new_outbound_packet
-from .camera_utils import (get_camera_state, get_camera_state_sync,
+from utils.sse_utils import append_new_outbound_packet
+from utils.camera_utils import (get_camera_state, get_camera_state_sync,
                            update_camera_state, update_camera_detection_history)
-from .printer_utils import get_printer_config, suspend_print_job
-from .notification_utils import send_defect_notification
-from ..models import Alert, AlertAction, SSEDataType
+from utils.printer_utils import get_printer_config, suspend_print_job
+from utils.notification_utils import send_defect_notification
+from models import Alert, AlertAction, SSEDataType
 
 def _passed_majority_vote(camera_state):
     """Determine if failures in detection history meet the majority threshold.
@@ -102,7 +102,7 @@ async def _live_detection_loop(app_state, camera_uuid):
         camera_uuid (str): The UUID of the camera to process.
     """
     # pylint: disable=C0415
-    from .stream_utils import create_optimized_detection_loop
+    from utils.stream_utils import create_optimized_detection_loop
     update_functions = {
         'update_camera_state': update_camera_state,
         'update_camera_detection_history': update_camera_detection_history,

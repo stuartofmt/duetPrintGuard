@@ -1,6 +1,6 @@
 from typing import Dict
 import requests
-from ...models import (FileInfo, JobInfoResponse,
+from models import (FileInfo, JobInfoResponse,
                        TemperatureReadings, TemperatureReading,
                        PrinterState, PrinterTemperatures)
 

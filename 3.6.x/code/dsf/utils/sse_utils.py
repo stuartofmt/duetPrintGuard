@@ -3,9 +3,9 @@ import json
 import logging
 import time
 
-from ..models import (SSEDataType, PrinterState,
+from models import (SSEDataType, PrinterState,
                       PollingTask, SavedConfig)
-from ..utils.config import get_config, MIN_SSE_DISPATCH_DELAY_MS
+from utils.config import get_config, MIN_SSE_DISPATCH_DELAY_MS
 
 _last_dispatch_times = {}
 

@@ -7,8 +7,8 @@ import glob
 
 import cv2
 
-from ..models import CameraState
-from .camera_state_manager import get_camera_state_manager
+from models import CameraState
+from utils.camera_state_manager import get_camera_state_manager
 
 
 async def add_camera(source, nickname):

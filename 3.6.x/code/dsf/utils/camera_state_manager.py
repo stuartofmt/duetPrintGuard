@@ -2,8 +2,8 @@ import asyncio
 import logging
 from typing import Dict, Optional
 from pydantic import ValidationError
-from ..models import CameraState
-from .config import get_config, update_config, SavedConfig
+from models import CameraState
+from utils.config import get_config, update_config, SavedConfig
 
 
 class CameraStateManager:

@@ -4,8 +4,8 @@ from typing import Any, Dict, List, Optional
 
 import requests
 
-from ..models import OperatingSystem, SavedConfig, SavedKey
-from ..utils.config import get_config
+from models import OperatingSystem, SavedConfig, SavedKey
+from utils.config import get_config
 
 
 class CloudflareAPI:
@@ -388,7 +388,7 @@ def start_cloudflare_tunnel() -> bool:
         bool: True if the tunnel was started successfully, False otherwise.
     """
     # pylint:disable=import-outside-toplevel
-    from ..utils.config import get_key
+    from utils.config import get_key
     try:
         current_os = get_current_os()
         if not current_os:
