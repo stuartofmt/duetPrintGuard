@@ -90,21 +90,6 @@ function createDisplayItem(camId, nickname, source) {
   const newRow = document.getElementById("grid").appendChild(row);
 
   return newRow;
-
-  //SRS update item display
-
-  /*
-  // Button
-  const button = card.querySelector("button");
-  button.addEventListener("click", () => {
-	//alert(`Camera ${camId} says ${btnState}`);
-	const btnState = button.textContent;
-	let isStart = false;
-	if (btnState === BTNSTART){
-	  isStart = true;
-	}
-	sendDetectionRequest(isStart,card,camId);
-	*/
 }
 
 
@@ -135,8 +120,6 @@ function createDisplayItem(camId, nickname, source) {
 	cameraItems = document.querySelectorAll('.camera-items');
 	console.warn('Num of camera items ', cameraItems.length)
 
-	; // uses cameraItems
-
 	if (cameraItems.length > 0) {
 		const cameraId = cameraItems[0].dataset.cameraId;
 		if (cameraId) {
@@ -152,15 +135,6 @@ function createDisplayItem(camId, nickname, source) {
 	//update_cameras();  // uses cameraItems
 
 })();
-
-
-// Update each camera item with the latest data
-function xupdate_cameras () {
-	cameraItems.forEach(item => {
-		const camId = item.dataset.cameraId;
-		fetchAndUpdateCameraSettings(camId);
-	});
-}
 
 
 camVideoPreview.onload = () => {
@@ -179,21 +153,6 @@ function changeLiveCameraFeed(cameraUUID) {
 	camVideoPreview.src = `/camera/snapshot/${cameraUUID}`;
 	//SRS
 	//camVideoPreview.src = `/camera/feed/${cameraUUID}`;
-}
-
-function initializeCountdownSettings(d) {
-	console.warn('initialize coundown settings')
-	settingsCountdownAction.value = d.countdown_action;
-	console.warn('Countdown Action Value:', d.countdown_action);
-
-	settingsCountdownTimeLabel.textContent = d.countdown_time;
-	settingsCountdownTime.value = d.countdown_time;
-	console.warn('Countdown Time Value:', d.countdown_time);
-	updateSliderFill(settingsCountdownTime);
-
-	settingsCountdownControl.value = d.countdown_control;
-	console.warn('Countdown Control Value:', d.countdown_control);
-
 }
 
 function updateSelectedCameraSettings(d) {
@@ -310,81 +269,18 @@ function fetchAndUpdateCameraSettings(cameraUUID) {
 	});
 }
 
-function xgetCameraState(cameraUUID) {
-	console.warn('Fetching metrics for camera:', cameraUUID);
-	if (!cameraUUID) {
-		console.warn('Cannot fetch metrics: invalid camera UUID provided:', cameraUUID);
-		return;
-	}
-	fetch(`/config/get-camera-state`, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ camera_uuid: cameraUUID })
-	})
-	.then(response => {
-		if (!response.ok) {
-			return response.json().then(errData => {
-				throw new Error(`Failed to fetch camera state for camera ${cameraUUID}: ${errData.detail || response.statusText}`);
-			}).catch(() => {
-				throw new Error(`Failed to fetch camera state for camera ${cameraUUID}: ${response.statusText}`);
-			});
-		}
-		return response.json();
-	})
-	.then(data => {
-		console.warn('control ==>', data.countdown_control);
-		console.warn(data);
-		const metricsData = {
-			camera_uuid: cameraUUID,
-			start_time: data.start_time,
-			last_result: data.last_result,
-			last_time: data.last_time,
-			total_detections: data.detection_times ? data.detection_times.length : 0,
-			frame_rate: data.frame_rate,
-			live_detection_running: data.live_detection_running,
-			brightness: data.brightness,
-			contrast: data.contrast,
-			focus: data.focus,
-			sensitivity: data.sensitivity,
-			majority_vote_threshold: data.majority_vote_threshold,
-			majority_vote_window: data.majority_vote_window,
-			printer_id: data.printer_id,
-			printer_config: data.printer_config,
-			countdown_action: data.countdown_action,
-			countdown_time: data.countdown_time,
-			countdown_control: data.countdown_control
-		};
-		updateSelectedCameraSettings(metricsData);
-	})
-	.catch(error => {
-		console.error(`Error fetching metrics for camera ${cameraUUID}:`, error.message);
-		const emptyMetrics = {
-			camera_uuid: cameraUUID,
-			start_time: null,
-			last_result: '-',
-			last_time: null,
-			total_detections: 0,
-			frame_rate: null,
-			live_detection_running: false
-		};
-		//updateSelectedCameraSettings(emptyMetrics);
-	});
-}
-
 function addListenerToDisplayItem(item, cameraId) {
+	const card = item.querySelector('.camera-item');
 	item.addEventListener('click', function() {
-		//toggle the selection
-		cameraItems.forEach(i => i.classList.remove('selected'));
-		this.classList.add('selected');
+		// toggle the selection on the actual camera card
+		document.querySelectorAll('.camera-item.selected').forEach(i => i.classList.remove('selected'));
+		card?.classList.add('selected');
 
-		//now update the display
+		// now update the display
 		cameraUUID = cameraId; // Global identifier for currently selected camera
 
 		settingsCameraUUID.value = cameraId; // set the form uuid to report the current camera
 		fetchAndUpdateCameraSettings(cameraId);
-		//SRS
-		//const nickname = this.querySelector('.camera-header span:first-child').textContent;
-		//changeLiveCameraFeed(nickname);
 		changeLiveCameraFeed(cameraId);
 	});
 	
@@ -397,24 +293,6 @@ function addListenerToDisplayItem(item, cameraId) {
 
 }
 
-
-document.addEventListener('DOMContentLoaded', function() {
-	/*
-	console.warn('DOM' , cameraItems.length);
-	
-	if (cameraItems.length > 0) {
-		const cameraId = cameraItems[0].dataset.cameraId;
-		if (cameraId) {
-			console.warn('clicked ', cameraID)
-			cameraItems[0].click();
-		}
-	}else {
-			if (addCameraModalOverlay) {
-				addCameraModalOverlay.style.display = 'flex';
-			}
-		}
-	*/
-});
 
 addCameraBtn?.addEventListener('click', function(e) {
 	e.preventDefault();
@@ -519,13 +397,6 @@ document.querySelectorAll('.control-form select').forEach(control => {
 	});
 });
 
-function submitControlForm (){
-	console.warn('submitting form');
-	document.querySelector('.control-form select')
-	.dispatchEvent(new Event('change', { bubbles: true }));
-}
-
-
 /*
 document.querySelector('.settings-form')?.addEventListener('submit', (e) => {
 	e.preventDefault();
@@ -537,150 +408,6 @@ document.querySelector('.countrol-form')?.addEventListener('submit', (e) => {
 	console.warn('form event');
 });
 */
-
-function updateFeedSliderFill(slider) {
-	const min = slider.min || 0;
-	const max = slider.max || 100;
-	const value = slider.value;
-	const percentage = ((value - min) / (max - min)) * 100;
-	slider.style.setProperty('--value', `${percentage}%`);
-	const valueSpan = document.getElementById(`${slider.id}_val`);
-	if (valueSpan) {
-		valueSpan.textContent = value;
-	}
-}
-
-/*SRS - Keep feed settings for now - not convinced of utility*/
-
-function saveFeedSetting(slider) {
-	const setting = slider.name;
-	const value = parseInt(slider.value);
-	const valueSpan = document.getElementById(`${slider.id}_val`);
-	if (valueSpan) {
-		valueSpan.textContent = value;
-	}
-	if (setting === 'detectionInterval') {
-		const detectionsPerSecond = Math.round(1000 / value);
-		const dpsSlider = document.getElementById('detectionsPerSecond');
-		const dpsSpan = document.getElementById('detectionsPerSecond_val');
-		if (dpsSlider && dpsSpan) {
-			dpsSlider.value = detectionsPerSecond;
-			dpsSpan.textContent = detectionsPerSecond;
-			updateFeedSliderFill(dpsSlider);
-		}
-	} else if (setting === 'detectionsPerSecond') {
-		const detectionInterval = Math.round(1000 / value);
-		const diSlider = document.getElementById('detectionInterval');
-		const diSpan = document.getElementById('detectionInterval_val');
-		if (diSlider && diSpan) {
-			diSlider.value = detectionInterval;
-			diSpan.textContent = detectionInterval;
-			updateFeedSliderFill(diSlider);
-		}
-	}
-	//saveFeedSettings();
-}
-
-function saveFeedSettings() {
-	console.warn('Save Feed Settings');
-	const settings = {
-		stream_max_fps: parseInt(document.getElementById('streamMaxFps').value),
-		stream_tunnel_fps: parseInt(document.getElementById('streamTunnelFps').value),
-		stream_jpeg_quality: parseInt(document.getElementById('streamJpegQuality').value),
-		stream_max_width: parseInt(document.getElementById('streamMaxWidth').value),
-		detections_per_second: parseInt(document.getElementById('detectionsPerSecond').value),
-		detection_interval_ms: parseInt(document.getElementById('detectionInterval').value),
-		printer_stat_polling_rate_ms: parseInt(document.getElementById('printerStatPollingRate').value),
-		min_sse_dispatch_delay_ms: parseInt(document.getElementById('minSseDispatchDelay').value)
-	};
-	fetch('/save-feed-settings', {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-		},
-		body: JSON.stringify(settings)
-	})
-	.then(response => {
-		if (!response.ok) {
-			return response.json().then(errData => {
-				throw new Error(errData.detail || 'Failed to save feed settings');
-			});
-		}
-		return response.json();
-	})
-	.then(data => {
-		console.log('Feed settings saved successfully:', data);
-	})
-	.catch(error => {
-		console.error('Error saving feed settings:', error);
-	});
-}
-
-function initializeFeedSettings() {
-	loadFeedSettings().then(() => {
-		document.querySelectorAll('.feed-setting-item input[type="range"]').forEach(slider => {
-			updateFeedSliderFill(slider);
-			slider.addEventListener('input', () => {
-				updateFeedSliderFill(slider);
-			});
-			slider.addEventListener('change', (e) => {
-				e.preventDefault();
-				updateFeedSliderFill(slider);
-				saveFeedSetting(slider);
-			});
-		});
-	});
-}
-
-function loadFeedSettings() {
-	return fetch('/get-feed-settings', {
-		method: 'GET',
-		headers: {
-			'Content-Type': 'application/json',
-		}
-	})
-	.then(response => {
-		if (!response.ok) {
-			return response.json().then(errData => {
-				throw new Error(errData.detail || 'Failed to load feed settings');
-			});
-		}
-		return response.json();
-	})
-	.then(data => {
-		if (data.success && data.settings) {
-			const settings = data.settings;
-			updateSliderValue('streamMaxFps', settings.stream_max_fps);
-			updateSliderValue('streamTunnelFps', settings.stream_tunnel_fps);
-			updateSliderValue('streamJpegQuality', settings.stream_jpeg_quality);
-			updateSliderValue('streamMaxWidth', settings.stream_max_width);
-			updateSliderValue('detectionsPerSecond', settings.detections_per_second);
-			updateSliderValue('detectionInterval', settings.detection_interval_ms);
-			updateSliderValue('printerStatPollingRate', settings.printer_stat_polling_rate_ms);
-			updateSliderValue('minSseDispatchDelay', settings.min_sse_dispatch_delay_ms);
-		}
-	})
-	.catch(error => {
-		console.error('Error loading feed settings:', error);
-	});
-}
-
-function updateSliderValue(sliderId, value) {
-	const slider = document.getElementById(sliderId);
-	const valueSpan = document.getElementById(`${sliderId}_val`);
-	if (slider && valueSpan) {
-		slider.value = value;
-		valueSpan.textContent = value;
-		updateFeedSliderFill(slider);
-	}
-}
-
-
-setupModalClose?.addEventListener('click', function() {
-	setupModalOverlay.style.display = 'none';
-	document.body.style.overflow = '';
-});
-
 
 addCameraModalClose?.addEventListener('click', function() {
 	if (addCameraModalOverlay) {
