@@ -52,18 +52,21 @@ async def remove_camera_ep(request: Request):
 
 @router.get("/config/get-camera-list", include_in_schema=False)
 async def camera_list(request: Request):
-    """Get a list of current camera id's
+    """Get a list of current camera id's, nickname ansd source
 
     Args:
         request (Request): The FastAPI request object.
 
     Returns:
-        list of camera UUID
+        Dict: A dictionary containing a list of camera UUIDs, nicknames, and sources.
     """
     # pylint: disable=import-outside-toplevel
-    camera_uuid_list = []
+    camera_uuid_list = {}
     for camera_uuid in CAMERA_SETTINGS:
-        camera_uuid_list.append(camera_uuid)
+        camera_uuid_list[camera_uuid] = {
+            "nickname": CAMERA_SETTINGS[camera_uuid].get("nickname", ""),
+            "source": CAMERA_SETTINGS[camera_uuid].get("source", "")
+        }
     print(f'{camera_uuid_list=}')
     return {"camera_list": camera_uuid_list}
 

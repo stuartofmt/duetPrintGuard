@@ -15,7 +15,7 @@ from models import Alert, AlertAction, SSEDataType, Notification
 from .config import (get_config, STREAM_MAX_FPS,
 					 STREAM_JPEG_QUALITY,
 					 STREAM_MAX_WIDTH,
-					 DETECTION_INTERVAL_MS)
+					 DETECTION_INTERVAL_MS,CAMERA_SETTINGS)
 
 import uuid
 
@@ -196,10 +196,16 @@ def create_optimized_frame_generator(camera_uuid: str, camera_state_getter):
 			if stream_optimizer.should_limit_fps(last_frame_time):
 				time.sleep(0.001)
 				continue
-			camera_state = camera_state_getter(camera_uuid)
-			contrast = camera_state.contrast
-			brightness = camera_state.brightness
-			focus = camera_state.focus
+			# camera_state = camera_state_getter(camera_uuid)
+			# SRS can likely remove the state getter and delete synchronous get state references
+			camera_state = CAMERA_SETTINGS[camera_uuid] 
+			logger.debug(f'############# Camera {camera_uuid} - Optimized Frame Generation - State: {camera_state}')
+			contrast = CAMERA_SETTINGS.get(camera_uuid, {}).get('contrast', 1.0)
+			brightness = CAMERA_SETTINGS.get(camera_uuid, {}).get('brightness', 1.0)
+			focus = CAMERA_SETTINGS.get(camera_uuid, {}).get('focus', 0.0)
+			# contrast = camera_state.contrast
+			# brightness = camera_state.brightness
+			# focus = camera_state.focus
 			frame = get_shared_camera_frame(camera_uuid)
 			if frame is None:
 				logger.warning("Failed to get frame from shared camera stream %s", camera_uuid)
@@ -359,7 +365,7 @@ def generate_frames(camera_uuid: str):
 			yield frame_data
 	# pylint: disable=E1101
 	except Exception as e:
-		logger.error("Error in optimized frame generation for camera %s: %s", camera_uuid, e)
+		logger.error("Generate Frames - Error in optimized frame generation for camera %s: %s", camera_uuid, e)
 		try:
 			while True:
 				camera_state = get_camera_state_sync(camera_uuid)

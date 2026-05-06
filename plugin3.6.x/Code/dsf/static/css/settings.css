@@ -7,7 +7,7 @@ body, html {
     position: relative;
     background-color: var(--bg-light);
     justify-content: center;
-    align-items: left;
+    align-items: flex-start;
     min-height: 100vh;
 }
 
@@ -69,10 +69,6 @@ body, html {
     border: 2px dotted var(--text-primary);
 }
 
-#camera-list-container.grid-item {
-    justify-content: flex-start;
-    align-items: flex-start;
-}
 
 #cameraList {
     list-style-type: none;
@@ -85,72 +81,53 @@ body, html {
 
 .camera-item {
     display: flex;
-    justify-content: space-between;
+    justify-content: space-between; /* pushes button right */
     align-items: center;
-    border: 2px dotted var(--text-primary);
-    padding: var(--spacing-md);
-    margin-bottom: var(--spacing-sm);
-    box-sizing: border-box;
-    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
-    cursor: pointer;
-    position: relative;
 }
 
-.camera-item:hover {
-    background-color: var(--background-tertiary);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.camera-item:last-child {
-    margin-bottom: 0;
-}
-
-.camera-item.selected {
-    border-color: #3b82f6;
-    background-color: rgba(59, 130, 246, 0.1);
-}
-
-.camera-item .remove-camera-btn {
-    background-color: #ff4d4d;
-    color: white;
-    border: none;
-    width:20%;
-    height: 100%;
+.camera-text-content {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    font-weight: bold;
-    position: absolute;
-    top: 0;
-    right: 0;
-    opacity: 1;
-    transition: opacity 0.1s ease-in-out;
-    border-radius: 0;
+    flex-direction: column; /* stack nickname + source */
 }
 
-.camera-item:hover .remove-camera-btn {
-    opacity: 1;
+.camera-header {
+    display: flex;
+    flex-direction: column; /* ensures vertical stacking */
+}
+
+.remove-camera-btn {
+    flex-shrink: 0; /* prevents squishing */
+    margin-left: var(--spacing-md);
+    background-color: transparent;
+    color: var(--color-danger, #ef4444);
+    border: 2px solid var(--color-danger, #ef4444);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-small);
+    cursor: pointer;
+    transition: var(--transition-fast);
+    font-family: var(--font-family);
 }
 
 .camera-text-content {
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    margin-right: var(--spacing-sm);
-    transition: margin-right 0.1s ease-in-out;
+    gap: 10px; /* space between header and button */
 }
 
-.camera-item:hover .camera-text-content {
-    margin-right: 5%;
-}
 
-.camera-text-content span {
-    margin-bottom: var(--spacing-xs);
-}
-
-.camera-text-content span:last-child {
+.camera-item:last-child {
     margin-bottom: 0;
+}
+
+.camera-item:hover {
+    border-color: #3b82f6;
+    background-color: rgba(24, 81, 172, 0.1);
+}
+
+
+.camera-item.selected{
+    border-color: #3b82f6;
+    background-color: rgba(24, 81, 172, 0.1);
 }
 
 .camera-video-preview {
@@ -235,10 +212,6 @@ body, html {
     background: var(--text-primary);
 }
 
-.camera-header {
-    display: flex;
-    align-items: center;
-}
 
 .camera-status {
     font-size: var(--font-size-sm);
@@ -774,14 +747,6 @@ input[type="range"]::-moz-range-thumb {
         display: none;
     }
 
-    #camera-list-container.grid-item {
-        order: 2;
-        height: 20vh;
-        max-height: 20vh;
-        overflow-y: auto;
-        flex-shrink: 0;
-        flex-grow: 0;
-    }
 
     .grid-item:nth-child(2) {
         order: 3;

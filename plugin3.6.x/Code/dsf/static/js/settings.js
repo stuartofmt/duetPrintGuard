@@ -15,7 +15,8 @@ let cameraUUID;
 
 const camVideoPreview = document.getElementById('videoPreview');
 const loadingOverlay = document.getElementById('loadingOverlay');
-//const cameraItems = document.querySelectorAll('.camera-item');
+//const cameraItems = document.querySelectorAll('.camera-items');
+
 const settingsCameraUUID = document.getElementById('camera_uuid');
 const settingsSensitivity = document.getElementById('sensitivity');
 const settingsSensitivityLabel = document.getElementById('sensitivity_val');
@@ -55,26 +56,40 @@ console.warn('Fetching camera list');
 	if (!res.ok) return [];
 	const data = await res.json();
 	console.warn('Camera list response:', data.camera_list);
-	return data.camera_list || [];
+	return data.camera_list || {}; // Expecting an object with camera UUIDs as keys and their details as values
   } catch {
-	return [];
+	return {};
   }
 }
 
 
-function createDisplayItem(camId) {
+function createDisplayItem(camId, nickname, source) {
   console.warn('Creating display item for camera:', camId);
+
   const row = document.createElement("div");
   row.className = "camera-row";
 
-  // Card
+  // Clone template
   const camFrag = camTemplate.content.cloneNode(true);
   const card = camFrag.firstElementChild;
+
+  // Attach camera id
   card.dataset.cameraId = camId;
-  
+
+  // 🔑 Update template content
+  const nicknameEl = camFrag.querySelector('.nickname');
+  const sourceEl = camFrag.querySelector('.source');
+
+  if (nicknameEl) nicknameEl.textContent = nickname;
+  if (sourceEl) sourceEl.textContent = source;
+
+  // Append to row
   row.appendChild(card);
 
-  document.getElementById("grid").appendChild(row);
+  // Append to grid
+  const newRow = document.getElementById("grid").appendChild(row);
+
+  return newRow;
 
   //SRS update item display
 
@@ -107,24 +122,43 @@ function createDisplayItem(camId) {
   }
 	*/
 
+
 	//create a row for each camera
-	cameras.forEach(createDisplayItem);
+	Object.keys(cameras).forEach(camera_uuid => {
+  		console.log(camera_uuid, cameras[camera_uuid]);
+		const item = createDisplayItem(camera_uuid, cameras[camera_uuid].nickname, cameras[camera_uuid].source);
+		addListenerToDisplayItem(item, camera_uuid);
+		});
+
 
 	//Get a list of all camera rows
-	cameraItems = document.querySelectorAll('.camera-item');
+	cameraItems = document.querySelectorAll('.camera-items');
+	console.warn('Num of camera items ', cameraItems.length)
 
-	addListenersToCameraItems(); // uses cameraItems
+	; // uses cameraItems
+
+	if (cameraItems.length > 0) {
+		const cameraId = cameraItems[0].dataset.cameraId;
+		if (cameraId) {
+			console.warn('clicked ', cameraId)
+			cameraItems[0].click();
+		}
+	}else {
+			if (addCameraModalOverlay) {
+				addCameraModalOverlay.style.display = 'flex';
+			}
+	}
 
 	//update_cameras();  // uses cameraItems
 
 })();
 
+
 // Update each camera item with the latest data
-function update_cameras () {
+function xupdate_cameras () {
 	cameraItems.forEach(item => {
 		const camId = item.dataset.cameraId;
 		fetchAndUpdateCameraSettings(camId);
-		//updateDisplayItem(item,camId);
 	});
 }
 
@@ -142,7 +176,9 @@ camVideoPreview.onerror = () => {
 
 function changeLiveCameraFeed(cameraUUID) {
 	loadingOverlay.style.display = 'flex';
-	camVideoPreview.src = `/camera/feed/${cameraUUID}`;
+	camVideoPreview.src = `/camera/snapshot/${cameraUUID}`;
+	//SRS
+	//camVideoPreview.src = `/camera/feed/${cameraUUID}`;
 }
 
 function initializeCountdownSettings(d) {
@@ -207,19 +243,20 @@ function removeCamera(cameraUUID) {
 		return response.json();
 	})
 	.then(() => {
-		const cameraItem = document.querySelector(`.camera-item[data-camera-id="${cameraUUID}"]`);
+		const cameraItem = document.querySelector(`.camera-items[data-camera-id="${cameraUUID}"]`);
 		if (cameraItem) {
 			cameraItem.remove();
 		}
+		// If deleted camera is current camera
 		if (window.cameraUUID === cameraUUID) {
-			const firstCamera = document.querySelector('.camera-item');
+			const firstCamera = document.querySelector('.camera-items');
 			if (firstCamera) {
 				firstCamera.click();
 			} else {
 				window.location.reload();
 			}
 		}
-		const remainingCameras = document.querySelectorAll('.camera-item');
+		const remainingCameras = document.querySelectorAll('.camera-items');
 		if (remainingCameras.length === 0) {
 			if (addCameraModalOverlay) {
 				addCameraModalOverlay.style.display = 'flex';
@@ -232,13 +269,14 @@ function removeCamera(cameraUUID) {
 	});
 }
 
+
 function fetchAndUpdateCameraSettings(cameraUUID) {
 	console.warn('Fetching metrics for camera:', cameraUUID);
 	if (!cameraUUID) {
 		console.warn('Cannot fetch metrics: invalid camera UUID provided:', cameraUUID);
 		return;
 	}
-	fetch(`/config/get-camera-settings`, {
+	fetch(`/config/get-camera-setting`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({ camera_uuid: cameraUUID })
@@ -333,45 +371,41 @@ function xgetCameraState(cameraUUID) {
 	});
 }
 
-function addListenersToCameraItems() {
-	cameraItems.forEach(item => {
-		item.addEventListener('click', function() {
-			//toggle the selection
-			cameraItems.forEach(i => i.classList.remove('selected'));
-			this.classList.add('selected');
+function addListenerToDisplayItem(item, cameraId) {
+	item.addEventListener('click', function() {
+		//toggle the selection
+		cameraItems.forEach(i => i.classList.remove('selected'));
+		this.classList.add('selected');
 
-			//now update the display
-			const cameraId = this.dataset.cameraId;
-			if (cameraId) {
-				cameraUUID = cameraId;
-				//const nickname = this.querySelector('.camera-header span:first-child').textContent;
-				changeLiveCameraFeed(cameraId);
-				settingsCameraUUID.value = cameraId; // set the uuid that settings form relates to
-				fetchAndUpdateCameraSettings(cameraId);
-			} else {
-				console.warn('No camera ID found for selected item');
-				cameraUUID = null;
-				settingsCameraUUID.value = '';
-			}
-		//submitControlForm(); //forces both cameras to same control settings when new camera added
-		});
-	
-		const removeButton = item.querySelector('.remove-camera-btn');
-		removeButton.addEventListener('click', function(event) {
-			event.stopPropagation();
-			const cameraId = item.dataset.cameraId;
-			removeCamera(cameraId);
-		});
+		//now update the display
+		cameraUUID = cameraId; // Global identifier for currently selected camera
+
+		settingsCameraUUID.value = cameraId; // set the form uuid to report the current camera
+		fetchAndUpdateCameraSettings(cameraId);
+		//SRS
+		//const nickname = this.querySelector('.camera-header span:first-child').textContent;
+		//changeLiveCameraFeed(nickname);
+		changeLiveCameraFeed(cameraId);
 	});
+	
+	const removeButton = item.querySelector('.remove-camera-btn');
+	removeButton.addEventListener('click', function(event) {
+		event.stopPropagation();
+		const cameraId = item.dataset.cameraId;
+		removeCamera(cameraId);
+	});
+
 }
 
 
 document.addEventListener('DOMContentLoaded', function() {
+	/*
 	console.warn('DOM' , cameraItems.length);
 	
 	if (cameraItems.length > 0) {
 		const cameraId = cameraItems[0].dataset.cameraId;
 		if (cameraId) {
+			console.warn('clicked ', cameraID)
 			cameraItems[0].click();
 		}
 	}else {
@@ -379,6 +413,7 @@ document.addEventListener('DOMContentLoaded', function() {
 				addCameraModalOverlay.style.display = 'flex';
 			}
 		}
+	*/
 });
 
 addCameraBtn?.addEventListener('click', function(e) {

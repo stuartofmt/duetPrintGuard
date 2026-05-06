@@ -8,7 +8,7 @@ from fastapi.responses import RedirectResponse
 from utils.config import (STREAM_MAX_FPS,
 							STREAM_JPEG_QUALITY, STREAM_MAX_WIDTH,
 							MIN_SSE_DISPATCH_DELAY_MS,
-							COUNTDOWN_TIME, COUNTDOWN_ACTION, COUNTDOWN_CONTROL,
+							COUNTDOWN_TIME, COUNTDOWN_ACTION, COUNTDOWN_CONTROL,CAMERA_SETTINGS,
 							update_config, get_config, reset_all)
 from utils.camera_utils import update_camera_state
 from utils.camera_state_manager import get_camera_state_manager
@@ -29,21 +29,27 @@ async def serve_index(request: Request):
 	"""
 	# pylint: disable=import-outside-toplevel
 	from app import templates
-	camera_state_manager = get_camera_state_manager()
-	camera_uuids = await camera_state_manager.get_all_camera_uuids()
-	if not camera_uuids:
+	#camera_state_manager = get_camera_state_manager()
+	#camera_uuids = await camera_state_manager.get_all_camera_uuids()
+	print(f'HERE BE CAMERAS {CAMERA_SETTINGS}')
+	if len(CAMERA_SETTINGS) <= 0:
 		logger.warning("No camera UUIDs found, attempting to initialize cameras...")
 		#SRS - Assume startup or bad state - reset all keys config etc
-		reset_all()
+		#reset_all()
 		#camera_uuids = await camera_state_manager.get_all_camera_uuids()
-	camera_states = {}
-	for cam_uuid in camera_uuids:
-		camera_states[cam_uuid] = await camera_state_manager.get_camera_state(cam_uuid)
+	#camera_states = {}
+	#for cam_uuid in camera_uuids:
+		#camera_states[cam_uuid] = await camera_state_manager.get_camera_state(cam_uuid)
+	return templates.TemplateResponse("settings.html", {
+		"request": request
+	})
+	'''
 	return templates.TemplateResponse("settings.html", {
 		"camera_states": camera_states,
 		"request": request,
 		"current_time": time.time(),
 	})
+	'''
 
 # pylint: disable=unused-argument
 @router.post("/settings/save-settings", include_in_schema=False)

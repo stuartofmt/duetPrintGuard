@@ -6,7 +6,9 @@ import cv2  # pylint: disable=E0401
 from fastapi import APIRouter, Body, HTTPException, Request
 from fastapi.responses import StreamingResponse, Response
 
-from utils.camera_utils import (add_camera, find_available_serial_cameras,
+#from utils.camera_utils import (add_camera, find_available_serial_cameras,
+#                                  get_camera_state)
+from utils.camera_utils import (find_available_serial_cameras,
                                   get_camera_state)
 from utils.camera_utils import remove_camera as remove_camera_util
 from utils.shared_video_stream import get_shared_stream_manager
@@ -63,18 +65,22 @@ async def camera_snapshot(camera_uuid: str):
 
     try:
         # 🔥 YOU MUST GET SOURCE HERE
-        camera_state = await get_camera_state(camera_uuid)
-        source = camera_state.source   # ← adjust if different field name
+        # camera_state = await get_camera_state(camera_uuid)
+        # source = camera_state.source   # ← adjust if different field name
+        # SRS
+        source = CAMERA_SETTINGS.get(camera_uuid, {}).get('source')
 
         # ✅ NOW create stream correctly
         stream = manager.get_stream(camera_uuid, source)
 
         # Wait for frame
-        max_wait = 20
-        wait_count = 0
-        while not stream.is_frame_available() and wait_count < max_wait:
-            time.sleep(0.05)
-            wait_count += 1
+        max_wait_time = 10  # seconds
+        sleep_time = 0.5  # seconds between checks
+        elapsed_time = 0 # seconds
+
+        while not stream.is_frame_available() and elapsed_time < max_wait_time:
+            time.sleep(sleep_time)
+            elapsed_time += sleep_time
 
         if not stream.is_frame_available():
             raise HTTPException(status_code=404, detail="No frame available")
@@ -101,11 +107,14 @@ async def add_camera_ep(request: Request):
     '''SRS What happens here ??'''
     camera = await add_camera(source=source, nickname=nickname)
     # Initialize camera settings with defaults
-    update_config({'camera_settings': {camera['camera_uuid']: {
-        "nickname": camera['nickname'],
-        "source": camera['source'],
-        **DEFAULT_CAMERA_SETTINGS
-	}}})
+    update_config({'camera_settings':
+                   {camera['camera_uuid']: {
+                    "nickname": camera['nickname'],
+                    "source": camera['source'],
+                    **DEFAULT_CAMERA_SETTINGS
+	                }}
+                }
+                )
 
     return {"camera_uuid": camera['camera_uuid'], "nickname": camera['nickname'], "source": camera['source']}
 

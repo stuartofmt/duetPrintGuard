@@ -9,9 +9,10 @@ import cv2
 
 from models import CameraState
 from .camera_state_manager import get_camera_state_manager
+from .config import CAMERA_SETTINGS
 
 
-async def add_camera(source, nickname):
+async def xadd_camera(source, nickname):
     """
     Adds a new camera, assigns a UUID, and stores it.
 
@@ -138,6 +139,9 @@ def get_camera_state_sync(camera_uuid, reset=False):
     Returns:
         CameraState: The state of the camera.
     """
+    # SRS
+    logger.debug("Attempting synchronous access for camera state with UUID: %s", camera_uuid)
+    return CAMERA_SETTINGS[camera_uuid]
     try:
         try:
             asyncio.get_running_loop()

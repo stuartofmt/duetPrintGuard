@@ -180,14 +180,15 @@ def update_config(updates: dict):
 
 		if updates.get("camera_settings") is not None or "camera_settings" in updates:
 			for camera_uuid, settings in updates['camera_settings'].items():
-				#values = {}
-				for key, value in settings.items():
-						if key in PERSISTED_CAMERA_SETTINGS:
-							if camera_uuid not in config.get('camera_settings', {}):
-								config.setdefault('camera_settings', {})[camera_uuid] = {}
-								CAMERA_SETTINGS[camera_uuid] = {}
-							config['camera_settings'][camera_uuid][key] = value
-							CAMERA_SETTINGS[camera_uuid][key] = value
+				if camera_uuid not in config['camera_settings']:
+					config['camera_settings'][camera_uuid] = {}
+					CAMERA_SETTINGS[camera_uuid] = {}
+				for setting_type, value in settings.items():
+						if setting_type in PERSISTED_CAMERA_SETTINGS:					
+							config['camera_settings'][camera_uuid][setting_type] = value
+							CAMERA_SETTINGS[camera_uuid][setting_type] = value
+
+				print(f'{config['camera_settings'][camera_uuid]=}')
 
 		if updates.get("camera_states") is not None or "camera_states" in updates:
 			for camera_uuid, settings in updates['camera_states'].items():
@@ -204,13 +205,14 @@ def update_config(updates: dict):
 		# release_lock()
 
 def init_config():
-	global CAMERA_STATES
+	global CAMERA_STATES, CAMERA_SETTINGS, COUNTDOWN_SETTINGS
 	"""Initialize the configuration file with default keys if missing.
 	
 	Checks if the config file exists and has the correct version.
 	also checks if cameras have been defined
 	If not creates `config.json` with defaults .
 	"""
+
 	try:
 		config_needs_reset = False
 		if os.path.exists(CONFIG_FILE):
@@ -226,7 +228,6 @@ def init_config():
 						"Config version mismatch (config: %s, expected: %s), recreating config",
 						config_version, CONFIG_VERSION)
 					config_needs_reset = True
-
 				if len(existing_config.get('camera_settings')) == 0:
 					logger.info("No cameras defined in config, recreating")
 					config_needs_reset = True
@@ -235,27 +236,27 @@ def init_config():
 				config_needs_reset = True
 		else: # Config file doesn't exist, will be created with defaults
 			config_needs_reset = True
+
 		if config_needs_reset:
 			reset_config()
 	finally:
-		#SRS - on first start of each application run - reset camera startup values
+		#SRS - on first start of each application run - reset globals
 		startup_config = _get_config_nolock()
-		for k, v in startup_config['camera_settings'].items():
-			print(f'{v=}')
-			
-			CAMERA_STATES = {'camera_uuid':v, 'states': {'live_detection_running':False,
-				   			'last_result':None,
-					 		'last_time':None,
-					   		'start_time':None,
-						 	'error':None}}
-			
-			logger.debug(f'{CAMERA_STATES=}')
 
-
+		for camera_uuid,_ in startup_config['camera_settings'].items():
+			CAMERA_STATES[camera_uuid] = {'live_detection_running':False,
+							'last_result':None,
+							'last_time':None,
+							'start_time':None,
+							'error':None}
+				
+		CAMERA_SETTINGS = startup_config['camera_settings']
+		COUNTDOWN_SETTINGS = startup_config['countdown_settings']
+		'''
 		with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
 			json.dump(startup_config, f, indent=2)
-
-		logger.debug('Starting with new configuration')
+		'''
+		logger.debug('Starting with configuration')
 		logger.debug(f'{startup_config=}')
 
 		

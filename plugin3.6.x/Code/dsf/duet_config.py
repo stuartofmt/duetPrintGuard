@@ -34,16 +34,6 @@ def get_DWC_config(file_path,file_name,logger):
         ntfy_section = config_dict["NTFY"]
         pushover_section = config_dict["PUSHOVER"]
 
-        """
-        #Change the keys to UPPER
-        config_dict_duet = {k.upper():v.upper() for k,v in duet_section.items()}
-        config_dict_ui = {k.upper():v.upper() for k,v in ui_section.items()}
-        config_dict_logging = {k.upper():v.upper() for k,v in logging_section.items()}
-        config_dict_action = {k.upper():v.upper() for k,v in action_section.items()}
-        config_dict_macro = {k.upper():v.upper() for k,v in macro_section.items()}
-        config_dict_ntfy = {k.upper():v.upper() for k,v in ntfy_section.items()}
-        config_dict_pushover = {k.upper():v.upper() for k,v in pushover_section.items()}
-        """
         #Change the keys to UPPER
         config_dict_duet = {k.upper():v for k,v in duet_section.items()}
         config_dict_ui = {k.upper():v for k,v in ui_section.items()}
@@ -69,6 +59,11 @@ def get_DWC_config(file_path,file_name,logger):
             sys.exit(1)
         if not hasattr(DUET,'PORT') : DUET.PORT = 80
         if not hasattr(DUET,'PASSWORD') : DUET.PASSWORD = 'reprap'
+        if not hasattr(DUET,'POWERCHECK') : DUET.POWERCHECK = True
+        if DUET.POWERCHECK.lower() in ['true', '1', 't', 'y', 'yes']:
+            DUET.POWERCHECK = True
+        else:
+            DUET.POWERCHECK = False
         DUET.DWC = True
         DUET.FILE_PATH = file_path
 

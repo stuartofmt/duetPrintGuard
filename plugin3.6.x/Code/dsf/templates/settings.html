@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PG Settings</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='css/universal.css') }}">
+    <!--<link rel="stylesheet" href="{{ url_for('static', path='css/universal.css') }}">-->
     <link rel="stylesheet" href="{{ url_for('static', path='css/settings.css') }}">
     <script src="{{ url_for('static', path='js/sse.js') }}" defer></script>
     <script type="module" src="{{ url_for('static', path='js/utils.js') }}" defer></script>
@@ -14,18 +14,20 @@
 </head>
 <body>
     <template id="camera-template">
-        <div class="camera-item" id="camera-list-container">
-            <ul id="cameraList" name="camera">
-                    <li class="camera-items">
-                        <div class="camera-text-content">
-                            <div class="camera-header" style="font-size: large;">
-                                <span class="nickname">TEST WITH</span>
-                                <br>
-                                <span class="source">MORE WORDS</span>
-                            </div>
-                            <button class="remove-camera-btn" title="Remove camera">Remove Camera</button>
+        <div class="camera-items">
+            <ul>
+                <li class="camera-item">
+                    <div class="camera-text-content">
+                        <div class="camera-header" style="font-size: large;">
+                            <span class="nickname">Unknown</span>
+                            <span class="source">Unknown</span>
                         </div>
-                    </li>
+                    </div>
+
+                    <button class="remove-camera-btn" title="Remove camera">
+                        Remove Camera
+                    </button>
+                </li>
             </ul>                             
         </div>
     </template>

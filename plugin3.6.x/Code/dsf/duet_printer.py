@@ -248,7 +248,7 @@ if __name__ == "__main__":    # Test setup
 	logger = set_log_level(LOGGING.LEVEL,logger)
 
 	printerURL = f'http://{DUET.IP}:{DUET.PORT}'
-	
+
 	_loginPrinter(printerURL,DUET.PASSWORD)
 
 	class test:
@@ -266,7 +266,9 @@ else:
 	if _loginPrinter(printerURL,DUET.PASSWORD):
 		logger.info(f'Successful login to printer at {printerURL}')
 	else:
-		logger.critical(f'Failed to login to printer at {printerURL}')
-		sys.exit(1)
+		if DUET.POWERCHECK:
+			logger.critical(f'Failed to login to printer at {printerURL} - check printer is turned on')
+			logger.critical(f'Failed to login to printer at {printerURL}')
+			sys.exit(1)
 
 
