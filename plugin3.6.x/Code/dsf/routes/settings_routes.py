@@ -9,7 +9,7 @@ from utils.config import (STREAM_MAX_FPS,
 							STREAM_JPEG_QUALITY, STREAM_MAX_WIDTH,
 							MIN_SSE_DISPATCH_DELAY_MS,
 							COUNTDOWN_TIME, COUNTDOWN_ACTION, COUNTDOWN_CONTROL,CAMERA_SETTINGS,
-							update_config, get_config, reset_all)
+							add_to_config, get_config, reset_all)
 from utils.camera_utils import update_camera_state
 from utils.camera_state_manager import get_camera_state_manager
 # from utils.stream_utils import stream_optimizer
@@ -91,7 +91,7 @@ async def update_settings(request: Request,
 		"majority_vote_window": majority_vote_window
 	})
 	'''
-	update_config({'camera_settings': {camera_uuid: {
+	add_to_config({'camera_settings': {camera_uuid: {
 		"sensitivity": sensitivity,
 		"brightness": brightness,
 		"contrast": contrast,
@@ -122,7 +122,7 @@ async def update_countdown(request: Request,
 	#for camera_uuid in await get_camera_state_manager().get_all_camera_uuids():
 	#    print(f"Updating countdown settings for camera {camera_uuid}: action={countdown_action}, time={countdown_time}, control={countdown_control}")    
 	#await update_camera_state(camera_uuid, {
-	update_config({'countdown_settings': {
+	add_to_config({'countdown_settings': {
 							"countdown_action": countdown_action,
 							"countdown_time": countdown_time,
 							"countdown_control": countdown_control

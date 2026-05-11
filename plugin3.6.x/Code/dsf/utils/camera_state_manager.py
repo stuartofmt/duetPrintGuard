@@ -3,7 +3,7 @@ from logger_module import logger
 from typing import Dict, Optional
 from pydantic import ValidationError
 from models import CameraState
-from .config import get_config, update_config, SavedConfig
+from .config import get_config, add_to_config, SavedConfig
 
 
 class CameraStateManager:
@@ -52,7 +52,7 @@ class CameraStateManager:
                 if 'detection_history' in state_dict and len(state_dict['detection_history']) > 1000:
                     state_dict['detection_history'] = state_dict['detection_history'][-1000:]
                 states_data[camera_uuid] = state_dict
-            update_config({SavedConfig.CAMERA_STATES: states_data})
+            add_to_config({SavedConfig.CAMERA_STATES: states_data})
         except Exception as e:
             logger.error("Failed to save camera states to config: %s", e)
 

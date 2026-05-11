@@ -2,9 +2,9 @@ from logger_module import logger
 import time
 import uuid
 
-from fastapi import APIRouter, Body, HTTPException, Request
+from fastapi import APIRouter, Body, HTTPException, Request, Form
 
-from utils.config import CAMERA_SETTINGS, DEFAULT_CAMERA_SETTINGS, CAMERA_STATES, update_config
+from utils.config import CAMERA_SETTINGS, DEFAULT_CAMERA_SETTINGS, CAMERA_STATES, COUNTDOWN_SETTINGS,add_to_config, delete_from_config, get_config
 from utils.config import (STREAM_MAX_FPS,
                             STREAM_JPEG_QUALITY, STREAM_MAX_WIDTH,
                             DETECTION_INTERVAL_MS,
@@ -28,7 +28,7 @@ async def add_camera_ep(request: Request):
     #camera = await add_camera(source=source, nickname=nickname)
     camera_uuid = str(uuid.uuid4()) 
     # Initialize camera settings with defaults
-    update_config({'camera_settings': {camera_uuid: {
+    add_to_config({'camera_settings': {camera_uuid: {
         "nickname": nickname,
         "source": source,
         **DEFAULT_CAMERA_SETTINGS
@@ -42,12 +42,16 @@ async def remove_camera_ep(request: Request):
     """Remove a camera."""
     data = await request.json()
     camera_uuid = data.get('camera_uuid')
-    if not camera_uuid:
+    if not camera_uuid or not camera_uuid in CAMERA_SETTINGS:
         raise HTTPException(status_code=400, detail="Missing camera_uuid.")
-    success = await remove_camera_util(camera_uuid)
-    if not success:
+    try:
+        delete_from_config({'camera_settings': camera_uuid})
+        if camera_uuid in CAMERA_STATES: # My not have been running yet, but if it is we need to remove the state as well
+            delete_from_config({'camera_states': camera_uuid})
+        return {"success": True}
+    except KeyError:
         raise HTTPException(status_code=404, detail="Camera not found.")
-    return {"message": "Camera removed successfully."}
+        return {"success": False}
 
 
 @router.get("/config/get-camera-list", include_in_schema=False)
@@ -125,29 +129,17 @@ async def get_countdown_settings():
     Raises:
         HTTPException: If loading settings fails due to configuration errors.
     """
-    try:
-        config = get_config()
-        config = config.get(SavedConfig.COUNTDOWN, {})
 
-        # pylint:disable=import-outside-toplevel
-
-        
-        countdown = {
-            SavedConfig.COUNTDOWN_ACTION.value: config.get(SavedConfig.COUNTDOWN_ACTION, COUNTDOWN_ACTION),
-            SavedConfig.COUNTDOWN_TIME.value: config.get(SavedConfig.COUNTDOWN_TIME, COUNTDOWN_TIME),
-            SavedConfig.COUNTDOWN_CONTROL.value: config.get(SavedConfig.COUNTDOWN_CONTROL, COUNTDOWN_CONTROL)
+    return {"success": True,
+            "countdown_settings": {'countdown_action': COUNTDOWN_SETTINGS.get('countdown_action'),
+                                'countdown_time': COUNTDOWN_SETTINGS.get('countdown_time'),
+                                'countdown_control': COUNTDOWN_SETTINGS.get('countdown_control')
+                                }
         }
-        print(countdown)
-        return {"success": True, "countdown": countdown}
-    except Exception as e:
-        logger.error("Error loading countdown settings: %s", e)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to load countdown settings: {str(e)}"
-        )
+
     
 #SRS Unused for now - may want to add back in later if we want a non js way to update these settings    
-@router.post("/config/save-countdown-settings ", include_in_schema=False)
+@router.post("/xconfig/save-countdown-settings ", include_in_schema=False)
 async def save_countdown_settings(settings: CountdownSettings):
     """Save countdown settings to configuration.
 
@@ -161,15 +153,14 @@ async def save_countdown_settings(settings: CountdownSettings):
         HTTPException: If saving fails due to validation or storage errors.
     """
     try:
-        config_data = {
-            SavedConfig.COUNTDOWN: {
-                SavedConfig.COUNTDOWN_ACTION: settings.countdown_action,
-                SavedConfig.COUNTDOWN_TIME: settings.countdown_time,
-                SavedConfig.COUNTDOWN_CONTROL: settings.countdown_control
+        add_to_config({
+            'countdown_settings': {
+                'countdown_action': settings.countdown_action,
+                'countdown_time': settings.countdown_time,
+                'countdown_control': settings.countdown_control
             }
-        }
-        update_config(config_data)
-        #ream_optimizer.invalidate_cache()
+        })
+        #Stream_optimizer.invalidate_cache()
         logger.debug("Countdown settings saved successfully.")
         return {"success": True, "message": "Countdown settings saved successfully."}
     except Exception as e:
@@ -178,6 +169,7 @@ async def save_countdown_settings(settings: CountdownSettings):
             status_code=500,
             detail=f"Failed to save countdown settings: {str(e)}"
         )
+        return {"success": False}
 
 
 @router.post("/config/get-camera-setting", include_in_schema=False)
@@ -196,3 +188,27 @@ async def get_camera_state(request: Request, camera_uuid: str = Body(..., embed=
     camera_state = CAMERA_STATES[camera_uuid]
 
     return camera_state
+
+@router.post("/config/update-countdown", include_in_schema=False)
+async def update_countdown(request: Request,
+							countdown_action: str = Form(...),
+							countdown_time: int = Form(...),
+							countdown_control: str = Form(...)
+						  ):
+	"""Update camera settings and detection parameters.
+
+	Args:
+		request (Request): The FastAPI request object.
+		majority_vote_threshold (int): Number of detections needed for majority vote.
+		majority_vote_window (int): Time window for majority vote calculation.
+
+	Returns:
+		RedirectResponse: Redirect to the main index page.
+	"""
+	print(f"Received countdown settings update: action={countdown_action}, time={countdown_time}, control={countdown_control}")     
+
+	add_to_config({'countdown_settings': {
+							"countdown_action": countdown_action,
+							"countdown_time": countdown_time,
+							"countdown_control": countdown_control
+							}})

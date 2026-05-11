@@ -8,7 +8,7 @@ from fastapi.responses import RedirectResponse
 from utils.config import (STREAM_MAX_FPS,
                             STREAM_JPEG_QUALITY, STREAM_MAX_WIDTH,
                             DETECTION_INTERVAL_MS,
-                            update_config, get_config)
+                            add_to_config, get_config)
 from utils.camera_utils import update_camera_state
 from utils.camera_state_manager import get_camera_state_manager
 from utils.stream_utils import stream_optimizer

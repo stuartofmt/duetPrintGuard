@@ -141,7 +141,7 @@ def get_config():
 	finally:
 		release_lock()
 
-def update_config(updates: dict):
+def add_to_config(updates: dict):
 	"""Thread-safe update of configuration values in the config file.
 
 	Args:

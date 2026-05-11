@@ -14,7 +14,7 @@ from utils.camera_utils import remove_camera as remove_camera_util
 from utils.shared_video_stream import get_shared_stream_manager
 from utils.stream_utils import generate_frames
 from utils.camera_state_manager import get_camera_state_manager
-from utils.config import CAMERA_SETTINGS,DEFAULT_CAMERA_SETTINGS,update_config
+from utils.config import CAMERA_SETTINGS, DEFAULT_CAMERA_SETTINGS, add_to_config
 
 router = APIRouter()
 
@@ -107,7 +107,7 @@ async def add_camera_ep(request: Request):
     '''SRS What happens here ??'''
     camera = await add_camera(source=source, nickname=nickname)
     # Initialize camera settings with defaults
-    update_config({'camera_settings':
+    add_to_config({'camera_settings':
                    {camera['camera_uuid']: {
                     "nickname": camera['nickname'],
                     "source": camera['source'],
@@ -139,28 +139,23 @@ async def get_serial_devices_ep():
     return devices
 
 
-def generate_preview_frames(source: str):
+def generate_preview_frames(source: str, preview_uuid: str):
     """Generate frames for camera preview using shared video stream.
     """
-    preview_uuid = f"preview_{uuid.uuid4()}"
     manager = get_shared_stream_manager()
     try:
         stream = manager.get_stream(preview_uuid, source)
-        max_wait = 50
-        wait_count = 0
-        while not stream.is_frame_available() and wait_count < max_wait:
-            time.sleep(0.1)
-            wait_count += 1
-        if not stream.is_frame_available():
-            logger.error("Failed to get initial frame from source: %s", source)
-            return
         while True:
             frame = stream.get_frame()
             if frame is None:
                 logger.warning("Failed to get frame from source: %s", source)
                 time.sleep(0.1)
                 continue
-            _, buffer = cv2.imencode('.jpg', frame)
+            success, buffer = cv2.imencode('.jpg', frame)
+            if not success or buffer is None or len(buffer) == 0:
+                logger.warning("Invalid encoded frame from source: %s", source)
+                time.sleep(0.1)
+                continue
             frame_bytes = buffer.tobytes()
             yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
             time.sleep(0.2)
@@ -177,7 +172,24 @@ def generate_preview_frames(source: str):
 async def camera_preview(source: str):
     """Stream live camera preview for a specific source without registration.
     """
-    return StreamingResponse(generate_preview_frames(source),
+    if not source or not source.strip():
+        raise HTTPException(status_code=400, detail="Missing preview source")
+
+    preview_uuid = f"preview_{uuid.uuid4()}"
+    manager = get_shared_stream_manager()
+    stream = manager.get_stream(preview_uuid, source)
+
+    max_wait = 50
+    wait_count = 0
+    while not stream.is_frame_available() and wait_count < max_wait:
+        time.sleep(0.1)
+        wait_count += 1
+
+    if not stream.is_frame_available():
+        manager.release_stream(preview_uuid)
+        raise HTTPException(status_code=504, detail="Preview stream failed to start")
+
+    return StreamingResponse(generate_preview_frames(source, preview_uuid),
                              media_type='multipart/x-mixed-replace; boundary=frame')
 
 @router.get("/camera/cameralist", include_in_schema=False)

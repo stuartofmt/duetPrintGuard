@@ -21,7 +21,7 @@ from duet_config import DUET
 
 # Config version - increment this when the config structure changes
 # SRS reduced config to just camera states
-CONFIG_VERSION = "2.0.1"
+CONFIG_VERSION = "2.0.0"
 
 '''
 Refactored so that only minimal camera info is persisted in the config file
@@ -158,27 +158,24 @@ def get_config():
 	finally:
 		release_lock()
 
-def update_config(updates: dict):
+def add_to_config(updates: dict):
 	global CAMERA_SETTINGS, COUNTDOWN_SETTINGS, CAMERA_STATES
 	"""Thread-safe update of configuration values in the config file.
 
 	Args:
 		updates (dict): A mapping of config keys to their new values.
 	"""
-	# ???
-	#SavedConfig.COUNTDOWN: {SavedConfig.COUNTDOWN_ACTION: COUNTDOWN_ACTION, SavedConfig.COUNTDOWN_TIME: COUNTDOWN_TIME, SavedConfig.COUNTDOWN_CONDITION: COUNTDOWN_CONDITION},		
 
-
-	#acquire_lock()
-
-	# updates = {k: v for k, v in updates.items() if k in CAMERA_SETTINGS_KEYS}
-	update_config = {}
 	config = _get_config_nolock() or {}
 	try:
 		if updates.get("countdown_settings") is not None or "countdown_settings" in updates:
+			# Countdown settings are all persisted together so we can just update the whole section if any of the settings are included in the request. This allows for partial updates without needing to resend all settings, but also ensures that the persisted config is always complete for countdown settings.
 			config['countdown_settings'] = updates['countdown_settings']
+			COUNTDOWN_SETTINGS.clear()
+			COUNTDOWN_SETTINGS.update(updates['countdown_settings'])
 
-		if updates.get("camera_settings") is not None or "camera_settings" in updates:
+		elif updates.get("camera_settings") is not None or "camera_settings" in updates:
+			# We want to allow partial updates to camera settings so we loop through the provided settings and only update the ones that are included in the request. This allows the frontend to send only the settings that were changed without needing to resend all settings for a camera.
 			for camera_uuid, settings in updates['camera_settings'].items():
 				if camera_uuid not in config['camera_settings']:
 					config['camera_settings'][camera_uuid] = {}
@@ -190,7 +187,8 @@ def update_config(updates: dict):
 
 				print(f'{config['camera_settings'][camera_uuid]=}')
 
-		if updates.get("camera_states") is not None or "camera_states" in updates:
+		elif updates.get("camera_states") is not None or "camera_states" in updates:
+			# CAMERA_STATES are not persisted to config file but we want to validate the keys here and update the in memory state
 			for camera_uuid, settings in updates['camera_states'].items():
 				for key, value in settings.items():
 						if key in ALLOWED_CAMERA_STATES:
@@ -202,7 +200,33 @@ def update_config(updates: dict):
 			json.dump(config, f, indent=2)
 	finally:
 		logger.debug(f'{config=}')
-		# release_lock()
+
+def delete_from_config(updates: dict):
+	global CAMERA_SETTINGS, CAMERA_STATES
+	"""remove configuration from the config file for the specified camera.
+
+	Args:
+		updates (dict): A mapping of config keys to their new values.
+	"""
+
+	config = _get_config_nolock() or {}
+	try:
+		if updates.get("camera_settings") is not None or "camera_settings" in updates:
+			# camera settings are persisted in config file so we need to remove the entry for the specified camera and then rewrite the config file.
+			# We also remove it from the in memory CAMERA_SETTINGS so that it is consistent with what is persisted.
+			config['camera_settings'].pop(updates['camera_settings'], None)
+			CAMERA_SETTINGS.pop(updates['camera_settings'], None)
+			print(f'{config['camera_settings']=}')
+			with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
+				json.dump(config, f, indent=2)
+
+		if updates.get("camera_states") is not None or "camera_states" in updates:
+			# CAMERA_STATES are not persisted to config file
+			CAMERA_STATES.pop(updates['camera_states'], None)
+
+	finally:
+		logger.debug(f'{config=}')
+
 
 def init_config():
 	global CAMERA_STATES, CAMERA_SETTINGS, COUNTDOWN_SETTINGS
@@ -228,8 +252,9 @@ def init_config():
 						"Config version mismatch (config: %s, expected: %s), recreating config",
 						config_version, CONFIG_VERSION)
 					config_needs_reset = True
-				if len(existing_config.get('camera_settings')) == 0:
-					logger.info("No cameras defined in config, recreating")
+
+				if 'countdown_settings' not in existing_config: # Should be there after first successful setup but just in case
+					logger.info("No settings in config, recreating")
 					config_needs_reset = True
 			except Exception as e:
 				logger.warning("Error reading config file: %s, recreating", e)
@@ -241,25 +266,23 @@ def init_config():
 			reset_config()
 	finally:
 		#SRS - on first start of each application run - reset globals
-		startup_config = _get_config_nolock()
 
-		for camera_uuid,_ in startup_config['camera_settings'].items():
+		startup_config = _get_config_nolock()
+		CAMERA_SETTINGS = startup_config.get('camera_settings', {})
+		countdown_settings = startup_config.get('countdown_settings')
+		if countdown_settings is not None:
+			COUNTDOWN_SETTINGS.clear()
+			COUNTDOWN_SETTINGS.update(countdown_settings)
+		for camera_uuid,_ in CAMERA_SETTINGS.items():
 			CAMERA_STATES[camera_uuid] = {'live_detection_running':False,
 							'last_result':None,
 							'last_time':None,
 							'start_time':None,
 							'error':None}
 				
-		CAMERA_SETTINGS = startup_config['camera_settings']
-		COUNTDOWN_SETTINGS = startup_config['countdown_settings']
-		'''
-		with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
-			json.dump(startup_config, f, indent=2)
-		'''
 		logger.debug('Starting with configuration')
 		logger.debug(f'{startup_config=}')
 
-		
 
 def reset_config():
 	"""Reset the configuration file to default values.

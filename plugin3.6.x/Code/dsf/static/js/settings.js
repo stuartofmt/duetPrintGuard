@@ -73,8 +73,8 @@ function createDisplayItem(camId, nickname, source) {
   const camFrag = camTemplate.content.cloneNode(true);
   const card = camFrag.firstElementChild;
 
-  // Attach camera id
-  card.dataset.cameraId = camId;
+  // Attach camera id to the camera row wrapper
+  row.dataset.cameraId = camId;
 
   // 🔑 Update template content
   const nicknameEl = camFrag.querySelector('.nickname');
@@ -87,9 +87,9 @@ function createDisplayItem(camId, nickname, source) {
   row.appendChild(card);
 
   // Append to grid
-  const newRow = document.getElementById("grid").appendChild(row);
+  document.getElementById("grid").appendChild(row);
 
-  return newRow;
+  return row;
 }
 
 
@@ -115,9 +115,20 @@ function createDisplayItem(camId, nickname, source) {
 		addListenerToDisplayItem(item, camera_uuid);
 		});
 
+	// Initialize the countdown Settings
+	let countdownSettingsResponse = await fetch('/config/get-countdown-settings').then(res => res.ok ? res.json() : null);
+	let countdownSettings = countdownSettingsResponse ? countdownSettingsResponse.countdown_settings : null;
+	console.warn('Countdown settings:', countdownSettings);
+	if (countdownSettings) {
+		settingsCountdownAction.value = countdownSettings.countdown_action || 'none';
+		settingsCountdownTime.value = countdownSettings.countdown_time || 0;
+		updateSliderFill(settingsCountdownTime);
+		settingsCountdownControl.value = countdownSettings.countdown_control || 'none';
+	}
+	
 
 	//Get a list of all camera rows
-	cameraItems = document.querySelectorAll('.camera-items');
+	cameraItems = document.querySelectorAll('.camera-row');
 	console.warn('Num of camera items ', cameraItems.length)
 
 	if (cameraItems.length > 0) {
@@ -132,7 +143,6 @@ function createDisplayItem(camId, nickname, source) {
 			}
 	}
 
-	//update_cameras();  // uses cameraItems
 
 })();
 
@@ -201,21 +211,22 @@ function removeCamera(cameraUUID) {
 		}
 		return response.json();
 	})
+
 	.then(() => {
-		const cameraItem = document.querySelector(`.camera-items[data-camera-id="${cameraUUID}"]`);
+		const cameraItem = document.querySelector(`.camera-row[data-camera-id="${cameraUUID}"]`);
 		if (cameraItem) {
 			cameraItem.remove();
 		}
 		// If deleted camera is current camera
 		if (window.cameraUUID === cameraUUID) {
-			const firstCamera = document.querySelector('.camera-items');
+			const firstCamera = document.querySelector('.camera-row');
 			if (firstCamera) {
 				firstCamera.click();
 			} else {
 				window.location.reload();
 			}
 		}
-		const remainingCameras = document.querySelectorAll('.camera-items');
+		const remainingCameras = document.querySelectorAll('.camera-row');
 		if (remainingCameras.length === 0) {
 			if (addCameraModalOverlay) {
 				addCameraModalOverlay.style.display = 'flex';
@@ -251,8 +262,6 @@ function fetchAndUpdateCameraSettings(cameraUUID) {
 		return response.json();
 	})
 	.then(data => {
-		console.warn('control ==>', data.countdown_control);
-		console.warn(data);
 		const metricsData = {
 			camera_uuid: cameraUUID,
 			brightness: data.brightness,
