@@ -33,7 +33,7 @@ and when updating infrequent camera states.
 # The camera configuration that is accessed by other modules
 # Frequently updated and exist only in memory - not persisted to disk
 CAMERA_STATES = {}
-ALLOWED_CAMERA_STATES = set('start_time last_result last_time detection_times error live_detection_running'.split())
+ALLOWED_CAMERA_STATES = set('last_result last_time live_detection_running'.split())
 
 # Defaults
 # DETECTION_TIMEOUT = 5
@@ -55,15 +55,19 @@ DEFAULT_CAMERA_SETTINGS = {'majority_vote_window': DETECTION_VOTING_WINDOW,
 						   'contrast': CONTRAST,
 						   'focus': FOCUS}
 
+#Settings that determine if a defect should be declared
+
 COUNTDOWN_TIME = 60
 COUNTDOWN_ACTION = 'dismiss'
 COUNTDOWN_CONTROL = "any_camera"
 
-# Default but can be updated by user and persisted in config
 COUNTDOWN_SETTINGS = {'countdown_time': COUNTDOWN_TIME, 'countdown_action': COUNTDOWN_ACTION, 'countdown_control': COUNTDOWN_CONTROL}
 
+# In process alerts are gathered here - no defaults
+ALERTS= {}
+
 # Streaming and detection parameters
-DETECTIONS_PER_SECOND = 1 #15
+DETECTIONS_PER_SECOND = .25 #15
 STREAM_MAX_FPS = 2 #30
 STREAM_JPEG_QUALITY = 85
 STREAM_MAX_WIDTH = 1280
@@ -71,6 +75,7 @@ DETECTION_INTERVAL_MS = 1000 / DETECTIONS_PER_SECOND
 MIN_SSE_DISPATCH_DELAY_MS = 100 #100
 STANDARD_STAT_POLLING_RATE_MS = 250 #250
 SUCCESS_LABEL = "success"
+
 DEVICE_TYPE = "cuda" if (torch.cuda.is_available()) else (
 	"mps" if (torch.backends.mps.is_available()) else "cpu")
 
@@ -277,8 +282,7 @@ def init_config():
 			CAMERA_STATES[camera_uuid] = {'live_detection_running':False,
 							'last_result':None,
 							'last_time':None,
-							'start_time':None,
-							'error':None}
+							}
 				
 		logger.debug('Starting with configuration')
 		logger.debug(f'{startup_config=}')

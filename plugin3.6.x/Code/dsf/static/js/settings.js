@@ -2,8 +2,6 @@
 // Templates
 // =========================
 const camTemplate = document.getElementById("camera-template");
-//const vidTemplate = document.getElementById("video-template");
-//const btnTemplate = document.getElementById("button-template");
 const grid = document.getElementById("grid");
 
 // =========================
@@ -55,7 +53,6 @@ console.warn('Fetching camera list');
 	const res = await fetch("/config/get-camera-list");
 	if (!res.ok) return [];
 	const data = await res.json();
-	console.warn('Camera list response:', data.camera_list);
 	return data.camera_list || {}; // Expecting an object with camera UUIDs as keys and their details as values
   } catch {
 	return {};
@@ -101,24 +98,21 @@ function createDisplayItem(camId, nickname, source) {
 
   const cameras = await getCameraList();
 
-	/*
+
   if (cameras.length === 0) {
 	document.getElementById("noCamera").style.display = "block";
   }
-	*/
-
 
 	//create a row for each camera
 	Object.keys(cameras).forEach(camera_uuid => {
-  		console.log(camera_uuid, cameras[camera_uuid]);
 		const item = createDisplayItem(camera_uuid, cameras[camera_uuid].nickname, cameras[camera_uuid].source);
 		addListenerToDisplayItem(item, camera_uuid);
 		});
 
 	// Initialize the countdown Settings
-	let countdownSettingsResponse = await fetch('/config/get-countdown-settings').then(res => res.ok ? res.json() : null);
-	let countdownSettings = countdownSettingsResponse ? countdownSettingsResponse.countdown_settings : null;
-	console.warn('Countdown settings:', countdownSettings);
+	const countdownSettingsResponse = await fetch('/config/get-countdown-settings').then(res => res.ok ? res.json() : null);
+	const countdownSettings = countdownSettingsResponse ? countdownSettingsResponse.countdown_settings : null;
+
 	if (countdownSettings) {
 		settingsCountdownAction.value = countdownSettings.countdown_action || 'none';
 		settingsCountdownTime.value = countdownSettings.countdown_time || 0;
@@ -129,12 +123,10 @@ function createDisplayItem(camId, nickname, source) {
 
 	//Get a list of all camera rows
 	cameraItems = document.querySelectorAll('.camera-row');
-	console.warn('Num of camera items ', cameraItems.length)
 
 	if (cameraItems.length > 0) {
 		const cameraId = cameraItems[0].dataset.cameraId;
 		if (cameraId) {
-			console.warn('clicked ', cameraId)
 			cameraItems[0].click();
 		}
 	}else {
@@ -166,7 +158,6 @@ function changeLiveCameraFeed(cameraUUID) {
 }
 
 function updateSelectedCameraSettings(d) {
-	console.warn('updateSelectedCameraSettings: ==>', d.camera_uuid);
 
 	settingsCameraUUID.value = d.camera_uuid;
 	settingsSensitivityLabel.textContent = d.sensitivity;
@@ -241,9 +232,9 @@ function removeCamera(cameraUUID) {
 
 
 function fetchAndUpdateCameraSettings(cameraUUID) {
-	console.warn('Fetching metrics for camera:', cameraUUID);
+	console.warn('Fetching settings for camera:', cameraUUID);
 	if (!cameraUUID) {
-		console.warn('Cannot fetch metrics: invalid camera UUID provided:', cameraUUID);
+		console.warn('Cannot fetch settings: invalid camera UUID provided:', cameraUUID);
 		return;
 	}
 	fetch(`/config/get-camera-setting`, {
@@ -262,7 +253,7 @@ function fetchAndUpdateCameraSettings(cameraUUID) {
 		return response.json();
 	})
 	.then(data => {
-		const metricsData = {
+		const cameraSettings = {
 			camera_uuid: cameraUUID,
 			brightness: data.brightness,
 			contrast: data.contrast,
@@ -271,10 +262,10 @@ function fetchAndUpdateCameraSettings(cameraUUID) {
 			majority_vote_threshold: data.majority_vote_threshold,
 			majority_vote_window: data.majority_vote_window,
 		};
-		updateSelectedCameraSettings(metricsData);
+		updateSelectedCameraSettings(cameraSettings);
 	})
 	.catch(error => {
-		console.error(`Error fetching metrics for camera ${cameraUUID}:`, error.message);
+		console.error(`Error fetching settings/config/get-feed-setting:`, error.message);
 	});
 }
 
@@ -366,13 +357,11 @@ function saveSetting(slider) {
 }
 
 document.querySelectorAll('.settings-form input[type="range"]').forEach(slider => {
-	console.warn('adding slider', slider);
 	updateSliderFill(slider);
 	slider.addEventListener('input', () => {
 		updateSliderFill(slider);
 	});
 	slider.addEventListener('change', (e) => {
-		console.warn('settings event');
 		e.preventDefault();
 		updateSliderFill(slider);
 		saveSetting(slider);
@@ -380,13 +369,11 @@ document.querySelectorAll('.settings-form input[type="range"]').forEach(slider =
 });
 
 document.querySelectorAll('.control-form input[type="range"').forEach(slider => {
-	console.warn('adding slider for control', slider);
 	updateSliderFill(slider);
 	slider.addEventListener('input', () => {
 		updateSliderFill(slider);
 	});
 	slider.addEventListener('change', (e) => {
-		console.warn('settings event');
 		e.preventDefault();
 		updateSliderFill(slider);
 		saveSetting(slider);
@@ -394,13 +381,11 @@ document.querySelectorAll('.control-form input[type="range"').forEach(slider => 
 });
 
 document.querySelectorAll('.control-form select').forEach(control => {
-	console.warn('adding control', control);
 	control.addEventListener('input', (e) => {
 		console.warn('input event');
 		saveSetting(control);
 	});
 	control.addEventListener('change', (e) => {
-		console.warn('control event');
 		e.preventDefault();
 		saveSetting(control);
 	});

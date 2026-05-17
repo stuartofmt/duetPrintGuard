@@ -32,7 +32,7 @@ async def xadd_camera(source, nickname):
     await manager.update_camera_state(camera_uuid, new_camera_state.model_dump())
     return {"camera_uuid": camera_uuid, "nickname": nickname, "source": source}
 
-async def remove_camera(camera_uuid: str) -> bool:
+async def xremove_camera(camera_uuid: str) -> bool:
     """
     Removes a camera completely.
 

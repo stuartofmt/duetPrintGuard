@@ -8,9 +8,10 @@ from utils.config import CAMERA_SETTINGS, DEFAULT_CAMERA_SETTINGS, CAMERA_STATES
 from utils.config import (STREAM_MAX_FPS,
                             STREAM_JPEG_QUALITY, STREAM_MAX_WIDTH,
                             DETECTION_INTERVAL_MS,
-                            MIN_SSE_DISPATCH_DELAY_MS,COUNTDOWN_ACTION, COUNTDOWN_TIME, COUNTDOWN_CONTROL,
+                            MIN_SSE_DISPATCH_DELAY_MS
                             )
 from utils.camera_utils import update_camera_state
+from utils.stream_utils import stream_optimizer
 
 from models import  SavedConfig, CountdownSettings
 
@@ -74,7 +75,7 @@ async def camera_list(request: Request):
     print(f'{camera_uuid_list=}')
     return {"camera_list": camera_uuid_list}
 
-@router.get("/get/camerasettings", include_in_schema=False)
+@router.get("/get/camera-settings", include_in_schema=False)
 async def camera_settings(request: Request):
     """Get a list of current camera settings
 
@@ -88,7 +89,7 @@ async def camera_settings(request: Request):
     return {"camera_settings": CAMERA_SETTINGS}
 
 
-@router.get("/config/get-feed-settings", include_in_schema=False)
+@router.get("/xonfig/get-feed-settings", include_in_schema=False)
 async def get_feed_settings():
     """Retrieve current camera feed and detection settings.
 
@@ -160,7 +161,7 @@ async def save_countdown_settings(settings: CountdownSettings):
                 'countdown_control': settings.countdown_control
             }
         })
-        #Stream_optimizer.invalidate_cache()
+        #stream_optimizer.invalidate_cache()
         logger.debug("Countdown settings saved successfully.")
         return {"success": True, "message": "Countdown settings saved successfully."}
     except Exception as e:
@@ -185,9 +186,12 @@ async def get_camera_setting(request: Request, camera_uuid: str = Body(..., embe
 async def get_camera_state(request: Request, camera_uuid: str = Body(..., embed=True)):
     """Get the current state of a specific camera.
     """
-    camera_state = CAMERA_STATES[camera_uuid]
+    latest_state = CAMERA_STATES[camera_uuid]
+    return_state = {'live_detection_running': latest_state['live_detection_running'],
+                    'last_result': latest_state['last_result'],
+                    'last_time': latest_state['last_time']}
 
-    return camera_state
+    return return_state
 
 @router.post("/config/update-countdown", include_in_schema=False)
 async def update_countdown(request: Request,
@@ -212,3 +216,4 @@ async def update_countdown(request: Request,
 							"countdown_time": countdown_time,
 							"countdown_control": countdown_control
 							}})
+                        

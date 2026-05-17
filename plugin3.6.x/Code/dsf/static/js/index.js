@@ -4,8 +4,8 @@ console.warn("Countdown abstacted");
 // Templates
 // =========================
 const camTemplate = document.getElementById("camera-template");
-//const vidTemplate = document.getElementById("video-template");
-//const btnTemplate = document.getElementById("button-template");
+const vidTemplate = document.getElementById("video-template");
+const btnTemplate = document.getElementById("button-template");
 const grid = document.getElementById("grid");
 
 // =========================
@@ -102,7 +102,7 @@ function createTopRowButtons(){
 
 }
 
-function createDisplayItem(camId) {
+function createDisplayItem(camId,nickname) {
   // Wrapper (CRITICAL)
   const row = document.createElement("div");
   row.className = "camera-row";
@@ -111,6 +111,10 @@ function createDisplayItem(camId) {
   const camFrag = camTemplate.content.cloneNode(true);
   const card = camFrag.firstElementChild;
   card.dataset.cameraId = camId;
+
+    // 🔑 Update template content
+  const nicknameEl = card.querySelector('.nickname');
+  if (nicknameEl) nicknameEl.textContent = nickname;
 
   // Button
   const button = card.querySelector("button");
@@ -146,7 +150,7 @@ function createDisplayItem(camId) {
 async function getCameraList() {
   console.warn('Fetching camera list');
   try {
-    const res = await fetch("/camera/cameralist");
+    const res = await fetch("/config/get-camera-list");
     if (!res.ok) return [];
     const data = await res.json();
     return data.camera_list || [];
@@ -157,47 +161,37 @@ async function getCameraList() {
 
 
 function updateDisplayItem(item ,cameraUUID) {
-    //console.warn('Fetching data for camera:', cameraUUID);
-    fetch(`/camera/state`, {
+    fetch(`/config/get-camera-state`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ camera_uuid: cameraUUID })
     })
     .then(response => {
         if (!response.ok) {
-            console.warn(`Failed to fetch data for camera ${cameraUUID}. Status: ${response.status} ${response.statusText}`);
+            console.warn(`Failed 1 to fetch data for camera ${cameraUUID}. Status: ${response.status} ${response.statusText}`);
             return response.json().then(errData => {
-                throw new Error(`Failed to fetch data for camera ${cameraUUID}: ${errData.detail || response.statusText}`);
+                throw new Error(`Failed 2 to fetch data for camera ${cameraUUID}: ${errData.detail || response.statusText}`);
             }).catch(() => {
-                throw new Error(`Failed to fetch data for camera ${cameraUUID}: ${response.statusText}`);
+                throw new Error(`Failed 3 to fetch data for camera ${cameraUUID}: ${response.statusText}`);
             });
         }
         return response.json();
     })
     .then(data => {
+        console.warn(`Got data for camera ${cameraUUID}:`, data);
         const camData = {
-            camera_uuid: cameraUUID,
-            nickname: data.nickname,
             last_result: data.last_result,
             last_time: data.last_time,
             live_detection_running: data.live_detection_running,
-            countdown_time: data.countdown_time,
-            countdown_action: data.countdown_action,
-            countdown_control: data.countdown_control
         };
         updateCameraDisplay(item,camData);
     })
     .catch(error => {
-        console.error(`Error fetching metrics for camera ${cameraUUID}:`, error.message);
+        console.error(`Error fetching state for camera ${cameraUUID}:`, error.message);
         const emptyData = {
-            camera_uuid: cameraUUID,
-            nickname: 'Not Configured',
             last_result: '----',
             last_time: 0,
             live_detection_running: '----',
-            countdown_time: 0,
-            countdown_action: 'Unknown',
-            countdown_control: 'Unknown'
         };
         return emptyData;
     });
@@ -206,10 +200,7 @@ function updateDisplayItem(item ,cameraUUID) {
 
 function updateCameraDisplay(item, d) {
 
-  const camNick = item.querySelector('.nickname');
-  camNick.textContent = d.nickname;
-
-  const camPred = item.querySelector(".camera-prediction .prediction-value"); 
+  const camPred = item.querySelector(".camera-detection .detection-value"); 
   camPred.textContent = d.last_result;
   camPred.style.color = d.last_result === 'success' ? 'green' : 'red';
 
@@ -232,7 +223,7 @@ function updateCameraDisplay(item, d) {
       statusIndicator.style.backgroundColor = 'transparent';
       startStopButton.textContent = BTNSTART;
       startStopButton.style.backgroundColor = '#2ecc40';
-      camPred.textContent = '';
+      //camPred.textContent = '';
   }
 }
 
@@ -277,6 +268,7 @@ function sendDetectionRequest(isStart,item, cameraUUID) {
         console.warn(`Cannot ${isStart ? 'start' : 'stop'} detection: no valid camera selected`);
         return;
     }
+    console.warn(`Sending request to ${isStart ? 'start' : 'stop'} live detection for camera ${cameraUUID}`);
     fetch(`/detect/live/${isStart ? 'start' : 'stop'}`, {
         method: 'POST',
         headers: {
@@ -286,7 +278,7 @@ function sendDetectionRequest(isStart,item, cameraUUID) {
     })
     .then(response => {
         if (response.ok) {
-          updateDisplayItem(item,cameraUUID);
+          console.warn(`Successfully ${isStart ? 'started' : 'stopped'} live detection for camera ${cameraUUID}`);
         } else {
             response.json().then(errData => {
                 console.error(`Failed to ${isStart ? 'start' : 'stop'} live detection for camera ${cameraUUID}. Server: ${errData.detail || response.statusText}`);
@@ -371,8 +363,13 @@ document.addEventListener('cameraStateUpdated', evt => {
   cancelBtn = topControls.querySelector(".btn-cancel");
   countdownTimer = topControls.querySelector(".countdown-timer");
 
-  //create a row for each camera
-  cameras.forEach(createDisplayItem);
+  	//create a row for each camera
+	Object.keys(cameras).forEach(camera_uuid => {
+			const item = createDisplayItem(camera_uuid, cameras[camera_uuid].nickname);
+
+		//addListenerToDisplayItem(item, camera_uuid);
+		});
+
 
   //Get a list of all camera rows
     cameraItems = document.querySelectorAll('.camera-card');

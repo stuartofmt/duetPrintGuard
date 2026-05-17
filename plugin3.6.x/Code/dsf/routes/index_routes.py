@@ -28,6 +28,7 @@ async def serve_index(request: Request):
     """
     # pylint: disable=import-outside-toplevel
     from app import templates
+    """
     camera_state_manager = get_camera_state_manager()
     camera_uuids = await camera_state_manager.get_all_camera_uuids()
     if not camera_uuids:
@@ -37,10 +38,9 @@ async def serve_index(request: Request):
     camera_states = {}
     for cam_uuid in camera_uuids:
         camera_states[cam_uuid] = await camera_state_manager.get_camera_state(cam_uuid)
+    """
     return templates.TemplateResponse("index.html", {
-        "camera_states": camera_states,
-        "request": request,
-        "current_time": time.time(),
+        "request": request
     })
 
 # pylint: disable=unused-argument

@@ -7,6 +7,8 @@ import numpy as np
 
 from .camera_utils import get_camera_state_sync
 
+from .config import (CAMERA_SETTINGS,CAMERA_STATES,COUNTDOWN_SETTINGS)
+
 
 class SharedVideoStream:
     """A shared video stream that allows multiple consumers to access the same camera source."""
@@ -163,11 +165,11 @@ def get_shared_stream_manager() -> SharedVideoStreamManager:
 def get_shared_camera_frame(camera_uuid: str) -> Optional[np.ndarray]:
     """Get a frame from the shared camera stream."""
     try:
-        camera_state = get_camera_state_sync(camera_uuid)
-        if not camera_state or not camera_state.source:
+        camera_setting = CAMERA_SETTINGS[camera_uuid]
+        if not camera_setting or not camera_setting['source']:
             return None
         manager = get_shared_stream_manager()
-        stream = manager.get_stream(camera_uuid, camera_state.source)
+        stream = manager.get_stream(camera_uuid, camera_setting['source'])
         max_wait = 50
         wait_count = 0
         while not stream.is_frame_available() and wait_count < max_wait:

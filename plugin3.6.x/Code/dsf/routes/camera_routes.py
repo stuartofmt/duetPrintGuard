@@ -10,7 +10,7 @@ from fastapi.responses import StreamingResponse, Response
 #                                  get_camera_state)
 from utils.camera_utils import (find_available_serial_cameras,
                                   get_camera_state)
-from utils.camera_utils import remove_camera as remove_camera_util
+#from utils.camera_utils import remove_camera as remove_camera_util
 from utils.shared_video_stream import get_shared_stream_manager
 from utils.stream_utils import generate_frames
 from utils.camera_state_manager import get_camera_state_manager
