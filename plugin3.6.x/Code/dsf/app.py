@@ -41,17 +41,7 @@ def init_routes_and_modules():
 
 	from utils.inference_lib import get_inference_engine
 
-	from routes.alert_routes import router as alert_router
-	from routes.detection_routes import router as detection_router
-
-	from routes.sse_routes import router as sse_router
-
-	from routes.index_routes import router as index_router
-
-	from routes.settings_routes import router as settings_router
-
-	from routes.camera_routes import router as camera_router
-	from routes.config_routes import router as config_router
+	from routes.routes import router as app_router
 
 	@asynccontextmanager
 	async def lifespan(app_instance: FastAPI):
@@ -137,19 +127,7 @@ def init_routes_and_modules():
 	global templates
 	templates = Jinja2Templates(directory=templates_dir)
 
-	app.include_router(detection_router, tags=["detection"])
-	app.include_router(alert_router, tags=["alerts"])
-
-	app.include_router(sse_router, tags=["sse"])
-
-	app.include_router(index_router, tags=["index"])
-	"""SRS"""
-
-	app.include_router(settings_router, tags=["settings"])
-
-	app.include_router(camera_router, tags=["camera"])
-	app.include_router(config_router, tags=["config"])
-
+	app.include_router(app_router)
 
 
 	@app.middleware("http")
