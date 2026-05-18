@@ -52,7 +52,8 @@ class CameraStateManager:
                 if 'detection_history' in state_dict and len(state_dict['detection_history']) > 1000:
                     state_dict['detection_history'] = state_dict['detection_history'][-1000:]
                 states_data[camera_uuid] = state_dict
-            add_to_config({SavedConfig.CAMERA_STATES: states_data})
+            #SRS
+            #add_to_config({SavedConfig.CAMERA_STATES: states_data})
         except Exception as e:
             logger.error("Failed to save camera states to config: %s", e)
 

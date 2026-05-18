@@ -177,8 +177,9 @@ async def save_countdown_settings(settings: CountdownSettings):
 async def get_camera_setting(request: Request, camera_uuid: str = Body(..., embed=True)):
     """Get the current setting of a specific camera.
     """
-
-    camera_setting = CAMERA_SETTINGS[camera_uuid]
+    camera_setting = CAMERA_SETTINGS.get(camera_uuid)
+    if camera_setting is None:
+        raise HTTPException(status_code=404, detail=f"Camera {camera_uuid} not found.")
 
     return camera_setting
 
@@ -186,10 +187,19 @@ async def get_camera_setting(request: Request, camera_uuid: str = Body(..., embe
 async def get_camera_state(request: Request, camera_uuid: str = Body(..., embed=True)):
     """Get the current state of a specific camera.
     """
-    latest_state = CAMERA_STATES[camera_uuid]
-    return_state = {'live_detection_running': latest_state['live_detection_running'],
-                    'last_result': latest_state['last_result'],
-                    'last_time': latest_state['last_time']}
+    if camera_uuid not in CAMERA_SETTINGS:
+        raise HTTPException(status_code=404, detail=f"Camera {camera_uuid} not found.")
+
+    latest_state = CAMERA_STATES.get(camera_uuid, {
+        'live_detection_running': False,
+        'last_result': '',
+        'last_time': None
+    })
+    return_state = {
+        'live_detection_running': latest_state.get('live_detection_running', False),
+        'last_result': latest_state.get('last_result', ''),
+        'last_time': latest_state.get('last_time')
+    }
 
     return return_state
 

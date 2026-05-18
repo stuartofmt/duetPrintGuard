@@ -24,29 +24,26 @@ async def start_live_detection(request: Request, camera_uuid: str = Body(..., em
         dict: Message indicating whether live detection was started or already running.
     """
     global CAMERA_STATES
-    #camera_state = await get_camera_state(camera_uuid)
-    if CAMERA_STATES[camera_uuid]["live_detection_running"] == True:
+    camera_state = CAMERA_STATES.get(camera_uuid)
+    if camera_state and camera_state.get("live_detection_running"):
         return {"success": True, "message": f"Live detection already running for camera {camera_uuid}"}
-    else:
-        CAMERA_STATES[camera_uuid] = {}
-        '''
-            "last_result": '----',
-            "last_time": 0,
-            "live_detection_running": '----',
-            "live_detection_task": None
-        }
-        '''
-    # await update_camera_state(camera_uuid, {
+
+    CAMERA_STATES[camera_uuid] = {
+        "last_result": '',
+        "last_time": None,
+        "live_detection_running": False,
+        "live_detection_task": None
+    }
+
     try:
         print(f'attempting to create live detection loop for {camera_uuid}')
         print(f'with app.state {request.app.state}')
-        task_id = asyncio.create_task(_live_detection_loop(request.app.state, camera_uuid))
-        print(f'{task_id=}')
-        CAMERA_STATES[camera_uuid] = {        
-        "live_detection_running": True,
-        "last_result": None,
-        "last_time": time.time(),
-        "live_detection_task": asyncio.create_task(_live_detection_loop(request.app.state, camera_uuid))
+        task = asyncio.create_task(_live_detection_loop(request.app.state, camera_uuid))
+        CAMERA_STATES[camera_uuid] = {
+            "live_detection_running": True,
+            "last_result": '',
+            "last_time": time.time(),
+            "live_detection_task": task
         }
     except Exception as e:
         logger.error("Error starting live detection for camera %s: %s", camera_uuid, e)
@@ -74,27 +71,29 @@ async def stop_live_detection(request: Request, camera_uuid: str = Body(..., emb
         dict: Message indicating whether live detection was stopped or not running.
     """
     global CAMERA_STATES
-    #camera_state = await get_camera_state(camera_uuid)
-    camera_state = CAMERA_STATES[camera_uuid]
-    if not camera_state.live_detection_running:
+    camera_state = CAMERA_STATES.get(camera_uuid, {
+        'live_detection_running': False,
+        'live_detection_task': None,
+        'last_result': '',
+        'last_time': None
+    })
+    #SRS if not camera_state.live_detection_running:
+    if not camera_state.get('live_detection_running'):
         return {"message": f"Live detection not running for camera {camera_uuid}"}
-    live_detection_task = camera_state.live_detection_task
+    live_detection_task = camera_state.get('live_detection_task')
     if live_detection_task:
         try:
             await asyncio.wait_for(live_detection_task, timeout=0.25)
             logger.debug("Live detection task for camera %s finished successfully.", camera_uuid)
         except asyncio.TimeoutError:
             logger.debug("Live detection task for camera %s did not finish in time.", camera_uuid)
-            if live_detection_task:
-                live_detection_task.cancel()
+            live_detection_task.cancel()
         except Exception as e:
             logger.error("Error stopping live detection task for camera %s: %s", camera_uuid, e)
-        finally:
-            live_detection_task = None
-    #await update_camera_state(camera_uuid, {
-    CAMERA_STATES[camera_uuid] = {    
-        "start_time": None,
+    CAMERA_STATES[camera_uuid] = {
         "live_detection_running": False,
-        "live_detection_task": None}
+        "live_detection_task": None,
+        "last_result": ''
+    }
     
     return {"message": f"Live detection stopped for camera {camera_uuid}"}

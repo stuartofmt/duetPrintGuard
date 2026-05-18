@@ -488,17 +488,20 @@ async def _terminate_alert_after_cooldown(alert):
 	Args:
 		alert (Alert): The alert object with `countdown_time` and `countdown_action`.
 	"""
-	await asyncio.sleep(alert.countdown_time)
+	#SRS await asyncio.sleep(alert.countdown_time)
+	await asyncio.sleep(COUNTDOWN_SETTINGS['countdown_time'])
 	if get_alert(alert.id) is not None: # if the alert has been reset ==> ignore
 		camera_uuid = alert.camera_uuid
-		camera_state = await get_camera_state(camera_uuid)
-		if not camera_state:
-			return
-		match camera_state.countdown_action:
+		#camera_state = await get_camera_state(camera_uuid)
+		#camera_state = CAMERA_STATES[camera_uuid]
+		#if not camera_state:
+		#	return
+		match COUNTDOWN_SETTINGS['countdown_action']:
 			case AlertAction.DISMISS:
 				await dismiss_alert(alert.id)
 			case AlertAction.CANCEL_PRINT | AlertAction.PAUSE_PRINT:
-				suspend_print_job(camera_uuid, camera_state.countdown_action)
+				# suspend_print_job(camera_uuid, camera_state.countdown_action)
+				suspend_print_job(camera_uuid, COUNTDOWN_SETTINGS['countdown_action'])
 				return await dismiss_alert(alert.id)
 	else:
 		print(f'Alert was terminated')
@@ -521,6 +524,7 @@ async def _create_alert_and_notify(camera_uuid, frame, timestamp_arg):
 	# pylint: disable=E1101
 	_, img_buf = cv2.imencode('.jpg', frame)
 	has_printer = get_printer_config(camera_uuid) is not None
+
 	alert = Alert(
 		id=alert_id,
 		camera_uuid=camera_uuid,
@@ -533,6 +537,7 @@ async def _create_alert_and_notify(camera_uuid, frame, timestamp_arg):
 		countdown_control=COUNTDOWN_SETTINGS['countdown_control'],
 		has_printer=has_printer,
 	)
+
 	append_new_alert(alert)
 	asyncio.create_task(_terminate_alert_after_cooldown(alert))
 	#await update_camera_state(camera_uuid, {"current_alert_id": alert_id})

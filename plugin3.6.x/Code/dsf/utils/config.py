@@ -279,9 +279,11 @@ def init_config():
 			COUNTDOWN_SETTINGS.clear()
 			COUNTDOWN_SETTINGS.update(countdown_settings)
 		for camera_uuid,_ in CAMERA_SETTINGS.items():
-			CAMERA_STATES[camera_uuid] = {'live_detection_running':False,
-							'last_result':None,
+			CAMERA_STATES[camera_uuid] = {
+							'live_detection_running':False,
+							'last_result':'',
 							'last_time':None,
+							'live_detection_task':None
 							}
 				
 		logger.debug('Starting with configuration')
