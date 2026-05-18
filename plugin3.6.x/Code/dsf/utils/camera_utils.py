@@ -88,7 +88,7 @@ def find_available_serial_cameras() -> list[str]:
         index += 1
     return available_indices
 
-def open_camera(camera_uuid) -> cv2.VideoCapture:
+def xopen_camera(camera_uuid) -> cv2.VideoCapture:
     """
     Open the camera and return a VideoCapture object.
     

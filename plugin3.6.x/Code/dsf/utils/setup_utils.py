@@ -4,7 +4,7 @@ from models import SavedConfig, SavedKey, SiteStartupMode
 from .config import SSL_CERT_FILE, get_config, get_key
 
 
-def setup_ngrok_tunnel(close: bool = False) -> bool:
+def xsetup_ngrok_tunnel(close: bool = False) -> bool:
     """
     Start a ngrok tunnel at port 8000 using the provided auth key and domain.
     Requirements:
@@ -96,7 +96,7 @@ def check_tunnel_requirements_met() -> bool:
         and get_key(SavedKey.TUNNEL_API_KEY)
         ) else False
 
-def startup_mode_requirements_met() -> SiteStartupMode:
+def xstartup_mode_requirements_met() -> SiteStartupMode:
     """
     Check if the requirements for the current startup mode are met.
     

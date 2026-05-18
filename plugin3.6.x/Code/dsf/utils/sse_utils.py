@@ -178,7 +178,7 @@ def stop_and_remove_polling_task(camera_uuid):
     else:
         logger.warning("No polling task found for camera UUID %s to stop.", camera_uuid)
 
-def add_polling_task(camera_uuid, task: PollingTask):
+def xadd_polling_task(camera_uuid, task: PollingTask):
     """Add or replace a polling task for a camera.
 
     Args:
