@@ -28,12 +28,15 @@ async def append_new_outbound_packet(packet, sse_data_type: SSEDataType):
         packet (str): The JSON-serialized data payload.
         sse_data_type (SSEDataType): The type of SSE event.
     """
-    config = get_config()
-    min_sse_dispatch_delay = config.get(SavedConfig.MIN_SSE_DISPATCH_DELAY_MS, MIN_SSE_DISPATCH_DELAY_MS)
+    logger.debug("Appending new SSE packet of type %s to outbound queue", sse_data_type.value)
+    #config = get_config()
+    #min_sse_dispatch_delay = config.get(SavedConfig.MIN_SSE_DISPATCH_DELAY_MS, MIN_SSE_DISPATCH_DELAY_MS)
     current_time = time.time() * 1000
     last_dispatch_time = _last_dispatch_times.get(sse_data_type, 0)
     time_since_last_dispatch = current_time - last_dispatch_time
-    if time_since_last_dispatch < min_sse_dispatch_delay:
+
+    #if time_since_last_dispatch < min_sse_dispatch_delay:
+    if time_since_last_dispatch < MIN_SSE_DISPATCH_DELAY_MS:        
         logger.debug("Throttling SSE dispatch for %s (time since last: %.1fms)",
                      sse_data_type.value, time_since_last_dispatch)
         return
@@ -43,52 +46,8 @@ async def append_new_outbound_packet(packet, sse_data_type: SSEDataType):
     pkt_json = json.dumps(pkt)
     await app.state.outbound_queue.put(pkt_json)
     _last_dispatch_times[sse_data_type] = current_time
-'''SRS - not used
-async def append_new_outbound_packet_force(packet, sse_data_type: SSEDataType):
-    """Force append a new Server-Sent Event packet to the outbound queue, bypassing throttling.
 
-    Args:
-        packet (str): The JSON-serialized data payload.
-        sse_data_type (SSEDataType): The type of SSE event.
-    """
-    # pylint: disable=C0415
-    from app import app
-    pkt = {"data": {"event": sse_data_type.value, "data": packet}}
-    pkt_json = json.dumps(pkt)
-    await app.state.outbound_queue.put(pkt_json)
-    current_time = time.time() * 1000
-    _last_dispatch_times[sse_data_type] = current_time
-'''
-'''SRS Not used
-def reset_throttle_for_data_type(sse_data_type: SSEDataType):
-    """Reset the throttle timer for a specific SSE data type.
-
-    Args:
-        sse_data_type (SSEDataType): The type of SSE event to reset throttling for.
-    """
-    if sse_data_type in _last_dispatch_times:
-        del _last_dispatch_times[sse_data_type]
-        logger.debug("Reset throttle for SSE data type: %s", sse_data_type.value)
-'''
-
-'''SRS NOT NEEDED
-def _calculate_frame_rate(detection_history):
-    """Calculate frames per second based on detection timestamps.
-
-    Args:
-        detection_history (list of tuples): Each tuple is (timestamp, label).
-
-    Returns:
-        float: The calculated frame rate, or 0.0 if insufficient data.
-    """
-    if len(detection_history) < 2:
-        return 0.0
-    times = [t for t, _ in detection_history]
-    duration = times[-1] - times[0]
-    return (len(times) - 1) / duration if duration > 0 else 0.0
-'''
-
-async def _sse_update_camera_state_func(camera_uuid):
+async def x_sse_update_camera_state_func(camera_uuid):
     """Build and send a camera state update SSE packet.
 
     Args:
@@ -112,33 +71,14 @@ async def _sse_update_camera_state_func(camera_uuid):
     }
     await append_new_outbound_packet(data, SSEDataType.CAMERA_STATE)
 
-'''SRS NOT NEEDED
-async def sse_update_printer_state(printer_state: PrinterState):
-    """Send an SSE update with the current printer state.
-
-    Args:
-        printer_state (PrinterState): The printer state object.
-    """
-    try:
-        await asyncio.wait_for(
-            append_new_outbound_packet(printer_state.model_dump(), SSEDataType.PRINTER_STATE),
-            timeout=5.0
-        )
-    except asyncio.TimeoutError:
-        logger.warning("SSE printer state update timed out")
-    except (ValueError, TypeError, AttributeError) as e:
-        logger.error("Error in SSE printer state update: %s", e)
-    except Exception as e:
-        logger.error("Unexpected error in SSE printer state update: %s", e)
-'''
-async def sse_update_camera_state(camera_uuid):
+async def xsse_update_camera_state(camera_uuid):
     """Send an SSE update with the current camera state.
 
     Args:
         camera_uuid (str): The UUID of the camera.
     """
     try:
-        await asyncio.wait_for(_sse_update_camera_state_func(camera_uuid), timeout=5.0)
+        await asyncio.wait_for(x_sse_update_camera_state_func(camera_uuid), timeout=5.0)
     except asyncio.TimeoutError:
         logger.warning("SSE camera state update timed out for camera %s", camera_uuid)
     except (ValueError, TypeError, AttributeError) as e:
@@ -147,7 +87,7 @@ async def sse_update_camera_state(camera_uuid):
         logger.error("Unexpected error in SSE camera state update for camera %s: %s",
                       camera_uuid, e)
 
-def get_polling_task(camera_uuid):
+def xget_polling_task(camera_uuid):
     """Retrieve the current polling task for a camera.
 
     Args:
@@ -160,7 +100,7 @@ def get_polling_task(camera_uuid):
     from app import app
     return app.state.polling_tasks.get(camera_uuid) or None
 
-def stop_and_remove_polling_task(camera_uuid):
+def xstop_and_remove_polling_task(camera_uuid):
     """Stop and remove a polling task for a specified camera.
 
     Args:
@@ -168,7 +108,7 @@ def stop_and_remove_polling_task(camera_uuid):
     """
     # pylint: disable=C0415
     from app import app
-    task = get_polling_task(camera_uuid)
+    task = xget_polling_task(camera_uuid)
     if task:
         task.stop_event.set()
         if task.task and not task.task.done():
@@ -188,6 +128,6 @@ def xadd_polling_task(camera_uuid, task: PollingTask):
     # pylint: disable=C0415
     from app import app
     if camera_uuid in app.state.polling_tasks:
-        stop_and_remove_polling_task(camera_uuid)
+        xstop_and_remove_polling_task(camera_uuid)
     app.state.polling_tasks[camera_uuid] = task
     logger.debug("Added polling task for camera UUID %s", camera_uuid)

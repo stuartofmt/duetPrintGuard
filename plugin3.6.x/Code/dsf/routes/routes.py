@@ -39,7 +39,8 @@ from utils.config import (
 )
 from utils.shared_video_stream import get_shared_stream_manager
 from utils.stream_utils import _live_detection_loop, generate_frames, stream_optimizer
-from utils.sse_utils import outbound_packet_fetch, stop_and_remove_polling_task
+#from utils.sse_utils import outbound_packet_fetch, stop_and_remove_polling_task
+from utils.sse_utils import outbound_packet_fetch
 
 router = APIRouter()
 
@@ -84,22 +85,22 @@ async def start_live_detection(request: Request, camera_uuid: str = Body(..., em
         return {"success": True, "message": f"Live detection already running for camera {camera_uuid}"}
 
     CAMERA_STATES[camera_uuid] = {
-        "last_result": '',
-        "last_time": None,
-        "live_detection_running": False,
-        "live_detection_task": None
+            "live_detection_running": False,
+            "last_result": '',
+            "last_time": None,
+            "defect_active": False,
+            "live_detection_task": None
     }
 
     try:
         print(f'attempting to create live detection loop for {camera_uuid}')
         print(f'with app.state {request.app.state}')
         task = asyncio.create_task(_live_detection_loop(request.app.state, camera_uuid))
-        CAMERA_STATES[camera_uuid] = {
-            "live_detection_running": True,
-            "last_result": '',
-            "last_time": time.time(),
-            "live_detection_task": task
-        }
+        
+        CAMERA_STATES[camera_uuid]['live_detection_running'] = True
+        CAMERA_STATES[camera_uuid]['live_detection_task'] = task
+        CAMERA_STATES[camera_uuid]['last_time'] = time.time()
+
     except Exception as e:
         logger.error("Error starting live detection for camera %s: %s", camera_uuid, e)
         return {"success": False, "message": f"Failed to start live detection for camera {camera_uuid}"}
@@ -111,29 +112,29 @@ async def start_live_detection(request: Request, camera_uuid: str = Body(..., em
 async def stop_live_detection(request: Request, camera_uuid: str = Body(..., embed=True)):
     """Stop continuous live detection on a specified camera."""
     global CAMERA_STATES
-    camera_state = CAMERA_STATES.get(camera_uuid, {
-        'live_detection_running': False,
-        'live_detection_task': None,
-        'last_result': '',
-        'last_time': None
-    })
-    if not camera_state.get('live_detection_running'):
+
+    if not CAMERA_STATES[camera_uuid]['live_detection_running']:
         return {"message": f"Live detection not running for camera {camera_uuid}"}
-    live_detection_task = camera_state.get('live_detection_task')
+    
+    live_detection_task = CAMERA_STATES[camera_uuid]['live_detection_task']
     if live_detection_task:
-        try:
-            await asyncio.wait_for(live_detection_task, timeout=0.25)
-            logger.debug("Live detection task for camera %s finished successfully.", camera_uuid)
-        except asyncio.TimeoutError:
-            logger.debug("Live detection task for camera %s did not finish in time.", camera_uuid)
+        try: #Just cancel the task
+            #await asyncio.wait_for(live_detection_task, timeout=0.25)
+            #logger.debug("Live detection task for camera %s finished successfully.", camera_uuid)
+        #except asyncio.TimeoutError:
+            #logger.debug("Live detection task for camera %s did not finish in time.", camera_uuid)
             live_detection_task.cancel()
+            CAMERA_STATES[camera_uuid] = {
+                "live_detection_running": False,
+                "last_result": '',
+                "last_time": None,
+                "defect_active": False,
+                "live_detection_task": None
+            }
+            logger.debug("Stopped live detection task for camera %s", camera_uuid)
         except Exception as e:
             logger.error("Error stopping live detection task for camera %s: %s", camera_uuid, e)
-    CAMERA_STATES[camera_uuid] = {
-        "live_detection_running": False,
-        "live_detection_task": None,
-        "last_result": ''
-    }
+
     return {"message": f"Live detection stopped for camera {camera_uuid}"}
 
 
@@ -147,7 +148,7 @@ async def serve_index(request: Request):
     })
 
 
-@router.post("/index", include_in_schema=False)
+@router.post("/xindex", include_in_schema=False)
 async def update_index_settings(request: Request,
                           camera_uuid: str = Form(...),
                           sensitivity: float = Form(...),
@@ -224,7 +225,7 @@ async def update_settings_countdown(request: Request,
 
 
 # camera_routes.py
-@router.post("x/camera/state", include_in_schema=False)
+@router.post("/xcamera/state", include_in_schema=False)
 async def get_camera_state_ep(request: Request, camera_uuid: str = Body(..., embed=True)):
     """Get the current state of a specific camera."""
     logger.debug('entered get_camera_state_ep with camera_uuid: %s', camera_uuid)
@@ -508,15 +509,13 @@ async def get_camera_state_config(request: Request, camera_uuid: str = Body(...,
     """Get the current state of a specific camera."""
     if camera_uuid not in CAMERA_SETTINGS:
         raise HTTPException(status_code=404, detail=f"Camera {camera_uuid} not found.")
-    latest_state = CAMERA_STATES.get(camera_uuid, {
-        'live_detection_running': False,
-        'last_result': '',
-        'last_time': None
-    })
+    
+    latest_state = CAMERA_STATES[camera_uuid]
     return {
-        'live_detection_running': latest_state.get('live_detection_running', False),
-        'last_result': latest_state.get('last_result', ''),
-        'last_time': latest_state.get('last_time')
+        'live_detection_running': latest_state.get('live_detection_running'),
+        'last_result': latest_state.get('last_result'),
+        'last_time': latest_state.get('last_time'),
+        'defect_active': latest_state.get('defect_active')
     }
 
 
@@ -595,8 +594,9 @@ async def sse_connect(request: Request):
 
     return EventSourceResponse(send_packet())
 
-
+"""SRS
 @router.post("/sse/stop-polling")
 async def stop_polling(request: Request, camera_uuid: str = Body(..., embed=True)):
     stop_and_remove_polling_task(camera_uuid)
     return {"message": "Polling stopped for camera UUID {}".format(camera_uuid)}
+"""

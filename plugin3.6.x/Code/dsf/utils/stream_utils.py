@@ -8,7 +8,8 @@ import numpy as np
 from PIL import Image
 
 from .model_utils import _run_inference
-from .sse_utils import sse_update_camera_state, append_new_outbound_packet
+# from .sse_utils import sse_update_camera_state, append_new_outbound_packet
+from .sse_utils import append_new_outbound_packet
 
 from .shared_video_stream import get_shared_camera_frame
 from models import Alert, AlertAction, SSEDataType, Notification
@@ -24,8 +25,10 @@ import uuid
 from .alert_utils import (dismiss_alert, alert_to_response_json,
 						  get_alert, append_new_alert)
 
+#from .camera_utils import (get_camera_state, get_camera_state_sync,
+#						   update_camera_state, update_camera_detection_history)
 from .camera_utils import (get_camera_state, get_camera_state_sync,
-						   update_camera_state, update_camera_detection_history)
+						   update_camera_state)
 
 # from .notification_utils import send_defect_notification
 from duet_printer import get_printer_config, suspend_print_job, duet_send_notification
@@ -241,18 +244,17 @@ async def create_optimized_detection_loop(app_state, camera_uuid):
 			e.g., {'update_camera_state': ..., 'update_camera_detection_history': ...}.
 	"""
 	global CAMERA_SETTINGS, CAMERA_STATES, COUNTDOWN_SETTINGS
-	try:
-		print(f'STARTING ODL {camera_uuid}')
-		detection_count = 0
-		#camera_state_ref = get_camera_state_sync_func(camera_uuid)
-		#detection_history = {}
-		majority_vote_window = CAMERA_SETTINGS[camera_uuid]['majority_vote_window']
-		majority_vote_threshold = CAMERA_SETTINGS[camera_uuid]['majority_vote_threshold']
-		countdown_control = COUNTDOWN_SETTINGS['countdown_control']
-		countdown_time = COUNTDOWN_SETTINGS['countdown_time']
-		num_cameras = len(CAMERA_SETTINGS)
-	except Exception as e:
-		print(f'WTF !!! {camera_uuid} ERROR {e}')
+
+	print(f'STARTING ODL {camera_uuid}')
+	detection_count = 0
+	#camera_state_ref = get_camera_state_sync_func(camera_uuid)
+	#detection_history = {}
+	majority_vote_window = CAMERA_SETTINGS[camera_uuid]['majority_vote_window']
+	majority_vote_threshold = CAMERA_SETTINGS[camera_uuid]['majority_vote_threshold']
+	countdown_control = COUNTDOWN_SETTINGS['countdown_control']
+	countdown_time = COUNTDOWN_SETTINGS['countdown_time']
+	num_cameras = len(CAMERA_SETTINGS)
+
 
 	global _MAJORITY_VOTE, _CAMERA_AGREEMENT
 	_MAJORITY_VOTE = {}
@@ -317,12 +319,6 @@ async def create_optimized_detection_loop(app_state, camera_uuid):
 			CAMERA_STATES[camera_uuid]['last_time'] = current_timestamp
 			CAMERA_STATES[camera_uuid]['last_result'] = label
 			
-			"""SRS
-			await update_functions['update_camera_state'](camera_uuid, {
-				"last_result": label,
-				"last_time": current_timestamp
-			})
-			"""
 			#asyncio.create_task(sse_update_camera_state(camera_uuid))
 			detection_count += 1
 			if isinstance(numeric, int) and numeric == app_state.defect_idx:
@@ -333,7 +329,7 @@ async def create_optimized_detection_loop(app_state, camera_uuid):
 				if label == 'failure':
 					last_result = 1
 
-				#SRS async with camera_lock:
+				CAMERA_STATES[camera_uuid]['defect_active'] = False  # reset defect active state on each failure detection - only set to true if we pass both majority vote and multi camera test
 				passed_majority_vote = _camera_failure_threshold(camera_uuid,majority_vote_window,majority_vote_threshold,last_result)
 				passed_camera_combination = False
 				if passed_majority_vote:
@@ -342,26 +338,20 @@ async def create_optimized_detection_loop(app_state, camera_uuid):
 
 				if passed_majority_vote and passed_camera_combination:
 					logger.debug(f'{passed_camera_combination =}')
-					'''
-					# Can remove since blocked by sleep during alert
-					if camera_state_ref.current_alert_id is None:
-						camera_state_ref.current_alert_id = True
-						do_alert = True
-					'''
+
 					do_alert = True
 					if do_alert:
 						'''SRS'''
+
+						CAMERA_STATES[camera_uuid]['defect_active'] = True # only requires one camera to trigger
 						# alert = await _create_alert_and_notify(camera_state_ref,
 						alert = await _create_alert_and_notify(camera_uuid, frame, current_timestamp)
-						
+
 						asyncio.create_task(_send_alert(alert))
 
 						# Wait for countdown time during active alert
 						await asyncio.sleep(countdown_time)
 
-						#del _camera_failure_threshold.counts # reset for all
-						# _passed_multi_camera_test.alert_uuids = [] # reset the combination test
-						#if hasattr(_camera_failure_threshold, "counts"): del _camera_failure_threshold.counts # reset for all
 						_MAJORITY_VOTE = {}
 						_CAMERA_AGREEMENT = []
 
@@ -399,8 +389,8 @@ def generate_frames(camera_uuid: str):
 					time.sleep(0.1)
 					continue
 				frame = cv2.convertScaleAbs(frame,
-											alpha=contrast,
-											beta=int((brightness - 1.0) * 255))
+								alpha=contrast,
+								beta=int((brightness - 1.0) * 255))
 				if focus and focus != 1.0:
 					blurred = cv2.GaussianBlur(frame, (0, 0), sigmaX=focus)
 					frame = cv2.addWeighted(frame, 1.0 + focus, blurred, -focus, 0)
@@ -557,11 +547,12 @@ async def _live_detection_loop(app_state, camera_uuid):
 	"""
 	global CAMERA_STATES
 	# pylint: disable=C0415
-	
+	"""SRS
 	update_functions = {
 		'update_camera_state': update_camera_state,
 		'update_camera_detection_history': update_camera_detection_history,
 	}
+	"""
 	try:
 		print(f'TRYING TO CREATE OPTIMIZED DETECTION LOOP FOR {camera_uuid}')
 		await create_optimized_detection_loop(
@@ -572,13 +563,6 @@ async def _live_detection_loop(app_state, camera_uuid):
 		logger.error("Error creating optimized detection loop for camera %s: %s", camera_uuid, e)
 		CAMERA_STATES[camera_uuid]["last_result"] = 'Error in detection loop'
 		CAMERA_STATES[camera_uuid]["live_detection_running"] = False
-		"""
-		CAMERA_STATES[camera_uuid]["live_detection_running"] = False
-		await update_camera_state(camera_uuid, {
-			"error": f"Detection loop error: {str(e)}",
-			"live_detection_running": False
-		})
-		"""
 
 	
 async def send_defect_notification(alert_id):

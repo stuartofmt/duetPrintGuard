@@ -16,6 +16,7 @@ const grid = document.getElementById("grid");
  let BTNSTOP = 'Stop Detection';
  let BTNSTART =  'Start Detection';
  let ALERTID;
+ let defectActive = false;
  //let cameraUUID;
  // const countdownTimers = new Map(); // cameraId -> intervalId
 
@@ -183,15 +184,17 @@ function updateDisplayItem(item ,cameraUUID) {
             last_result: data.last_result,
             last_time: data.last_time,
             live_detection_running: data.live_detection_running,
+            defect_active: data.defect_active
         };
         updateCameraDisplay(item,camData);
     })
     .catch(error => {
         console.error(`Error fetching state for camera ${cameraUUID}:`, error.message);
         const emptyData = {
-            last_result: '----',
+            last_result: 'Error',
             last_time: 0,
-            live_detection_running: '----',
+            live_detection_running: 'Error',
+            defect_active: false
         };
         return emptyData;
     });
@@ -203,7 +206,10 @@ function updateCameraDisplay(item, d) {
   const camPred = item.querySelector(".camera-detection .detection-value"); 
   camPred.textContent = d.last_result;
   camPred.style.color = d.last_result === 'success' ? 'green' : 'red';
-
+  if (defectActive === true) {
+    console.warn('Defect active for camera, triggering alert');
+    camPred.textContent = 'DEFECT';
+  }
 
   const lastUpdate = item.querySelector(".last-update .update-value")
   lastUpdate.textContent = d.last_time ? new Date(d.last_time * 1000).toLocaleTimeString() : '-';
@@ -225,8 +231,8 @@ function updateCameraDisplay(item, d) {
       startStopButton.style.backgroundColor = '#2ecc40';
       //camPred.textContent = '';
   }
-}
 
+};
 
 
 function flashCountdown(action) {
@@ -301,8 +307,6 @@ function update_cameras () {
 
 }
 
-let defectActive = false;
-
 // Called from sse when defect confirmed
 document.addEventListener('defectRaised', evt => {
   const { alert_id, action, countdown } = evt.detail;
@@ -320,12 +324,11 @@ document.addEventListener('defectRaised', evt => {
     flashButton.classList.remove('flash');
     ignoreBtn.style.display = "none";
     countdownTimer.style.display = "none";
-  }
-    
+  } 
 });
 
 //SRS If active - this is where its tracked
-
+/*
 document.addEventListener('cameraStateUpdated', evt => {
   return;
     console.warn('camera state updated');
@@ -338,6 +341,7 @@ document.addEventListener('cameraStateUpdated', evt => {
         }
     });
 });
+*/
 
 
 

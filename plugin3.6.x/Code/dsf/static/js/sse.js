@@ -9,7 +9,7 @@ const pausePrintBtn = document.getElementById('pausePrintBtn');
 
 let currentAlertId = null;
 
-document.addEventListener('DOMContentLoaded', loadPendingAlerts);
+//document.addEventListener('DOMContentLoaded', loadPendingAlerts);
 
 function getLocalActiveAlerts() {
     try {
@@ -97,85 +97,9 @@ function parseAlertData(alert_data) {
     return typeof alert_data === 'string' ? JSON.parse(alert_data) : alert_data;
 }
 
-/*
-function updateAlertUI(data) {
-
-    currentAlertId = data.id;
-    const notificationsContainer = document.getElementById('notificationsContainer');
-
-    if (document.getElementById(`alert-${data.id}`)) {
-        return;
-    }
-    
-
-    // SRS
-
-    
-    document.dispatchEvent(new CustomEvent('defectRaised', {
-                detail: data
-    }));
-    return;
-    
-    /*
-    const alertElement = document.createElement('div');
-    console.warn('Creating Alert');
-    console.warn(data.camera_uuid);
-    alertElement.id = `alert-${data.id}`;
-    alertElement.className = 'alert-item';
-    /*
-    alertElement.style.padding = '10px';
-    alertElement.style.marginBottom = '10px';
-    alertElement.style.borderBottom = '1px solid #dee2e6';
-    --SRS
-    let alertContent = `<p>${data.message}</p>`;
-    alertContent += `<p id="countdown-${data.id}"></p>`;
-    //alertContent += `<p></p>`
-    /*
-    if (data.snapshot) {
-        alertContent = `<img src="data:image/jpeg;base64,${data.snapshot}" 
-                            style="width:100%;margin-bottom:10px;" />` + alertContent;
-    }
-    */
-    //const hasPrinter = data.has_printer === true;
-    //hasPrinter = true
-    //SRS get rid of everything above += ==> =
-    /*
-    alertContent += `<div>
-        <button class="dismiss-btn"  style="background-color: #3d9918;" data-alert-id="${data.id}">Dismiss</button>
-        <button class="suspend-print-btn${!hasPrinter ? ' disabled' : ''}" 
-                style="background-color: #f80419;" data-alert-id="${data.id}"
-                ${!hasPrinter ? 'disabled' : ''}>Cancel Print</button>
-        <button class="suspend-print-btn${!hasPrinter ? ' disabled' : ''}" 
-                style="background-color: #f8bf04;" data-alert-id="${data.id}"
-                ${!hasPrinter ? 'disabled' : ''}>Pause Print</button>
-    </div>`;
-    --SRS
-    alertElement.innerHTML = alertContent;
-    notificationsContainer.prepend(alertElement);
-    /*
-    alertElement.querySelector('.dismiss-btn').addEventListener('click', () => {
-        dismissAlert('dismiss', data.id);
-    });
-    
-    const cancelBtns = alertElement.querySelectorAll('.suspend-print-btn');
-    if (hasPrinter && cancelBtns.length >= 1) {
-        cancelBtns[0].addEventListener('click', () => {
-            dismissAlert('cancel_print', data.id);
-        });
-    }
-
-    if (hasPrinter && cancelBtns.length >= 2) {
-        cancelBtns[1].addEventListener('click', () => {
-            dismissAlert('pause_print', data.id);
-        });
-    }
-    */
-/*
-    //notificationPopup.style.display = 'block';
-}
-*/
 
 function startAlertCountdown(data) {
+    console.warn('Starting countdown for alert:', data);
     if (!data || !data.camera_uuid) return;
 
     const countdownTimerId = 'countdown';
@@ -206,6 +130,7 @@ function startAlertCountdown(data) {
                 countdown: secondsLeft
             }
         }));
+        
 
         // Update local storage
         const activeAlerts = getLocalActiveAlerts();
@@ -228,58 +153,7 @@ function startAlertCountdown(data) {
     updateCountdown();
 }
 
-/*
-function startAlertCountdown(data) {
-    
-    if (!data.id) return;
-    
-    const countdownElement = document.getElementById(`countdown-${data.id}`);
-    if (!countdownElement) return;
-    
-    const countdownTimerId = `countdown-timer-${data.id}`;
-    if (window[countdownTimerId]) {
-        clearInterval(window[countdownTimerId]);
-    }
-    
-    alert(data.camera_uuid);
-    const countdownTimerId = data.camera_uuid;
 
-    const startTime = Date.now();
-    const countdownTime = data.countdown_time || 0;
-    const endTime = startTime + countdownTime * 1000;
-
-    function updateCountdown() {
-        const now = Date.now();
-        let secondsLeft = Math.max(0, Math.round((endTime - now) / 1000));
-
-
-        countdownElement.textContent = `${secondsLeft}s remaining`;
-        
-        const activeAlerts = getLocalActiveAlerts();
-        if (activeAlerts[data.id]) {
-            activeAlerts[data.id].expirationTime = endTime;
-            localStorage.setItem('activeAlerts', JSON.stringify(activeAlerts));
-        }
-        if (secondsLeft <= 0) {
-            clearInterval(window[countdownTimerId]);
-
-            
-            const action = data.countdown_action || 'pause_print';
-            if (action === 'cancel_print' && data.has_printer) {
-                executeAlertAction('cancel_print', data.id);
-            } else if (action === 'pause_print' && data.has_printer) {
-                executeAlertAction('pause_print', data.id);
-            } else {
-                executeAlertAction('dismiss', data.id);
-            }
-            
-        }
-    }
-    
-    updateCountdown();
-    window[countdownTimerId] = setInterval(updateCountdown, 1000);
-}
-*/
 evtSource.onmessage = (e) => {
     try {
         let packet_data = JSON.parse(e.data);
@@ -351,13 +225,3 @@ function dismissAlert(action_type, alertId) {
     if (!alertId) alertId = currentAlertId;
     executeAlertAction(action_type, alertId);
 }
-/*
-document.addEventListener('DOMContentLoaded', () => {
-    const dismissBtn = document.getElementById('dismissNotificationBtn');
-    const cancelBtn = document.getElementById('cancelPrintBtn');
-    const pauseBtn = document.getElementById('pausePrintBtn');
-    if (dismissBtn) dismissBtn.remove();
-    if (cancelBtn) cancelBtn.remove();
-    if (pauseBtn) pauseBtn.remove();
-});
-*/

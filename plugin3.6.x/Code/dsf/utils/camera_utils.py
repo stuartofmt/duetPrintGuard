@@ -120,6 +120,9 @@ async def get_camera_state(camera_uuid, reset=False):
     Returns:
         CameraState: The state of the camera.
     """
+    return get_camera_state_sync(camera_uuid)
+
+"""SRS
     manager = get_camera_state_manager()
     try:
         def sync_get_state():
@@ -128,7 +131,8 @@ async def get_camera_state(camera_uuid, reset=False):
     except Exception as e:
         logger.error("Error in camera state access for camera %d: %s", camera_uuid, e)
         return CameraState()
-
+"""
+        
 def get_camera_state_sync(camera_uuid, reset=False):
     """Synchronous wrapper for get_camera_state for contexts that cannot use async/await.
 
@@ -142,6 +146,7 @@ def get_camera_state_sync(camera_uuid, reset=False):
     # SRS
     logger.debug("Attempting synchronous access for camera state with UUID: %s", camera_uuid)
     return CAMERA_SETTINGS[camera_uuid]
+"""SRS
     try:
         try:
             asyncio.get_running_loop()
@@ -155,8 +160,9 @@ def get_camera_state_sync(camera_uuid, reset=False):
     except Exception as e:
         logger.error("Error in synchronous camera state access for camera %d: %s", camera_uuid, e)
         return CameraState()
+"""
 
-async def update_camera_detection_history(camera_uuid, pred, time_val):
+async def xupdate_camera_detection_history(camera_uuid, pred, time_val):
     """Append a detection to the camera's detection history.
 
     Args:

@@ -33,7 +33,7 @@ and when updating infrequent camera states.
 # The camera configuration that is accessed by other modules
 # Frequently updated and exist only in memory - not persisted to disk
 CAMERA_STATES = {}
-ALLOWED_CAMERA_STATES = set('last_result last_time live_detection_running'.split())
+ALLOWED_CAMERA_STATES = set('last_result last_time live_detection_running defect_active live_detection_task'.split())
 
 # Defaults
 # DETECTION_TIMEOUT = 5
@@ -67,7 +67,7 @@ COUNTDOWN_SETTINGS = {'countdown_time': COUNTDOWN_TIME, 'countdown_action': COUN
 ALERTS= {}
 
 # Streaming and detection parameters
-DETECTIONS_PER_SECOND = .25 #15
+DETECTIONS_PER_SECOND = 1 #15
 STREAM_MAX_FPS = 2 #30
 STREAM_JPEG_QUALITY = 85
 STREAM_MAX_WIDTH = 1280
@@ -280,10 +280,11 @@ def init_config():
 			COUNTDOWN_SETTINGS.update(countdown_settings)
 		for camera_uuid,_ in CAMERA_SETTINGS.items():
 			CAMERA_STATES[camera_uuid] = {
-							'live_detection_running':False,
-							'last_result':'',
-							'last_time':None,
-							'live_detection_task':None
+				"live_detection_running": False,
+				"last_result": '',
+				"last_time": None,
+				"defect_active": False,
+				"live_detection_task": None
 							}
 				
 		logger.debug('Starting with configuration')
