@@ -89,6 +89,7 @@ def get_DWC_config(file_path,file_name,logger):
         if not hasattr(NTFY,'TOPIC'): NTFY.TOPIC = ''
         if not hasattr(NTFY,'TITLE'): NTFY.TITLE = ''
         if not hasattr(NTFY,'MESSAGE'): NTFY.MESSAGE = ''
+        if not hasattr(NTFY,'PRIORITY'): NTFY.PRIORITY = ''
         
         #PUSHOVER
         if not hasattr(PUSHOVER,'API') : PUSHOVER.API = ''

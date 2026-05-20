@@ -172,12 +172,17 @@ def _send_ntfy(alert):
 		else:
 			message = alert.body
 
+		if NTFY.PRIORITY !='':
+			priority = NTFY.PRIORITY
+		else:
+			priority = 3
+
 		logger.info(f'Sending NTFY with title {title}')	
 
 		data=json.dumps({
 			"Topic": NTFY.TOPIC,
 			"Title": title,
-			"Priority": 5,
+			"Priority": priority,
 			"Message": message,
 			})
 	
