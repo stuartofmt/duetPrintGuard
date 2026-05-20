@@ -11,7 +11,7 @@ from models import CameraState
 from .camera_state_manager import get_camera_state_manager
 from .config import CAMERA_SETTINGS
 
-
+'''
 async def xadd_camera(source, nickname):
     """
     Adds a new camera, assigns a UUID, and stores it.
@@ -44,6 +44,7 @@ async def xremove_camera(camera_uuid: str) -> bool:
     """
     manager = get_camera_state_manager()
     return await manager.remove_camera(camera_uuid)
+'''
 
 def find_available_serial_cameras() -> list[str]:
     """
@@ -88,6 +89,7 @@ def find_available_serial_cameras() -> list[str]:
         index += 1
     return available_indices
 
+'''
 def xopen_camera(camera_uuid) -> cv2.VideoCapture:
     """
     Open the camera and return a VideoCapture object.
@@ -109,7 +111,8 @@ def xopen_camera(camera_uuid) -> cv2.VideoCapture:
     if not cap.isOpened():
         raise RuntimeError(f"Failed to open camera with UUID {camera_uuid}")
     return cap
-
+'''
+'''
 async def get_camera_state(camera_uuid, reset=False):
     """Get this camera's state, handling async context appropriately.
 
@@ -121,6 +124,7 @@ async def get_camera_state(camera_uuid, reset=False):
         CameraState: The state of the camera.
     """
     return get_camera_state_sync(camera_uuid)
+'''
 
 """SRS
     manager = get_camera_state_manager()
@@ -132,7 +136,7 @@ async def get_camera_state(camera_uuid, reset=False):
         logger.error("Error in camera state access for camera %d: %s", camera_uuid, e)
         return CameraState()
 """
-        
+'''        
 def get_camera_state_sync(camera_uuid, reset=False):
     """Synchronous wrapper for get_camera_state for contexts that cannot use async/await.
 
@@ -161,7 +165,9 @@ def get_camera_state_sync(camera_uuid, reset=False):
         logger.error("Error in synchronous camera state access for camera %d: %s", camera_uuid, e)
         return CameraState()
 """
+'''
 
+'''
 async def xupdate_camera_detection_history(camera_uuid, pred, time_val):
     """Append a detection to the camera's detection history.
 
@@ -189,3 +195,4 @@ async def update_camera_state(camera_uuid, new_states):
     """
     manager = get_camera_state_manager()
     return await manager.update_camera_state(camera_uuid, new_states)
+'''

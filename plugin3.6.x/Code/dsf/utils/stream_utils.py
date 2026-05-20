@@ -27,8 +27,8 @@ from .alert_utils import (dismiss_alert, alert_to_response_json,
 
 #from .camera_utils import (get_camera_state, get_camera_state_sync,
 #						   update_camera_state, update_camera_detection_history)
-from .camera_utils import (get_camera_state, get_camera_state_sync,
-						   update_camera_state)
+#from .camera_utils import (get_camera_state, get_camera_state_sync,
+#						   update_camera_state)
 
 # from .notification_utils import send_defect_notification
 from duet_printer import get_printer_config, suspend_print_job, duet_send_notification
@@ -168,16 +168,6 @@ class StreamOptimizer:
 		"""Get the time interval between detections in seconds."""
 		return self._get_current_settings()['detection_interval_ms'] / 1000.0
 
-	def log_optimization_info(self):
-		"""Log current stream optimization settings for debugging."""
-		settings = self._get_current_settings()
-		mode_info = "local"
-		logger.debug("Stream optimization settings for %s mode:", mode_info)
-		logger.debug("  Max FPS: %d", settings['max_fps'])
-		logger.debug("  JPEG Quality: %d", settings['jpeg_quality'])
-		logger.debug("  Max Width: %d", settings['max_width'])
-		logger.debug("  Detection Interval: %dms", settings['detection_interval_ms'])
-
 stream_optimizer = StreamOptimizer()
 
 
@@ -193,23 +183,19 @@ def create_optimized_frame_generator(camera_uuid: str, camera_state_getter):
 	# pylint: disable=E1101
 	last_frame_time = 0
 	frame_count = 0
-	if frame_count == 0:
-		stream_optimizer.log_optimization_info()
+
 	try:
 		while True:
 			if stream_optimizer.should_limit_fps(last_frame_time):
 				time.sleep(0.001)
 				continue
-			# camera_state = camera_state_getter(camera_uuid)
-			# SRS can likely remove the state getter and delete synchronous get state references
+
 			camera_state = CAMERA_SETTINGS[camera_uuid] 
 			logger.debug(f'############# Camera {camera_uuid} - Optimized Frame Generation - State: {camera_state}')
 			contrast = CAMERA_SETTINGS.get(camera_uuid).get('contrast')
 			brightness = CAMERA_SETTINGS.get(camera_uuid).get('brightness')
 			focus = CAMERA_SETTINGS.get(camera_uuid).get('focus')
-			# contrast = camera_state.contrast
-			# brightness = camera_state.brightness
-			# focus = camera_state.focus
+
 			frame = get_shared_camera_frame(camera_uuid)
 			if frame is None:
 				logger.warning("Failed to get frame from shared camera stream %s", camera_uuid)
@@ -245,10 +231,8 @@ async def create_optimized_detection_loop(app_state, camera_uuid):
 	"""
 	global CAMERA_SETTINGS, CAMERA_STATES, COUNTDOWN_SETTINGS
 
-	print(f'STARTING ODL {camera_uuid}')
 	detection_count = 0
-	#camera_state_ref = get_camera_state_sync_func(camera_uuid)
-	#detection_history = {}
+
 	majority_vote_window = CAMERA_SETTINGS[camera_uuid]['majority_vote_window']
 	majority_vote_threshold = CAMERA_SETTINGS[camera_uuid]['majority_vote_threshold']
 	countdown_control = COUNTDOWN_SETTINGS['countdown_control']
@@ -260,7 +244,6 @@ async def create_optimized_detection_loop(app_state, camera_uuid):
 	_MAJORITY_VOTE = {}
 	_CAMERA_AGREEMENT = []
 
-	#stream_optimizer.log_optimization_info()
 	# pylint: disable=E1101
 	try:
 		logger.debug(f'STARTING DETECTION LOOP FOR CAMERA {camera_uuid}')
@@ -275,7 +258,9 @@ async def create_optimized_detection_loop(app_state, camera_uuid):
 				CAMERA_STATES[camera_uuid]['live_detection_running'] = False
 				CAMERA_STATES[camera_uuid]['last_result'] = 'Failed to get frame'
 				break
-			#SRS Can remove and instead get once from above loop
+
+			# SRS possibly remove and instead get once from above loop
+			# Leaving here may allow settings changes on-the-fly
 			camera_setting = CAMERA_SETTINGS[camera_uuid]
 			contrast = camera_setting['contrast']
 			brightness = camera_setting['brightness']
@@ -333,8 +318,6 @@ async def create_optimized_detection_loop(app_state, camera_uuid):
 			detection_count += 1
 			if isinstance(numeric, int) and numeric == app_state.defect_idx:
 				do_alert = False
-				#SRS camera_lock = camera_state_ref.lock
-				# SRS CHANGE HERE FOR _camera_failure_threshold function - does not need history or timestamp
 				last_result = 0 # assumes success
 				if label == 'failure':
 					last_result = 1
@@ -389,17 +372,16 @@ def generate_frames(camera_uuid: str):
 		bytes: Multipart JPEG frame data.
 	"""
 	try:
-		for frame_data in create_optimized_frame_generator(camera_uuid, get_camera_state_sync):
+		for frame_data in create_optimized_frame_generator(camera_uuid, CAMERA_SETTINGS[camera_uuid]):
 			yield frame_data
 	# pylint: disable=E1101
 	except Exception as e:
 		logger.error("Generate Frames - Error in optimized frame generation for camera %s: %s", camera_uuid, e)
 		try:
 			while True:
-				camera_state = get_camera_state_sync(camera_uuid)
-				contrast = camera_state.contrast
-				brightness = camera_state.brightness
-				focus = camera_state.focus
+				contrast = CAMERA_SETTINGS[camera_uuid].get('contrast')
+				brightness = CAMERA_SETTINGS[camera_uuid].get('brightness')
+				focus = CAMERA_SETTINGS[camera_uuid].get('focus')
 				frame = get_shared_camera_frame(camera_uuid)
 				if frame is None:
 					logger.warning("Failed to get frame from shared camera stream %s", camera_uuid)
@@ -499,10 +481,6 @@ async def _terminate_alert_after_cooldown(alert):
 	await asyncio.sleep(COUNTDOWN_SETTINGS['countdown_time'])
 	if get_alert(alert.id) is not None: # if the alert has been reset ==> ignore
 		camera_uuid = alert.camera_uuid
-		#camera_state = await get_camera_state(camera_uuid)
-		#camera_state = CAMERA_STATES[camera_uuid]
-		#if not camera_state:
-		#	return
 		match COUNTDOWN_SETTINGS['countdown_action']:
 			case AlertAction.DISMISS:
 				await dismiss_alert(alert.id)
@@ -587,12 +565,6 @@ async def _live_detection_loop(app_state, camera_uuid):
 	"""
 	global CAMERA_STATES
 	# pylint: disable=C0415
-	"""SRS
-	update_functions = {
-		'update_camera_state': update_camera_state,
-		'update_camera_detection_history': update_camera_detection_history,
-	}
-	"""
 	try:
 		logger.debug(f'CREATE OPTIMIZED DETECTION LOOP FOR {camera_uuid}')
 		await create_optimized_detection_loop(
@@ -616,10 +588,8 @@ async def send_defect_notification(alert_id):
 	if alert:
 		logger.debug("Alert found for ID %s, preparing notification", alert_id)
 		# pylint: disable=import-outside-toplevel
-		#from .camera_utils import get_camera_state
-		#camera_state = await get_camera_state(alert.camera_uuid)
 		camera_state = CAMERA_SETTINGS[alert.camera_uuid]
-		#camera_nickname = camera_state.nickname if camera_state else alert.camera_uuid
+
 		if COUNTDOWN_SETTINGS['countdown_control'] == 'all_cameras':
 			title_msg = f"duetPrintguard: All cameras"
 		else:

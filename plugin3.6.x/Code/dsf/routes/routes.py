@@ -13,15 +13,11 @@ from logger_module import logger
 from models import AlertAction, SavedConfig
 from duet_printer import suspend_print_job
 
-from utils.alert_utils import alert_to_response_json, dismiss_alert, get_alert
+#from utils.alert_utils import alert_to_response_json, dismiss_alert, get_alert
 import cv2
-from utils.camera_utils import (
-    xadd_camera as add_camera,
-    find_available_serial_cameras,
-    get_camera_state,
-    xremove_camera as remove_camera_util,
-    update_camera_state,
-)
+from utils.camera_utils import find_available_serial_cameras
+
+
 from utils.camera_state_manager import get_camera_state_manager
 from utils.config import (
     CAMERA_SETTINGS,
@@ -147,7 +143,7 @@ async def serve_index(request: Request):
         "request": request
     })
 
-
+"""SRS
 @router.post("/xindex", include_in_schema=False)
 async def update_index_settings(request: Request,
                           camera_uuid: str = Form(...),
@@ -160,7 +156,7 @@ async def update_index_settings(request: Request,
                           majority_vote_threshold: int = Form(...),
                           majority_vote_window: int = Form(...),
                           ):
-    """Update camera settings from the index page."""
+
     await update_camera_state(camera_uuid, {
         "sensitivity": sensitivity,
         "brightness": brightness,
@@ -172,7 +168,7 @@ async def update_index_settings(request: Request,
         "majority_vote_window": majority_vote_window,
     })
     return RedirectResponse("/index", status_code=303)
-
+"""
 
 # settings_routes.py
 @router.get("/settings", include_in_schema=False)
@@ -224,10 +220,10 @@ async def update_settings_countdown(request: Request,
     return RedirectResponse("/settings", status_code=303)
 
 
-# camera_routes.py
+"""
 @router.post("/xcamera/state", include_in_schema=False)
 async def get_camera_state_ep(request: Request, camera_uuid: str = Body(..., embed=True)):
-    """Get the current state of a specific camera."""
+
     logger.debug('entered get_camera_state_ep with camera_uuid: %s', camera_uuid)
     camera_state = await get_camera_state(camera_uuid)
     detection_times = [t for t, _ in camera_state.detection_history] if (
@@ -255,7 +251,7 @@ async def get_camera_state_ep(request: Request, camera_uuid: str = Body(..., emb
         "countdown_control":camera_state.countdown_control
     }
     return response
-
+"""
 
 @router.get('/camera/feed/{camera_uuid}', include_in_schema=False)
 async def camera_feed(camera_uuid: str):
@@ -302,10 +298,10 @@ async def camera_snapshot(camera_uuid: str):
         logger.error("Snapshot error for %s: %s", camera_uuid, e)
         raise
 
-
+"""
 @router.post("x/camera/add")
 async def add_camera_ep(request: Request):
-    """Add a new camera."""
+
     data = await request.json()
     nickname = data.get('nickname')
     source = data.get('source')
@@ -321,11 +317,11 @@ async def add_camera_ep(request: Request):
                 }
                 )
     return {"camera_uuid": camera['camera_uuid'], "nickname": camera['nickname'], "source": camera['source']}
-
-
+"""
+"""SRS
 @router.post("/camera/remove")
 async def remove_camera_ep(request: Request):
-    """Remove a camera."""
+
     data = await request.json()
     camera_uuid = data.get('camera_uuid')
     if not camera_uuid:
@@ -334,7 +330,7 @@ async def remove_camera_ep(request: Request):
     if not success:
         raise HTTPException(status_code=404, detail="Camera not found.")
     return {"message": "Camera removed successfully."}
-
+"""
 
 @router.get("/camera/serial_devices")
 async def get_serial_devices_ep():

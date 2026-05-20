@@ -4,7 +4,7 @@ import json
 
 from PIL import Image
 
-from utils.camera_utils import update_camera_state
+from .config import COUNTDOWN_SETTINGS
 
 
 def append_new_alert(alert):
@@ -58,7 +58,8 @@ async def dismiss_alert(alert_id):
     if alert_id in app.state.alerts:
         del app.state.alerts[alert_id]
         camera_uuid = alert_id.split('_')[0]
-        await update_camera_state(camera_uuid, {"current_alert_id": None})
+        '''SRS placeholder for removing app.state.alerts'''
+        COUNTDOWN_SETTINGS['current_alert_id'] = None
         return True
     return False
 
