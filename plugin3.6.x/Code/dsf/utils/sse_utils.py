@@ -3,8 +3,7 @@ import json
 from logger_module import logger
 import time
 
-from models import (SSEDataType, PrinterState,
-                      PollingTask, SavedConfig)
+from models import (SSEDataType)
 from utils.config import get_config, MIN_SSE_DISPATCH_DELAY_MS
 
 _last_dispatch_times = {}
@@ -29,8 +28,7 @@ async def append_new_outbound_packet(packet, sse_data_type: SSEDataType):
         sse_data_type (SSEDataType): The type of SSE event.
     """
     logger.debug("Appending new SSE packet of type %s to outbound queue", sse_data_type.value)
-    #config = get_config()
-    #min_sse_dispatch_delay = config.get(SavedConfig.MIN_SSE_DISPATCH_DELAY_MS, MIN_SSE_DISPATCH_DELAY_MS)
+
     current_time = time.time() * 1000
     last_dispatch_time = _last_dispatch_times.get(sse_data_type, 0)
     time_since_last_dispatch = current_time - last_dispatch_time
@@ -47,6 +45,8 @@ async def append_new_outbound_packet(packet, sse_data_type: SSEDataType):
     await app.state.outbound_queue.put(pkt_json)
     _last_dispatch_times[sse_data_type] = current_time
 
+
+'''
 async def x_sse_update_camera_state_func(camera_uuid):
     """Build and send a camera state update SSE packet.
 
@@ -131,3 +131,4 @@ def xadd_polling_task(camera_uuid, task: PollingTask):
         xstop_and_remove_polling_task(camera_uuid)
     app.state.polling_tasks[camera_uuid] = task
     logger.debug("Added polling task for camera UUID %s", camera_uuid)
+'''

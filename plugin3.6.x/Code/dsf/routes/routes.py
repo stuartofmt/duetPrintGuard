@@ -281,6 +281,21 @@ async def camera_snapshot(camera_uuid: str):
         frame = stream.get_frame()
         if frame is None:
             raise HTTPException(status_code=500, detail="Failed to read frame")
+
+        # Apply camera settings (brightness/contrast/focus) so snapshot matches live feed
+        try:
+            cam_settings = CAMERA_SETTINGS.get(camera_uuid, {})
+            contrast = cam_settings.get('contrast', 1.0)
+            brightness = cam_settings.get('brightness', 1.0)
+            focus = cam_settings.get('focus', 1.0)
+            frame = cv2.convertScaleAbs(frame, alpha=contrast, beta=int((brightness - 1.0) * 255))
+            if focus and focus != 1.0:
+                blurred = cv2.GaussianBlur(frame, (0, 0), sigmaX=focus)
+                frame = cv2.addWeighted(frame, 1.0 + focus, blurred, -focus, 0)
+        except Exception:
+            # If processing fails, fallback to raw frame
+            pass
+
         _, buffer = cv2.imencode('.jpg', frame)
         return Response(content=buffer.tobytes(), media_type="image/jpeg")
     except Exception as e:

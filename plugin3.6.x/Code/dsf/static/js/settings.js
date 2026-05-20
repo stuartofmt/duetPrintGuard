@@ -150,11 +150,11 @@ camVideoPreview.onerror = () => {
 
 
 
-function changeLiveCameraFeed(cameraUUID) {
+function updateCameraSnapshot(cameraUUID) {
 	loadingOverlay.style.display = 'flex';
-	camVideoPreview.src = `/camera/snapshot/${cameraUUID}`;
-	//SRS
-	//camVideoPreview.src = `/camera/feed/${cameraUUID}`;
+	// Append timestamp to avoid cached images and ensure updated settings are shown
+	camVideoPreview.src = `/camera/snapshot/${cameraUUID}?t=${Date.now()}`;
+
 }
 
 function updateSelectedCameraSettings(d) {
@@ -281,7 +281,7 @@ function addListenerToDisplayItem(item, cameraId) {
 
 		settingsCameraUUID.value = cameraId; // set the form uuid to report the current camera
 		fetchAndUpdateCameraSettings(cameraId);
-		changeLiveCameraFeed(cameraId);
+		updateCameraSnapshot(cameraId);
 	});
 	
 	const removeButton = item.querySelector('.remove-camera-btn');
@@ -347,6 +347,11 @@ function saveSetting(slider) {
 			if (valueSpan) {
 				valueSpan.textContent = value;
 			}
+			const currentCameraUUID = settingsCameraUUID?.value;
+			if (currentCameraUUID) {
+				fetchAndUpdateCameraSettings(currentCameraUUID);
+				updateCameraSnapshot(currentCameraUUID);
+			}
 		} else {
 			console.error(`Failed to update setting ${setting}`);
 		}
@@ -368,7 +373,7 @@ document.querySelectorAll('.settings-form input[type="range"]').forEach(slider =
 	});
 });
 
-document.querySelectorAll('.control-form input[type="range"').forEach(slider => {
+document.querySelectorAll('.control-form input[type="range"]').forEach(slider => {
 	updateSliderFill(slider);
 	slider.addEventListener('input', () => {
 		updateSliderFill(slider);

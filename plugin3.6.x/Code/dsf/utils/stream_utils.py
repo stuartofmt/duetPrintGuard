@@ -8,7 +8,7 @@ import numpy as np
 from PIL import Image
 
 from .model_utils import _run_inference
-# from .sse_utils import sse_update_camera_state, append_new_outbound_packet
+
 from .sse_utils import append_new_outbound_packet
 
 from .shared_video_stream import get_shared_camera_frame
@@ -263,8 +263,8 @@ async def create_optimized_detection_loop(app_state, camera_uuid):
 	#stream_optimizer.log_optimization_info()
 	# pylint: disable=E1101
 	try:
+		logger.debug(f'STARTING DETECTION LOOP FOR CAMERA {camera_uuid}')
 		while True:
-			print(f'STARTING DETECTION LOOP FOR CAMERA {camera_uuid}')
 			camera_state = CAMERA_STATES[camera_uuid]
 			if not CAMERA_STATES[camera_uuid]['live_detection_running']:
 				break
@@ -273,12 +273,7 @@ async def create_optimized_detection_loop(app_state, camera_uuid):
 			except Exception as e:
 				logger.warning("Failed to get frame from shared camera stream %s", camera_uuid)
 				CAMERA_STATES[camera_uuid]['live_detection_running'] = False
-				"""
-				await update_functions['update_camera_state'](camera_uuid, {
-					"error": "Failed to get frame from shared stream",
-					"live_detection_running": False
-				})
-				"""
+				CAMERA_STATES[camera_uuid]['last_result'] = 'Failed to get frame'
 				break
 			#SRS Can remove and instead get once from above loop
 			camera_setting = CAMERA_SETTINGS[camera_uuid]
@@ -293,14 +288,22 @@ async def create_optimized_detection_loop(app_state, camera_uuid):
 			detection_frame, _ = stream_optimizer.optimize_frame(frame)
 			image = Image.fromarray(cv2.cvtColor(detection_frame, cv2.COLOR_BGR2RGB))
 			tensor = app_state.transform(image).unsqueeze(0).to(app_state.device)
+			
+			"""
+			This is where the detection happens
+			we run inference on the current frame tensor, get a numeric prediction
+			and then map that to a label.
+			We also handle any exceptions that occur during inference and log them.
+			The resulting label and timestamp are stored in the camera state for
+			potential use in alerting logic.
+			"""
 			try:
-				print(f'GETTING PREDICTION FOR {camera_uuid}')
 				prediction = await _run_inference(app_state.model,
 												tensor,
 												app_state.prototypes,
 												app_state.defect_idx,
 												app_state.device)
-				print(f'GOT PREDICTION {prediction} FOR {camera_uuid}')
+				logger.debug(f'GOT PREDICTION {prediction} FOR {camera_uuid}')
 				numeric = prediction[0] if isinstance(prediction, list) else prediction
 			except Exception as e:
 				logger.debug("Detection inference error for camera %s: %s", camera_uuid, e)
@@ -310,16 +313,23 @@ async def create_optimized_detection_loop(app_state, camera_uuid):
 				and 0 <= numeric < len(app_state.class_names)
 				) else str(numeric)
 			current_timestamp = time.time()
-			''' SRS dont use history any more
-			await update_functions['update_camera_detection_history'](camera_uuid,
-																	  label,
-																	  current_timestamp)
-			'''
+			
+			"""
+			UI periodically polls for camera state updates to show
+			the latest detection result and timestamp.
+			"""
 			print(f'Camera {camera_uuid} - Detection result: {label} at {current_timestamp}')
 			CAMERA_STATES[camera_uuid]['last_time'] = current_timestamp
 			CAMERA_STATES[camera_uuid]['last_result'] = label
 			
-			#asyncio.create_task(sse_update_camera_state(camera_uuid))
+			"""
+			A running count of successive detections is maintained
+			to determine if we have enough evidence to trigger an alert.
+			The majority vote logic checks if we have seen enough failures
+			in the recent history to consider the defect active.
+			The multi-camera agreement logic checks if other cameras are also detecting
+			accoding to COUNTDOWN_SETTINGS.
+			"""
 			detection_count += 1
 			if isinstance(numeric, int) and numeric == app_state.defect_idx:
 				do_alert = False
@@ -332,21 +342,28 @@ async def create_optimized_detection_loop(app_state, camera_uuid):
 				CAMERA_STATES[camera_uuid]['defect_active'] = False  # reset defect active state on each failure detection - only set to true if we pass both majority vote and multi camera test
 				passed_majority_vote = _camera_failure_threshold(camera_uuid,majority_vote_window,majority_vote_threshold,last_result)
 				passed_camera_combination = False
-				if passed_majority_vote:
+				if passed_majority_vote: # only check if the current camera detects failure
 					logger.debug(f'{passed_majority_vote=}')
 					passed_camera_combination = _passed_multi_camera_test(countdown_control,camera_uuid,num_cameras)
 
 				if passed_majority_vote and passed_camera_combination:
 					logger.debug(f'{passed_camera_combination =}')
-
 					do_alert = True
 					if do_alert:
-						'''SRS'''
-
+						'''SRS Not needed  - delete globally later once we confirm functionality'''
 						CAMERA_STATES[camera_uuid]['defect_active'] = True # only requires one camera to trigger
-						# alert = await _create_alert_and_notify(camera_state_ref,
+
+						"""SRS - Alert creation and notification are handled asynchronously
+						to avoid blocking the detection loop.
+						This allows the system to remain responsive
+						and continue processing frames while the alert countdown is active
+						SIMPLER TO DO SYNCRONOUSLY WITHOUT AFFECTING PERFORMANCE
+						THAN TO TRY TO HANDLE ASYNC ISSUES?"""
 						alert = await _create_alert_and_notify(camera_uuid, frame, current_timestamp)
 
+						"""SRS
+						Invokes a coundown timer in sse utils - so only called once per alert
+						"""
 						asyncio.create_task(_send_alert(alert))
 
 						# Wait for countdown time during active alert
@@ -490,18 +507,20 @@ async def _terminate_alert_after_cooldown(alert):
 			case AlertAction.DISMISS:
 				await dismiss_alert(alert.id)
 			case AlertAction.CANCEL_PRINT | AlertAction.PAUSE_PRINT:
-				# suspend_print_job(camera_uuid, camera_state.countdown_action)
 				suspend_print_job(camera_uuid, COUNTDOWN_SETTINGS['countdown_action'])
 				return await dismiss_alert(alert.id)
 	else:
-		print(f'Alert was terminated')
+		logger.debug(f'Alert was terminated')
 
-# async def _create_alert_and_notify(camera_state_ref, camera_uuid, frame, timestamp_arg):
+
 async def _create_alert_and_notify(camera_uuid, frame, timestamp_arg):
 	"""Create a new Alert object and notify all subsystems.
+	The design of this function assumes that the alert will be created
+	and notifications sent immediately when a defect situation is detected.
+	Actions that should occur after a countdown (like pausing a print job)
+	are handled separately in the _terminate_alert_after_cooldown function.
 
 	Args:
-		camera_state_ref (CameraState): The state reference for the camera.
 		camera_uuid (str): The UUID of the camera.
 		frame (ndarray): The image frame where a defect was detected.
 		timestamp_arg (float): The timestamp of detection.
@@ -509,8 +528,15 @@ async def _create_alert_and_notify(camera_uuid, frame, timestamp_arg):
 	Returns:
 		Alert: The newly created alert.
 	"""
-	print('DETECTION UTILS ALERT')
+
 	alert_id = f"{camera_uuid}_{str(uuid.uuid4())}"
+
+	"""SRS - modify to support only a single alert
+	COUNTDOWN_SETTINGS['active_alert'] = True
+	should allow removal of ALERT object
+	"""
+
+
 	# pylint: disable=E1101
 	_, img_buf = cv2.imencode('.jpg', frame)
 	has_printer = get_printer_config(camera_uuid) is not None
@@ -529,10 +555,24 @@ async def _create_alert_and_notify(camera_uuid, frame, timestamp_arg):
 	)
 
 	append_new_alert(alert)
+
+	"""SRS - We want to trigger UI interactions immediately,
+	but handle the countdown and any resulting actions asynchronously
+	after the specified time.
+	This allows the UI to update right away with the new alert
+	while still enforcing the cooldown period before any print job actions are taken
+	or the alert is dismissed.
+	"""
 	asyncio.create_task(_terminate_alert_after_cooldown(alert))
-	#await update_camera_state(camera_uuid, {"current_alert_id": alert_id})
-	CAMERA_STATES[camera_uuid]['current_alert_id'] = alert_id
+
+	
+	"""SRS - We can send notifications immediately upon alert creation
+	to ensure that users are informed right away,
+	rather than waiting for the countdown to complete.
+	The notification includes information about the detected defect and the camera,
+	but does not include any actions"""
 	await send_defect_notification(alert_id)
+
 	return alert
 
 async def _live_detection_loop(app_state, camera_uuid):
@@ -554,7 +594,7 @@ async def _live_detection_loop(app_state, camera_uuid):
 	}
 	"""
 	try:
-		print(f'TRYING TO CREATE OPTIMIZED DETECTION LOOP FOR {camera_uuid}')
+		logger.debug(f'CREATE OPTIMIZED DETECTION LOOP FOR {camera_uuid}')
 		await create_optimized_detection_loop(
 			app_state,
 			camera_uuid
