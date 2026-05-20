@@ -620,10 +620,20 @@ async def send_defect_notification(alert_id):
 		#camera_state = await get_camera_state(alert.camera_uuid)
 		camera_state = CAMERA_SETTINGS[alert.camera_uuid]
 		#camera_nickname = camera_state.nickname if camera_state else alert.camera_uuid
-		camera_nickname = camera_state['nickname']
+		if COUNTDOWN_SETTINGS['countdown_control'] == 'all_cameras':
+			title_msg = f"duetPrintguard: All cameras"
+		else:
+			title_msg = f"duetPrintguard: {camera_state['nickname']}"
+
+		if COUNTDOWN_SETTINGS['countdown_action'] == 'pause_print':
+			action_msg = f"Print will be paused if not dismissed within {COUNTDOWN_SETTINGS['countdown_time']} seconds."
+		elif COUNTDOWN_SETTINGS['countdown_action'] == 'cancel_print':
+			action_msg = f"Print will be cancelled if not dismissed within {COUNTDOWN_SETTINGS['countdown_time']} seconds."
+		else:
+			action_msg = f"Alert will be dismissed automatically in {COUNTDOWN_SETTINGS['countdown_time']} seconds if not dismissed manually."
 		notification = Notification(
-			title=f"duetPrintGuard",
-			body=f"Defect detected on camera {camera_nickname}",
+			title=title_msg,
+			body=action_msg,
 		)
 		subscriptions = []  #SRS NOT NEEDED - DELETE REFERENCES
 		logger.debug("Created notification object without image payload, sending to %d subscriptions",

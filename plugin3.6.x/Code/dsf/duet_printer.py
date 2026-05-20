@@ -173,7 +173,7 @@ def _send_ntfy(alert):
 			message = alert.body
 
 		if NTFY.PRIORITY !='':
-			priority = NTFY.PRIORITY
+			priority = int(NTFY.PRIORITY)
 		else:
 			priority = 3
 
