@@ -41,25 +41,25 @@ from utils.sse_utils import outbound_packet_fetch
 router = APIRouter()
 
 # alert_routes.py
-@router.post("/alert/dismiss")
+@router.post("/countdown/action")
 async def alert_response(request: Request,
-                         alert_id: str = Body(..., embed=True),
-                         action: AlertAction = Body(..., embed=True)):
-    """Handle alert response actions including dismiss, cancel, and pause."""
-    alert = get_alert(alert_id)
-    camera_uuid = alert.camera_uuid if alert else None
-    if not alert or camera_uuid is None:
-        return {"message": f"Alert {alert_id} not found."}
-    response = None
+                         action = Body(..., embed=True)):
+    """
+    Handle alert response actions including ignore, cancel, and pause.
+    Can be raised at any time independent of the alert's countdown status
+    """
+    global COUNTDOWN_SETTINGS
     match action:
-        case AlertAction.DISMISS:
-            response = await dismiss_alert(alert_id)
-        case AlertAction.CANCEL_PRINT | AlertAction.PAUSE_PRINT:
-            suspend_print_job(camera_uuid, action)
-            return await dismiss_alert(alert_id)
-    if not response:
-        response = {"message": f"Alert {alert_id} not found."}
-    return response
+        case 'ignore': # allowing new alerts to be triggered 
+            COUNTDOWN_SETTINGS['alert_status'] = 'inactive'
+        case 'pause_print':
+            COUNTDOWN_SETTINGS['alert_status'] = 'paused'
+            suspend_print_job(action)
+            COUNTDOWN_SETTINGS['alert_status'] = 'inactive' # reset after action
+        case 'cancel_print':
+            COUNTDOWN_SETTINGS['alert_status'] = 'cancelled'
+            suspend_print_job(action)
+            # Not reset since print job has been stopped
 
 
 @router.get("/alert/active")

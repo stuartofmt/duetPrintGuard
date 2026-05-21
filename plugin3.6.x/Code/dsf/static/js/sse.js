@@ -1,3 +1,4 @@
+/*
 const evtSource = new EventSource('/sse');
 const notificationPopup = document.getElementById('notificationPopup');
 const notificationMessage = document.getElementById('notificationMessage');
@@ -6,7 +7,7 @@ const notificationCountdownTimer = document.getElementById('notificationCountdow
 const dismissNotificationBtn = document.getElementById('dismissNotificationBtn');
 const cancelPrintBtn = document.getElementById('cancelPrintBtn');
 const pausePrintBtn = document.getElementById('pausePrintBtn');
-
+*/
 let currentAlertId = null;
 
 //document.addEventListener('DOMContentLoaded', loadPendingAlerts);
@@ -194,34 +195,4 @@ evtSource.onerror = (err) => {
     console.error("SSE error", err);
 };
 
-function executeAlertAction(action_type, alertId) {
-    fetch(`/alert/dismiss`, { 
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ alert_id: alertId, action: action_type })
-    })
-        .then(response => {
-            if (response.ok) {
-            /*
-                const alertElement = document.getElementById(`alert-${alertId}`);
-                if (alertElement) alertElement.remove();
-            */
-                removeActiveAlert(alertId);
-                /*
-                if (document.getElementById('notificationsContainer').children.length === 0) {
-                    notificationPopup.style.display = 'none';
-                }
-                */
-            } else {
-                console.error('Failed to execute alert action');
-            }
-        })
-        .catch(error => console.error('Error trying to execute alert action:', error));
-}
 
-function dismissAlert(action_type, alertId) {
-    if (!alertId) alertId = currentAlertId;
-    executeAlertAction(action_type, alertId);
-}

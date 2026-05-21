@@ -475,24 +475,25 @@ async def _send_alert(alert):
 	"""
 	await append_new_outbound_packet(alert_to_response_json(alert), SSEDataType.ALERT)
 
-async def _terminate_alert_after_cooldown(alert):
-	"""Wait for the alert's countdown, then dismiss or act on the print job.
-
-	Args:
-		alert (Alert): The alert object with `countdown_time` and `countdown_action`.
+async def _terminate_alert_after_countdown():
 	"""
-	#SRS await asyncio.sleep(alert.countdown_time)
+	Wait for the alert's countdown, then ignore or act on the print job.
+	"""
+
 	await asyncio.sleep(COUNTDOWN_SETTINGS['countdown_time'])
-	if get_alert(alert.id) is not None: # if the alert has been reset ==> ignore
-		camera_uuid = alert.camera_uuid
+	# Check if the alert is still active (not dismissed or overridden by user)
+	if COUNTDOWN_SETTINGS['alert_status'] == 'active':
 		match COUNTDOWN_SETTINGS['countdown_action']:
-			case AlertAction.DISMISS:
-				await dismiss_alert(alert.id)
-			case AlertAction.CANCEL_PRINT | AlertAction.PAUSE_PRINT:
-				suspend_print_job(camera_uuid, COUNTDOWN_SETTINGS['countdown_action'])
-				return await dismiss_alert(alert.id)
-	else:
-		logger.debug(f'Alert was terminated')
+			case 'ignore': # allowing new alerts to be triggered 
+				COUNTDOWN_SETTINGS['alert_status'] = 'inactive'
+			case 'pause_print':
+				COUNTDOWN_SETTINGS['alert_status'] = 'paused'
+				suspend_print_job(COUNTDOWN_SETTINGS['countdown_action'])
+				COUNTDOWN_SETTINGS['alert_status'] = 'inactive' # reset after action
+			case 'cancel_print':
+				COUNTDOWN_SETTINGS['alert_status'] = 'cancelled'
+				suspend_print_job(COUNTDOWN_SETTINGS['countdown_action'])
+				# Not reset since print job has been stopped
 
 
 async def _create_alert_and_notify(camera_uuid, frame, timestamp_arg):
@@ -500,7 +501,7 @@ async def _create_alert_and_notify(camera_uuid, frame, timestamp_arg):
 	The design of this function assumes that the alert will be created
 	and notifications sent immediately when a defect situation is detected.
 	Actions that should occur after a countdown (like pausing a print job)
-	are handled separately in the _terminate_alert_after_cooldown function.
+	are handled separately in the _terminate_alert_after_countdown function.
 
 	Args:
 		camera_uuid (str): The UUID of the camera.
@@ -545,7 +546,7 @@ async def _create_alert_and_notify(camera_uuid, frame, timestamp_arg):
 	while still enforcing the cooldown period before any print job actions are taken
 	or the alert is dismissed.
 	"""
-	asyncio.create_task(_terminate_alert_after_cooldown(alert))
+	asyncio.create_task(_terminate_alert_after_countdown())
 
 	
 	"""SRS - We can send notifications immediately upon alert creation

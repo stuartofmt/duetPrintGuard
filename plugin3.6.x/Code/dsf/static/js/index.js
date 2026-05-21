@@ -79,23 +79,25 @@ function createTopRowButtons(){
   const btnFrag = btnTemplate.content.cloneNode(true);
   const btn = btnFrag.firstElementChild;
 
-  const ignoreBtn = btn.querySelector(".btn-ignore");
-  const pauseBtn = btn.querySelector(".btn-pause");
-  const cancelBtn = btn.querySelector(".btn-cancel");
+  ignoreBtn = btn.querySelector(".btn-ignore");
+  pauseBtn = btn.querySelector(".btn-pause");
+  cancelBtn = btn.querySelector(".btn-cancel");
 
   // Event for Ignore button
   ignoreBtn.addEventListener("click", () => {
-    executeAlertAction('dismiss', ALERTID)
+    executeCountdownAction('ignore')
   });
 
   // Event for Pause button
   pauseBtn.addEventListener("click", () => {
-    executeAlertAction('pause_print', ALERTID)
+    alert('Are you sure you want to Pause the Print?');
+    executeCountdownAction('pause_print')
   });
 
   // Event for Cancel button
   cancelBtn.addEventListener("click", () => {
-    executeAlertAction('cancel_print', ALERTID)
+    alert('Are you sure you want to Cancel the Print?');
+    executeCountdownAction('cancel_print')
   });
 
   row.appendChild(btn);
@@ -236,10 +238,10 @@ function updateCameraDisplay(item, d) {
 
 
 function flashCountdown(action) {
-  const topControls = document.querySelector(".top-controls");
-  const ignoreBtn = topControls.querySelector(".btn-ignore");
-  const pauseBtn = topControls.querySelector(".btn-pause");
-  const cancelBtn = topControls.querySelector(".btn-cancel");
+  //const topControls = document.querySelector(".top-controls");
+  //const ignoreBtn = topControls.querySelector(".btn-ignore");
+  //const pauseBtn = topControls.querySelector(".btn-pause");
+  //const cancelBtn = topControls.querySelector(".btn-cancel");
 
   flashButton = ignoreBtn;
   if (action == 'cancel_print'){
@@ -396,7 +398,33 @@ async function getCountdownSettings() {
   }
 }
 
-// Wait until the DOM is fully loaded
-document.addEventListener("DOMContentLoaded", () => {
-  console.warn('DOM loaded');
-});
+
+
+function executeCountdownAction(action_type) {
+    fetch(`/countdown/action`, { 
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({action: action_type })
+    })
+        .then(response => {
+            if (response.ok) {
+            /*
+                const alertElement = document.getElementById(`alert-${alertId}`);
+                if (alertElement) alertElement.remove();
+            */
+                //removeActiveAlert(alertId);
+                /*
+                if (document.getElementById('notificationsContainer').children.length === 0) {
+                    notificationPopup.style.display = 'none';
+                }
+                */
+            } else {
+                console.error('Failed to execute alert action');
+            }
+        })
+        .catch(error => console.error('Error trying to execute alert action:', error));
+}
+
+
