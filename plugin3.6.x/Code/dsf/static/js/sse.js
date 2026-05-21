@@ -1,5 +1,38 @@
+console.info('sse.js loaded');
+
+let evtSource;
+try {
+    evtSource = new EventSource('/sse');
+    console.info('Attempting SSE connection to /sse');
+} catch (error) {
+    console.error('Failed to create EventSource', error);
+}
+
+if (evtSource) {
+    evtSource.onopen = (event) => {
+        console.info('SSE connection opened', event);
+    };
+
+    evtSource.onerror = (err) => {
+        console.error('SSE error', err, 'readyState=', evtSource.readyState);
+    };
+
+    evtSource.addEventListener('countdown_time', (e) => {
+        try {
+            const countdownData = JSON.parse(e.data);
+            console.warn('Received countdown_time event:', countdownData);
+            startAlertCountdown(countdownData);
+        } catch (error) {
+            console.error('Error parsing countdown_time SSE event data:', error, e.data);
+        }
+    });
+
+    evtSource.addEventListener('error', (err) => {
+        console.error('SSE event error', err, 'readyState=', evtSource.readyState);
+    });
+}
+
 /*
-const evtSource = new EventSource('/sse');
 const notificationPopup = document.getElementById('notificationPopup');
 const notificationMessage = document.getElementById('notificationMessage');
 const notificationImage = document.getElementById('notificationImage');
@@ -8,10 +41,10 @@ const dismissNotificationBtn = document.getElementById('dismissNotificationBtn')
 const cancelPrintBtn = document.getElementById('cancelPrintBtn');
 const pausePrintBtn = document.getElementById('pausePrintBtn');
 */
-let currentAlertId = null;
+//let currentAlertId = null;
 
 //document.addEventListener('DOMContentLoaded', loadPendingAlerts);
-
+/*
 function getLocalActiveAlerts() {
     try {
         return JSON.parse(localStorage.getItem('activeAlerts')) || {};
@@ -86,13 +119,7 @@ async function loadPendingAlerts() {
     
     return alertIds.length > 0;
 }
-
-function displayAlert(alert_data) {
-    const parsedData = parseAlertData(alert_data);
-    //updateAlertUI(parsedData);
-    startAlertCountdown(parsedData);
-    //saveActiveAlert(parsedData);
-}
+*/
 
 function parseAlertData(alert_data) {
     return typeof alert_data === 'string' ? JSON.parse(alert_data) : alert_data;
@@ -101,21 +128,17 @@ function parseAlertData(alert_data) {
 
 function startAlertCountdown(data) {
     console.warn('Starting countdown for alert:', data);
-    if (!data || !data.camera_uuid) return;
+    const countdownTime = typeof data === 'number' ? data : (data?.countdown_time || 0);
+    if (countdownTime <= 0) return;
 
     const countdownTimerId = 'countdown';
-    //const countdownTimerId = `countdown-${data.camera_uuid}`;
+    const countdownAction = typeof data === 'object' ? data.countdown_action : null;
 
-    // Clear any existing timer for this camera
-    // only one timer instance - ignore calls during countdown
     if (window[countdownTimerId]) {
         return;
-        //clearInterval(window[countdownTimerId]);
-        //delete window[countdownTimerId];
     }
 
     const startTime = Date.now();
-    const countdownTime = data.countdown_time || 0;
     const endTime = startTime + countdownTime * 1000;
 
 
@@ -126,19 +149,10 @@ function startAlertCountdown(data) {
         // Dispatch event
         document.dispatchEvent(new CustomEvent('defectRaised', {
             detail: {
-                alert_id: data.id,
-                action: data.countdown_action,
+                action: countdownAction,
                 countdown: secondsLeft
             }
         }));
-        
-
-        // Update local storage
-        const activeAlerts = getLocalActiveAlerts();
-        if (activeAlerts[data.id]) {
-            activeAlerts[data.id].expirationTime = endTime;
-            localStorage.setItem('activeAlerts', JSON.stringify(activeAlerts));
-        }
 
         // Stop when done
         if (secondsLeft <= 0) {
@@ -155,44 +169,30 @@ function startAlertCountdown(data) {
 }
 
 
-evtSource.onmessage = (e) => {
-    try {
-        let packet_data = JSON.parse(e.data);
-        packet_data = packet_data.data;
-        if (packet_data) {
-            if (packet_data.event == "alert") {
-                displayAlert(packet_data.data);
-            }
-            else if (packet_data.event == "camera_state") {
-                const cameraData = packet_data.data;
-                if (!cameraData.camera_uuid) {
-                    console.warn("Camera data missing camera_uuid", cameraData);
+if (evtSource) {
+    evtSource.onmessage = (e) => {
+        try {
+            let packet_data = JSON.parse(e.data);
+            packet_data = packet_data.data;
+            if (packet_data) {
+                if (packet_data.event == "alert") {
+                    console.warn('Wrong call');
                 }
-                if (typeof cameraData.live_detection_running !== 'boolean') {
-                    cameraData.live_detection_running = !!cameraData.live_detection_running;
+                else if (packet_data.event == "countdown_time") {
+                    console.warn('Received countdown_time event:', packet_data);
+                    startAlertCountdown(packet_data.data);
                 }
-                document.dispatchEvent(new CustomEvent('cameraStateUpdated', {
-                    detail: cameraData
-                }));
+            } else {
+                console.warn('No data in SSE message');
             }
-            else if (packet_data.event == "printer_state") {
-                const printerData = packet_data.data;
-                document.dispatchEvent(new CustomEvent('printerStateUpdated', {
-                    detail: printerData
-                }));
-        } else {
-                document.dispatchEvent(new CustomEvent('cameraStateUpdated', {
-                    detail: 'No Packet Data'
-                }));
-            }
+        } catch (error) {
+            console.error("Error processing SSE message:", error);
         }
-    } catch (error) {
-        console.error("Error processing SSE message:", error);
-    }
-};
+    };
 
-evtSource.onerror = (err) => {
-    console.error("SSE error", err);
-};
+    evtSource.addEventListener('error', (err) => {
+        console.error('SSE event error', err, 'readyState=', evtSource.readyState);
+    });
+}
 
 

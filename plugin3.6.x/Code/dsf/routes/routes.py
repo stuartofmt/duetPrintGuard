@@ -568,8 +568,8 @@ class SSEManager:
             for client in self.clients:
                 await client.put(message)
 
-
-manager = SSEManager()
+global managerSSE
+managerSSE = SSEManager()
 
 broadcast_task = None
 
@@ -580,7 +580,7 @@ async def start_broadcast_loop():
 
     async def loop():
         async for packet in outbound_packet_fetch():
-            await manager.broadcast(packet)
+            await managerSSE.broadcast(packet)
 
     broadcast_task = asyncio.create_task(loop())
 
@@ -589,7 +589,7 @@ async def start_broadcast_loop():
 async def sse_connect(request: Request):
     """Establish Server-Sent Events connection for real-time updates."""
     await start_broadcast_loop()
-    queue = await manager.connect()
+    queue = await managerSSE.connect()
 
     async def send_packet():
         try:
@@ -601,7 +601,7 @@ async def sse_connect(request: Request):
                 packet = await queue.get()
                 yield packet
         finally:
-            await manager.disconnect(queue)
+            await managerSSE.disconnect(queue)
 
     return EventSourceResponse(send_packet())
 

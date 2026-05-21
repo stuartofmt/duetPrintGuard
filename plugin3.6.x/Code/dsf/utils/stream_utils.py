@@ -1,4 +1,5 @@
 import asyncio
+import json
 from logger_module import logger
 import time
 from typing import Dict, Tuple
@@ -344,14 +345,17 @@ async def create_optimized_detection_loop(app_state, camera_uuid):
 						and continue processing frames while the alert countdown is active
 						SIMPLER TO DO SYNCRONOUSLY WITHOUT AFFECTING PERFORMANCE
 						THAN TO TRY TO HANDLE ASYNC ISSUES?"""
-						alert = await _create_alert_and_notify(camera_uuid, frame, current_timestamp)
 
 						"""SRS
 						Invokes a coundown timer in sse utils - so only called once per alert
 						"""
 						send_defect_notification(camera_uuid) # sync
 
-						asyncio.create_task(_send_alert(alert))
+						# await _create_alert_and_notify(camera_uuid, frame, current_timestamp)
+						
+						asyncio.create_task(start_countdown(COUNTDOWN_SETTINGS['countdown_time'], COUNTDOWN_SETTINGS['countdown_action'])) # async but non-blocking
+						asyncio.create_task(_terminate_alert_after_countdown()) #ensures wait
+						#asyncio.create_task(_send_alert(alert))
 
 						# Wait for countdown time during active alert
 						await asyncio.sleep(countdown_time)
@@ -467,6 +471,31 @@ def _passed_multi_camera_test(countdown_control, camera_uuid,num_cameras):
 		return False
 	
 
+async def start_countdown(countdown_time, countdown_action=None):
+	"""Send a direct countdown SSE event to the browser.
+
+	This bypasses the ALERT model and the alert queueing path.
+	Only the countdown payload is sent to the SSE client.
+	"""
+	logger.debug(f'STARTING COUNTDOWN: {countdown_time} seconds, action: {countdown_action}')
+	if countdown_time is None:
+		return
+
+	try:
+		from routes.routes import managerSSE
+		payload = {
+			"event": "countdown_time",
+			"data": json.dumps({
+				"countdown_time": countdown_time,
+				"countdown_action": countdown_action
+			})
+		}
+		await managerSSE.broadcast(payload)
+		logger.debug("Broadcasted countdown_time SSE event successfully")
+	except Exception as e:
+		logger.error("Failed to broadcast countdown_time SSE event: %s", e)
+
+
 async def _send_alert(alert):
 	"""Send an alert to clients via Server-Sent Events.
 
@@ -512,7 +541,7 @@ async def _create_alert_and_notify(camera_uuid, frame, timestamp_arg):
 		Alert: The newly created alert.
 	"""
 
-	alert_id = f"{camera_uuid}_{str(uuid.uuid4())}"
+	#SRS alert_id = f"{camera_uuid}_{str(uuid.uuid4())}"
 
 	"""SRS - modify to support only a single alert
 	COUNTDOWN_SETTINGS['active_alert'] = True
@@ -522,6 +551,8 @@ async def _create_alert_and_notify(camera_uuid, frame, timestamp_arg):
 
 	# pylint: disable=E1101
 	_, img_buf = cv2.imencode('.jpg', frame)
+
+	"""
 	has_printer = get_printer_config(camera_uuid) is not None
 
 	alert = Alert(
@@ -538,6 +569,7 @@ async def _create_alert_and_notify(camera_uuid, frame, timestamp_arg):
 	)
 
 	append_new_alert(alert)
+	"""
 
 	"""SRS - We want to trigger UI interactions immediately,
 	but handle the countdown and any resulting actions asynchronously
@@ -556,7 +588,7 @@ async def _create_alert_and_notify(camera_uuid, frame, timestamp_arg):
 	but does not include any actions"""
 	#await send_defect_notification(alert_id)
 
-	return alert
+	return
 
 async def _live_detection_loop(app_state, camera_uuid):
 	"""Continuously run detection on camera frames and generate alerts using shared video stream.
