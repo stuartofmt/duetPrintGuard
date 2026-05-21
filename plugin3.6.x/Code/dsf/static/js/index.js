@@ -207,7 +207,7 @@ function updateCameraDisplay(item, d) {
   camPred.textContent = d.last_result;
   camPred.style.color = d.last_result === 'success' ? 'green' : 'red';
   if (defectActive === true) {
-    console.warn('Defect active for camera, triggering alert');
+    console.warn('Defect active');
     camPred.textContent = 'DEFECT';
   }
 

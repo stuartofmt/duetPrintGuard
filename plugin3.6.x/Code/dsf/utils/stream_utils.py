@@ -315,6 +315,7 @@ async def create_optimized_detection_loop(app_state, camera_uuid):
 			The multi-camera agreement logic checks if other cameras are also detecting
 			accoding to COUNTDOWN_SETTINGS.
 			"""
+			COUNTDOWN_SETTINGS['alert_status'] = 'inactive' # reset alert status
 			detection_count += 1
 			if isinstance(numeric, int) and numeric == app_state.defect_idx:
 				do_alert = False
@@ -323,6 +324,7 @@ async def create_optimized_detection_loop(app_state, camera_uuid):
 					last_result = 1
 
 				CAMERA_STATES[camera_uuid]['defect_active'] = False  # reset defect active state on each failure detection - only set to true if we pass both majority vote and multi camera test
+				
 				passed_majority_vote = _camera_failure_threshold(camera_uuid,majority_vote_window,majority_vote_threshold,last_result)
 				passed_camera_combination = False
 				if passed_majority_vote: # only check if the current camera detects failure
@@ -347,6 +349,8 @@ async def create_optimized_detection_loop(app_state, camera_uuid):
 						"""SRS
 						Invokes a coundown timer in sse utils - so only called once per alert
 						"""
+						send_defect_notification(camera_uuid) # sync
+
 						asyncio.create_task(_send_alert(alert))
 
 						# Wait for countdown time during active alert
@@ -549,7 +553,7 @@ async def _create_alert_and_notify(camera_uuid, frame, timestamp_arg):
 	rather than waiting for the countdown to complete.
 	The notification includes information about the detected defect and the camera,
 	but does not include any actions"""
-	await send_defect_notification(alert_id)
+	#await send_defect_notification(alert_id)
 
 	return alert
 
@@ -577,6 +581,43 @@ async def _live_detection_loop(app_state, camera_uuid):
 		CAMERA_STATES[camera_uuid]["live_detection_running"] = False
 
 	
+def send_defect_notification(camera_uuid):
+
+	if COUNTDOWN_SETTINGS['alert_status'] != 'inactive': # don't send if in countdown
+		return
+	
+	COUNTDOWN_SETTINGS['alert_status'] = 'active'
+	logger.debug("Attempting to send defect notification")
+
+	if COUNTDOWN_SETTINGS['countdown_control'] == 'all_cameras':
+		title_msg = f"duetPrintguard: All cameras"
+	else:
+		title_msg = f"duetPrintguard: {CAMERA_SETTINGS[camera_uuid]['nickname']}"
+
+	if COUNTDOWN_SETTINGS['countdown_action'] == 'pause_print':
+		action_msg = f"Print will be paused if not dismissed within {COUNTDOWN_SETTINGS['countdown_time']} seconds."
+	elif COUNTDOWN_SETTINGS['countdown_action'] == 'cancel_print':
+		action_msg = f"Print will be cancelled if not dismissed within {COUNTDOWN_SETTINGS['countdown_time']} seconds."
+	else:
+		action_msg = f"Alert will be dismissed automatically in {COUNTDOWN_SETTINGS['countdown_time']} seconds if not dismissed manually."
+
+	notification = {'title': title_msg,'body': action_msg}
+
+	if duet_send_notification(notification):
+		logger.debug("Notification send completed")
+	else:
+		logger.error("Unexpected error sending notification")
+
+
+
+
+
+
+
+
+
+
+'''	
 async def send_defect_notification(alert_id):
 	"""Send a defect notification for a given alert ID to all subscribers.
 
@@ -611,8 +652,8 @@ async def send_defect_notification(alert_id):
 		send_notification(notification)
 	else:
 		logger.error("No alert found for ID: %s", alert_id)
-
-#SRS
+'''
+'''SRS
 def send_notification(notification: Notification):
 	"""Send a push notification to all current subscriptions.
 
@@ -631,5 +672,5 @@ def send_notification(notification: Notification):
 	else:
 		logger.error("Unexpected error sending notification")
 		return False
-
+'''
 

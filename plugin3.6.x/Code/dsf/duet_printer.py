@@ -165,12 +165,12 @@ def _send_ntfy(alert):
 		if NTFY.TITLE !='':
 			title = NTFY.TITLE
 		else:
-			title = alert.title
+			title = alert['title']
 
 		if NTFY.MESSAGE !='':
 			message = NTFY.MESSAGE
 		else:
-			message = alert.body
+			message = alert['body']
 
 		if NTFY.PRIORITY !='':
 			priority = int(NTFY.PRIORITY)
@@ -201,11 +201,11 @@ def _send_pushover(alert):
 		if PUSHOVER.TITLE !='':
 			title = PUSHOVER.TITLE
 		else:
-			title = alert.title
+			title = alert['title']
 		if PUSHOVER.MESSAGE !='':
 			message = PUSHOVER.MESSAGE
 		else:
-			message = alert.body
+			message = alert['body']
 
 		logger.info(f'Sending PUSHOVER with title {title}')
 
