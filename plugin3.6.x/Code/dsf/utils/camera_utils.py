@@ -8,7 +8,7 @@ import glob
 import cv2
 
 from models import CameraState
-from .camera_state_manager import get_camera_state_manager
+#from .camera_state_manager import get_camera_state_manager
 from .config import CAMERA_SETTINGS
 
 '''

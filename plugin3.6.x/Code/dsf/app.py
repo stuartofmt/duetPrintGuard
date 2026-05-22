@@ -23,7 +23,7 @@ from duet_config import (DUET, UI)
 
 from utils.config import (get_prototypes_dir,
 						   get_model_path, get_model_options_path,
-						   get_config, config_set_paths_and_initialize,DEVICE_TYPE, SUCCESS_LABEL)
+						config_set_paths_and_initialize,DEVICE_TYPE, SUCCESS_LABEL)
 
 
 def init_routes_and_modules():
@@ -33,10 +33,8 @@ def init_routes_and_modules():
 	Separating this from appstartup to allow for config file imports in route definitions.
 	"""
 
-
-	#global TunnelProvider, start_cloudflare_tunnel, stop_cloudflare_tunnel,SavedConfig,SiteStartupMode
 	global SavedConfig,SiteStartupMode
-	#from models import (SiteStartupMode,TunnelProvider, SavedConfig)
+
 	from models import (SiteStartupMode, SavedConfig)
 
 	from utils.inference_lib import get_inference_engine
@@ -85,9 +83,14 @@ def init_routes_and_modules():
 		yield
 		logger.debug("Cleaning up resources on shutdown...")
 		try:
+			'''
 			from utils.camera_state_manager import get_camera_state_manager
 			manager = get_camera_state_manager()
 			await manager.cleanup_all_resources()
+			'''
+			from utils.shared_video_stream import get_shared_stream_manager
+			manager = get_shared_stream_manager()
+			manager.cleanup_all()
 			logger.debug("Cleaned up camera resources successfully.")
 		except Exception as e:
 			logger.error("Error during cleanup: %s", e)
@@ -116,8 +119,8 @@ def init_routes_and_modules():
 	app.state.defect_idx = -1
 	app.state.alerts = {}
 	app.state.outbound_queue = asyncio.Queue()
-	config = get_config() or {}
-	app.state.subscriptions = config.get(SavedConfig.PUSH_SUBSCRIPTIONS, [])
+	#config = get_config() or {}
+	#app.state.subscriptions = config.get(SavedConfig.PUSH_SUBSCRIPTIONS, [])
 	app.state.polling_tasks = {}
 
 	base_dir = os.path.dirname(__file__)
@@ -169,9 +172,9 @@ def appstartup():
 
 	init_routes_and_modules()
 	
-	app_config = get_config()
-	site_domain = app_config.get(SavedConfig.SITE_DOMAIN, "")
-
+	#app_config = get_config()
+	#site_domain = app_config.get(SavedConfig.SITE_DOMAIN, "")
+	site_domain = "TO BE SET IN CONFIG"
 	logger.info(f"Starting PrintGuard on domain: {site_domain} and port: {UI.PORT}")
 
 	port = str(UI.PORT)  #unicorn looks for strings	

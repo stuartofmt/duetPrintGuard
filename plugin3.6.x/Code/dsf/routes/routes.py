@@ -18,25 +18,17 @@ import cv2
 from utils.camera_utils import find_available_serial_cameras
 
 
-from utils.camera_state_manager import get_camera_state_manager
+#from utils.camera_state_manager import get_camera_state_manager
 from utils.config import (
     CAMERA_SETTINGS,
     CAMERA_STATES,
     DEFAULT_CAMERA_SETTINGS,
     COUNTDOWN_SETTINGS,
     add_to_config,
-    delete_from_config,
-    get_config,
-    STREAM_MAX_FPS,
-    STREAM_JPEG_QUALITY,
-    STREAM_MAX_WIDTH,
-    DETECTION_INTERVAL_MS,
-    MIN_SSE_DISPATCH_DELAY_MS,
+    delete_from_config
 )
 from utils.shared_video_stream import get_shared_stream_manager
-from utils.stream_utils import _live_detection_loop, generate_frames, stream_optimizer
-#from utils.sse_utils import outbound_packet_fetch, stop_and_remove_polling_task
-from utils.sse_utils import outbound_packet_fetch
+from utils.stream_utils import _live_detection_loop, generate_frames
 
 router = APIRouter()
 
@@ -449,7 +441,7 @@ async def camera_settings(request: Request):
     """Get current camera settings."""
     return {"camera_settings": CAMERA_SETTINGS}
 
-
+'''
 @router.get("/xonfig/get-feed-settings", include_in_schema=False)
 async def get_feed_settings():
     """Retrieve current camera feed and detection settings."""
@@ -470,7 +462,7 @@ async def get_feed_settings():
             status_code=500,
             detail=f"Failed to load feed settings: {str(e)}"
         )
-
+'''
 
 @router.get("/config/get-countdown-settings", include_in_schema=False)
 async def get_countdown_settings():
@@ -551,6 +543,7 @@ class SSEManager:
     def __init__(self):
         self.clients = []
         self.lock = asyncio.Lock()
+        self.last_countdown_state = None  # Track last countdown for new connections
 
     async def connect(self):
         queue = asyncio.Queue()
@@ -565,6 +558,10 @@ class SSEManager:
 
     async def broadcast(self, message):
         async with self.lock:
+            # Store countdown messages for new clients
+            if message.get("event") == "countdown_time":
+                self.last_countdown_state = message
+            
             for client in self.clients:
                 await client.put(message)
 
@@ -572,6 +569,15 @@ global managerSSE
 managerSSE = SSEManager()
 
 broadcast_task = None
+
+async def outbound_packet_fetch():
+    """Async generator for outbound SSE packets.
+    
+    Currently unused as broadcasts are handled through direct calls to managerSSE.broadcast().
+    This exists to prevent NameError in start_broadcast_loop().
+    """
+    while False:
+        yield  # This loop never executes, but makes this an async generator
 
 async def start_broadcast_loop():
     global broadcast_task
@@ -593,6 +599,10 @@ async def sse_connect(request: Request):
 
     async def send_packet():
         try:
+            # Send current countdown state to new client if one is active
+            if managerSSE.last_countdown_state is not None:
+                yield managerSSE.last_countdown_state
+            
             while True:
                 if await request.is_disconnected():
                     logger.warning('sse request disconnected')

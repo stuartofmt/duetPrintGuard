@@ -47,12 +47,47 @@ class SharedVideoStream:
         # pylint: disable=E1101
         try:
             source = self.source
-            if isinstance(source, str) and source.isdigit():
-                source = int(source)
-            self.cap = cv2.VideoCapture(source, cv2.CAP_ANY)
-            if not self.cap.isOpened():
-                logger.error("Failed to open camera source %s for shared stream", source)
+            # Build a list of candidate source representations to try opening.
+            attempts = []
+            if isinstance(source, str):
+                if source.isdigit():
+                    attempts.append(int(source))
+                # handle Linux device path like /dev/video0 -> try index 0 as fallback
+                if source.startswith('/dev/video'):
+                    try:
+                        idx = int(source.rsplit('video', 1)[1])
+                        attempts.append(idx)
+                    except Exception:
+                        pass
+                attempts.append(source)
+            else:
+                attempts.append(source)
+
+            # Try each candidate until one opens successfully
+            self.cap = None
+            opened_source = None
+            for cand in attempts:
+                try:
+                    cap = cv2.VideoCapture(cand, cv2.CAP_ANY)
+                    if cap is not None and cap.isOpened():
+                        self.cap = cap
+                        opened_source = cand
+                        break
+                    else:
+                        if cap is not None:
+                            try:
+                                cap.release()
+                            except Exception:
+                                pass
+                except Exception:
+                    # ignore and try next candidate
+                    pass
+
+            if not self.cap or not self.cap.isOpened():
+                logger.error("Failed to open camera source %s for shared stream (attempts: %s)", source, attempts)
                 return
+            else:
+                logger.debug("Opened camera source %s for shared stream (used: %s)", source, opened_source)
             self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
             if isinstance(source, str) and source.startswith('rtp://'):
                 self.cap.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 5000)

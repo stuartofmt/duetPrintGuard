@@ -10,11 +10,11 @@ from PIL import Image
 
 from .model_utils import _run_inference
 
-from .sse_utils import append_new_outbound_packet
+#from .sse_utils import append_new_outbound_packet
 
 from .shared_video_stream import get_shared_camera_frame
 from models import Alert, AlertAction, SSEDataType, Notification
-from .config import (get_config, STREAM_MAX_FPS,
+from .config import (STREAM_MAX_FPS,
 					 STREAM_JPEG_QUALITY,
 					 STREAM_MAX_WIDTH,
 					 DETECTION_INTERVAL_MS)
@@ -495,7 +495,7 @@ async def start_countdown(countdown_time, countdown_action=None):
 	except Exception as e:
 		logger.error("Failed to broadcast countdown_time SSE event: %s", e)
 
-
+'''
 async def _send_alert(alert):
 	"""Send an alert to clients via Server-Sent Events.
 
@@ -503,7 +503,7 @@ async def _send_alert(alert):
 		alert (Alert): The alert object to send.
 	"""
 	await append_new_outbound_packet(alert_to_response_json(alert), SSEDataType.ALERT)
-
+'''
 async def _terminate_alert_after_countdown():
 	"""
 	Wait for the alert's countdown, then ignore or act on the print job.

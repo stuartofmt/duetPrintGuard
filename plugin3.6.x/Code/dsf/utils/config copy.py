@@ -104,7 +104,7 @@ def config_set_paths_and_initialize():
 	# continue with phase 2 of initialization which depends on these paths being set
 	init_config()
 
-'''
+
 def acquire_lock():
 	"""Acquire a thread and file lock for safe configuration file access.
 
@@ -119,8 +119,7 @@ def acquire_lock():
 		fcntl.flock(_file_lock, fcntl.LOCK_EX)
 	except IOError as e:
 		logger.warning("Failed to acquire file lock: %s", e)
-'''
-'''
+
 
 def release_lock():
 	"""Release the configuration file exclusivity locks.
@@ -134,7 +133,7 @@ def release_lock():
 		_file_lock.close()
 		_file_lock = None
 	_config_lock.release()
-'''
+
 def _get_config_nolock():
 	"""Load configuration from disk without acquiring any locks.
 
@@ -148,7 +147,7 @@ def _get_config_nolock():
 		except Exception as e:
 			logger.error("Error loading config file: %s", e)
 	return None
-'''
+
 def get_config():
 	"""Thread-safe retrieval of the application configuration.
 
@@ -162,7 +161,7 @@ def get_config():
 		return _get_config_nolock()
 	finally:
 		release_lock()
-'''
+
 def add_to_config(updates: dict):
 	global CAMERA_SETTINGS, COUNTDOWN_SETTINGS, CAMERA_STATES
 	"""Thread-safe update of configuration values in the config file.
@@ -296,7 +295,7 @@ def reset_config():
 
 	Overwrites `config.json` with default empty fields for all SavedConfig options.
 	"""
-	#acquire_lock()
+	acquire_lock()
 
 	try:
 		if os.path.exists(CONFIG_FILE):
@@ -312,10 +311,8 @@ def reset_config():
 			json.dump(default_config, f, indent=2)
 		logger.info(f'Created new config file with version {CONFIG_VERSION} at {CONFIG_FILE}')
 		logger.debug(f'{default_config=}')
-	except Exception as e:
-		logger.error(f"Error resetting config file: {e}")
-	#finally:
-	#	release_lock()
+	finally:
+		release_lock()
 
 
 def reset_all():
