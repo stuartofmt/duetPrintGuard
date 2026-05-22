@@ -15,15 +15,6 @@ class Alert(BaseModel):
     countdown_time: float
     countdown_control: str = 'any_camera'
 
-class AlertAction(str, Enum):
-    DISMISS = "dismiss"
-    CANCEL_PRINT = "cancel_print"
-    PAUSE_PRINT = "pause_print"
-
-class SSEDataType(str, Enum):
-    ALERT = "alert"
-    CAMERA_STATE = "camera_state"
-    PRINTER_STATE = "printer_state"
 
 class NotificationAction(BaseModel):
     action: str

@@ -12,14 +12,11 @@ from fastapi.responses import StreamingResponse, Response, RedirectResponse
 from sse_starlette.sse import EventSourceResponse
 
 from logger_module import logger
-from models import AlertAction, SavedConfig
+
 from duet_printer import suspend_print_job
 
-#from utils.alert_utils import alert_to_response_json, dismiss_alert, get_alert
 import cv2
 
-
-#from utils.camera_state_manager import get_camera_state_manager
 from utils.config import (
 	CAMERA_SETTINGS,
 	CAMERA_STATES,
@@ -87,16 +84,6 @@ async def alert_response(request: Request,
 			COUNTDOWN_SETTINGS['alert_status'] = 'cancelled'
 			suspend_print_job(action)
 			# Not reset since print job has been stopped
-
-'''
-@router.get("/alert/active")
-async def get_active_alerts(request: Request):
-	"""Retrieve all currently active alerts."""
-	alerts = []
-	for alert in request.app.state.alerts.values():
-		alerts.append(json.loads(alert_to_response_json(alert)))
-	return {"active_alerts": alerts}
-'''
 
 # detection_routes.py
 @router.post("/detect/live/start")
@@ -166,32 +153,6 @@ async def serve_index(request: Request):
 		"request": request
 	})
 
-"""SRS
-@router.post("/xindex", include_in_schema=False)
-async def update_index_settings(request: Request,
-						  camera_uuid: str = Form(...),
-						  sensitivity: float = Form(...),
-						  brightness: float = Form(...),
-						  contrast: float = Form(...),
-						  focus: float = Form(...),
-						  countdown_time: int = Form(...),
-						  countdown_action: str = Form(...),
-						  majority_vote_threshold: int = Form(...),
-						  majority_vote_window: int = Form(...),
-						  ):
-
-	await update_camera_state(camera_uuid, {
-		"sensitivity": sensitivity,
-		"brightness": brightness,
-		"contrast": contrast,
-		"focus": focus,
-		"countdown_time": countdown_time,
-		"countdown_action": countdown_action,
-		"majority_vote_threshold": majority_vote_threshold,
-		"majority_vote_window": majority_vote_window,
-	})
-	return RedirectResponse("/index", status_code=303)
-"""
 
 # settings_routes.py
 @router.get("/settings", include_in_schema=False)
@@ -241,46 +202,14 @@ async def update_settings_countdown(request: Request,
 							}})
 	return RedirectResponse("/settings", status_code=303)
 
-
-"""
-@router.post("/xcamera/state", include_in_schema=False)
-async def get_camera_state_ep(request: Request, camera_uuid: str = Body(..., embed=True)):
-
-	logger.debug('entered get_camera_state_ep with camera_uuid: %s', camera_uuid)
-	camera_state = await get_camera_state(camera_uuid)
-	detection_times = [t for t, _ in camera_state.detection_history] if (
-		camera_state.detection_history
-		) else []
-	response = {
-		"nickname": camera_state.nickname,
-		"start_time": camera_state.start_time,
-		"last_result": camera_state.last_result,
-		"last_time": camera_state.last_time,
-		"detection_times": detection_times,
-		"error": camera_state.error,
-		"live_detection_running": camera_state.live_detection_running,
-		"brightness": camera_state.brightness,
-		"contrast": camera_state.contrast,
-		"focus": camera_state.focus,
-		"majority_vote_threshold": camera_state.majority_vote_threshold,
-		"majority_vote_window": camera_state.majority_vote_window,
-		"current_alert_id": camera_state.current_alert_id,
-		"sensitivity": camera_state.sensitivity,
-		"printer_id": camera_state.printer_id,
-		"printer_config": camera_state.printer_config,
-		"countdown_action": camera_state.countdown_action,
-		"countdown_time": camera_state.countdown_time,
-		"countdown_control":camera_state.countdown_control
-	}
-	return response
-"""
-
+'''
 @router.get('/camera/feed/{camera_uuid}', include_in_schema=False)
 async def camera_feed(camera_uuid: str):
 	"""Stream live camera feed for a specific camera."""
 	return StreamingResponse(generate_frames(camera_uuid),
 							 media_type='multipart/x-mixed-replace; boundary=frame')
 
+'''
 
 @router.get('/camera/snapshot/{camera_uuid}', include_in_schema=False)
 async def camera_snapshot(camera_uuid: str):
@@ -320,39 +249,6 @@ async def camera_snapshot(camera_uuid: str):
 		logger.error("Snapshot error for %s: %s", camera_uuid, e)
 		raise
 
-"""
-@router.post("x/camera/add")
-async def add_camera_ep(request: Request):
-
-	data = await request.json()
-	nickname = data.get('nickname')
-	source = data.get('source')
-	if not nickname or not source:
-		raise HTTPException(status_code=400, detail="Missing camera nickname or source.")
-	camera = await add_camera(source=source, nickname=nickname)
-	add_to_config({'camera_settings':
-				   {camera['camera_uuid']: {
-					"nickname": camera['nickname'],
-					"source": camera['source'],
-					**DEFAULT_CAMERA_SETTINGS
-					}}
-				}
-				)
-	return {"camera_uuid": camera['camera_uuid'], "nickname": camera['nickname'], "source": camera['source']}
-"""
-"""SRS
-@router.post("/camera/remove")
-async def remove_camera_ep(request: Request):
-
-	data = await request.json()
-	camera_uuid = data.get('camera_uuid')
-	if not camera_uuid:
-		raise HTTPException(status_code=400, detail="Missing camera_uuid.")
-	success = await remove_camera_util(camera_uuid)
-	if not success:
-		raise HTTPException(status_code=404, detail="Camera not found.")
-	return {"message": "Camera removed successfully."}
-"""
 
 @router.get("/camera/serial_devices")
 async def get_serial_devices_ep():
@@ -408,16 +304,6 @@ async def camera_preview(source: str):
 	return StreamingResponse(generate_preview_frames(source, preview_uuid),
 							 media_type='multipart/x-mixed-replace; boundary=frame')
 
-'''
-@router.get("/camera/cameralist", include_in_schema=False)
-async def camera_list(request: Request):
-	"""Get a list of current camera id's."""
-	camera_uuid_list = []
-	for camera_uuid in CAMERA_SETTINGS:
-		camera_uuid_list.append(camera_uuid)
-	print(f'{camera_uuid_list=}')
-	return {"camera_list": camera_uuid_list}
-'''
 
 # config_routes.py
 @router.post("/config/add-camera")
@@ -470,33 +356,11 @@ async def config_camera_list(request: Request):
 	logger.debug(f'{camera_uuid_list=}')
 	return {"camera_list": camera_uuid_list}
 
-
+'''
 @router.get("/get/camera-settings", include_in_schema=False)
 async def camera_settings(request: Request):
 	"""Get current camera settings."""
 	return {"camera_settings": CAMERA_SETTINGS}
-
-'''
-@router.get("/xonfig/get-feed-settings", include_in_schema=False)
-async def get_feed_settings():
-	"""Retrieve current camera feed and detection settings."""
-	try:
-		config = get_config()
-		settings = {
-			"stream_max_fps": config.get(SavedConfig.STREAM_MAX_FPS, STREAM_MAX_FPS),
-			"stream_jpeg_quality": config.get(SavedConfig.STREAM_JPEG_QUALITY, STREAM_JPEG_QUALITY),
-			"stream_max_width": config.get(SavedConfig.STREAM_MAX_WIDTH, STREAM_MAX_WIDTH),
-			"detection_interval_ms": config.get(SavedConfig.DETECTION_INTERVAL_MS, DETECTION_INTERVAL_MS),
-			"min_sse_dispatch_delay_ms": config.get(SavedConfig.MIN_SSE_DISPATCH_DELAY_MS, MIN_SSE_DISPATCH_DELAY_MS)
-		}
-		settings["detections_per_second"] = round(1000 / settings["detection_interval_ms"])
-		return {"success": True, "settings": settings}
-	except Exception as e:
-		logger.error("Error loading feed settings: %s", e)
-		raise HTTPException(
-			status_code=500,
-			detail=f"Failed to load feed settings: {str(e)}"
-		)
 '''
 
 @router.get("/config/get-countdown-settings", include_in_schema=False)
@@ -511,7 +375,7 @@ async def get_countdown_settings():
 		}
 	}
 
-
+'''
 @router.post("/xconfig/save-countdown-settings ", include_in_schema=False)
 async def save_countdown_settings(settings: dict):
 	"""Save countdown settings."""
@@ -531,7 +395,7 @@ async def save_countdown_settings(settings: dict):
 			status_code=500,
 			detail=f"Failed to save countdown settings: {str(e)}"
 		)
-
+'''
 
 @router.post("/config/get-camera-setting", include_in_schema=False)
 async def get_camera_setting(request: Request, camera_uuid: str = Body(..., embed=True)):
@@ -649,9 +513,3 @@ async def sse_connect(request: Request):
 
 	return EventSourceResponse(send_packet())
 
-"""SRS
-@router.post("/sse/stop-polling")
-async def stop_polling(request: Request, camera_uuid: str = Body(..., embed=True)):
-	stop_and_remove_polling_task(camera_uuid)
-	return {"message": "Polling stopped for camera UUID {}".format(camera_uuid)}
-"""

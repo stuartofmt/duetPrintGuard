@@ -208,21 +208,10 @@ function removeCamera(cameraUUID) {
 		if (cameraItem) {
 			cameraItem.remove();
 		}
-		// If deleted camera is current camera
-		if (window.cameraUUID === cameraUUID) {
-			const firstCamera = document.querySelector('.camera-row');
-			if (firstCamera) {
-				firstCamera.click();
-			} else {
-				window.location.reload();
-			}
-		}
-		const remainingCameras = document.querySelectorAll('.camera-row');
-		if (remainingCameras.length === 0) {
-			if (addCameraModalOverlay) {
-				addCameraModalOverlay.style.display = 'flex';
-			}
-		}
+
+		// Fefresh the page - quick and simple
+		window.location.reload(true);
+
 	})
 	.catch(error => {
 		console.error(`Error removing camera ${cameraUUID}:`, error.message);

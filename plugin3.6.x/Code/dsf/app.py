@@ -33,9 +33,9 @@ def init_routes_and_modules():
 	Separating this from appstartup to allow for config file imports in route definitions.
 	"""
 
-	global SavedConfig,SiteStartupMode
+	#global SavedConfig,SiteStartupMode
 
-	from models import (SiteStartupMode, SavedConfig)
+	#from models import (SiteStartupMode, SavedConfig)
 
 	from utils.inference_lib import get_inference_engine
 
@@ -83,11 +83,6 @@ def init_routes_and_modules():
 		yield
 		logger.debug("Cleaning up resources on shutdown...")
 		try:
-			'''
-			from utils.camera_state_manager import get_camera_state_manager
-			manager = get_camera_state_manager()
-			await manager.cleanup_all_resources()
-			'''
 			from utils.shared_video_stream import get_shared_stream_manager
 			manager = get_shared_stream_manager()
 			manager.cleanup_all()

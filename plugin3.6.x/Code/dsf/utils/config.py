@@ -13,7 +13,7 @@ import torch
 from platformdirs import user_data_dir
 
 from .model_downloader import get_model_downloader
-from models import AlertAction, SavedConfig
+#from models import SavedConfig
 
 from duet_config import DUET
 
@@ -191,7 +191,7 @@ def init_config():
 					logger.info("Config file is corrupted or empty, recreating")
 					config_needs_reset = True
 
-				config_version = existing_config.get(SavedConfig.VERSION)
+				config_version = existing_config['version']
 				if config_version != CONFIG_VERSION:
 					logger.info(
 						"Config version mismatch (config: %s, expected: %s), recreating config",
@@ -234,7 +234,6 @@ def init_config():
 def reset_config():
 	"""Reset the configuration file to default values.
 
-	Overwrites `config.json` with default empty fields for all SavedConfig options.
 	"""
 	try:
 		if os.path.exists(CONFIG_FILE):

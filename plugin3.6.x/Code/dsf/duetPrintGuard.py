@@ -13,11 +13,11 @@ Venv python install e.g.
 
 # This is more-or-less a wrapper for the detection app PrintGuard.
 # https://github.com/oliverbravery/PrintGuard
-# This plugin modifies the original with some changes in UI use as well as minor augmentations
+# This plugin modifies with UI changes and much code simplification
 # to make it more suited to the DWC environment
 
 """
-Version 0.1 - Initial release
+Version 1.0 - Initial release
 """
 
 import sys

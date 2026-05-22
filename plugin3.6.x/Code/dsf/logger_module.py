@@ -1,7 +1,7 @@
 """
 Logging module needs to be imported twice during startup
 The first time imports the setup functions
-After the setup funcrions have been called,
+After the setup functions have been called,
 the logger can be imported 
 
 All other modules simply need to import the logger

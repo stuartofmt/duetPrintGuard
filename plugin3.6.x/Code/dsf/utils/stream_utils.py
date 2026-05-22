@@ -13,7 +13,7 @@ from .model_utils import _run_inference
 #from .sse_utils import append_new_outbound_packet
 
 from .shared_video_stream import get_shared_camera_frame
-from models import Alert, AlertAction, SSEDataType, Notification
+
 from .config import (STREAM_MAX_FPS,
 					 STREAM_JPEG_QUALITY,
 					 STREAM_MAX_WIDTH,
@@ -22,21 +22,7 @@ from .config import (CAMERA_SETTINGS,CAMERA_STATES,COUNTDOWN_SETTINGS)
 
 import uuid
 
-#from .alert_utils import (dismiss_alert, alert_to_response_json,
-#						  get_alert, append_new_alert)
-
-#from .camera_utils import (get_camera_state, get_camera_state_sync,
-#						   update_camera_state, update_camera_detection_history)
-#from .camera_utils import (get_camera_state, get_camera_state_sync,
-#						   update_camera_state)
-
-# from .notification_utils import send_defect_notification
 from duet_printer import get_printer_config, suspend_print_job, duet_send_notification
-
-
-
-
-
 
 class StreamOptimizer:
 	"""Optimizes video stream frames and detection loops based on configuration."""
@@ -46,12 +32,7 @@ class StreamOptimizer:
 		self._config_cache = {}
 		# self._last_config_check = 0
 		# self._config_check_interval = 30.0
-	'''
-	def invalidate_cache(self):
-		"""Clear cached streaming settings to force re-read from configuration."""
-		self._last_config_check = 0
-		self._config_cache.clear()
-	'''
+
 	def _get_current_settings(self) -> Dict:
 		"""Retrieve or update current stream settings from configuration.
 
@@ -64,31 +45,8 @@ class StreamOptimizer:
 					'detection_interval_ms': float,
 				}
 		"""
-		#current_time = time.time()
-		#if (current_time - self._last_config_check) > self._config_check_interval:
+
 		if self._config_cache == {}:
-			#config = get_config()
-			#startup_mode = config.get(SavedConfig.STARTUP_MODE, SiteStartupMode.LOCAL)
-			#tunnel_provider = config.get(SavedConfig.TUNNEL_PROVIDER, None)
-			#optimize_for_tunnel = config.get(SavedConfig.STREAM_OPTIMIZE_FOR_TUNNEL, None)
-			'''
-			if optimize_for_tunnel is None:
-				is_tunnel_mode = startup_mode == (SiteStartupMode.TUNNEL
-												  and tunnel_provider is not None)
-			else:
-				is_tunnel_mode = optimize_for_tunnel
-			if is_tunnel_mode:
-				default_fps = config.get(SavedConfig.STREAM_TUNNEL_FPS, STREAM_TUNNEL_FPS)
-				default_quality = STREAM_TUNNEL_JPEG_QUALITY
-				default_width = STREAM_TUNNEL_MAX_WIDTH
-				default_detection_interval = DETECTION_TUNNEL_INTERVAL_MS
-			else:
-			
-			default_fps = config.get(SavedConfig.STREAM_MAX_FPS, STREAM_MAX_FPS)
-			default_quality = STREAM_JPEG_QUALITY
-			default_width = STREAM_MAX_WIDTH
-			default_detection_interval = DETECTION_INTERVAL_MS
-			'''
 			self._config_cache = {
 				'max_fps': STREAM_MAX_FPS,
 				'jpeg_quality': STREAM_JPEG_QUALITY,
@@ -96,7 +54,7 @@ class StreamOptimizer:
 				'detection_interval_ms': DETECTION_INTERVAL_MS
 			}
 			'''SRS Loops thrrough here like a banchee every time - need to optimize'''
-		# print(f'{self._config_cache=}')	
+		print(f'{self._config_cache=}')	
 		return self._config_cache
 
 	def get_stream_settings(self) -> Dict:
@@ -338,16 +296,6 @@ async def create_optimized_detection_loop(app_state, camera_uuid):
 						'''SRS Not needed  - delete globally later once we confirm functionality'''
 						CAMERA_STATES[camera_uuid]['defect_active'] = True # only requires one camera to trigger
 
-						"""SRS - Alert creation and notification are handled asynchronously
-						to avoid blocking the detection loop.
-						This allows the system to remain responsive
-						and continue processing frames while the alert countdown is active
-						SIMPLER TO DO SYNCRONOUSLY WITHOUT AFFECTING PERFORMANCE
-						THAN TO TRY TO HANDLE ASYNC ISSUES?"""
-
-						"""SRS
-						Invokes a coundown timer in sse utils - so only called once per alert
-						"""
 						#Send defect notification
 						send_defect_notification(camera_uuid) # sync
 						#Start the UI countdown disply
@@ -493,15 +441,6 @@ async def start_UI_countdown(countdown_time, countdown_action=None):
 	except Exception as e:
 		logger.error("Failed to broadcast countdown_time SSE event: %s", e)
 
-'''
-async def _send_alert(alert):
-	"""Send an alert to clients via Server-Sent Events.
-
-	Args:
-		alert (Alert): The alert object to send.
-	"""
-	await append_new_outbound_packet(alert_to_response_json(alert), SSEDataType.ALERT)
-'''
 async def _take_action_after_countdown():
 	"""
 	Wait for the alert's countdown, then ignore or act on the print job.
@@ -575,60 +514,4 @@ def send_defect_notification(camera_uuid):
 		logger.error("Unexpected error sending notification")
 
 
-'''	
-async def send_defect_notification(alert_id):
-	"""Send a defect notification for a given alert ID to all subscribers.
-
-	Args:
-		alert_id (str): The ID of the alert for which to send a notification.
-	"""
-	logger.debug("Attempting to send defect notification for alert ID: %s", alert_id)
-	alert = get_alert(alert_id)
-	if alert:
-		logger.debug("Alert found for ID %s, preparing notification", alert_id)
-		# pylint: disable=import-outside-toplevel
-		camera_state = CAMERA_SETTINGS[alert.camera_uuid]
-
-		if COUNTDOWN_SETTINGS['countdown_control'] == 'all_cameras':
-			title_msg = f"duetPrintguard: All cameras"
-		else:
-			title_msg = f"duetPrintguard: {camera_state['nickname']}"
-
-		if COUNTDOWN_SETTINGS['countdown_action'] == 'pause_print':
-			action_msg = f"Print will be paused if not dismissed within {COUNTDOWN_SETTINGS['countdown_time']} seconds."
-		elif COUNTDOWN_SETTINGS['countdown_action'] == 'cancel_print':
-			action_msg = f"Print will be cancelled if not dismissed within {COUNTDOWN_SETTINGS['countdown_time']} seconds."
-		else:
-			action_msg = f"Alert will be dismissed automatically in {COUNTDOWN_SETTINGS['countdown_time']} seconds if not dismissed manually."
-		notification = Notification(
-			title=title_msg,
-			body=action_msg,
-		)
-		subscriptions = []  #SRS NOT NEEDED - DELETE REFERENCES
-		logger.debug("Created notification object without image payload, sending to %d subscriptions",
-					  len(subscriptions))
-		send_notification(notification)
-	else:
-		logger.error("No alert found for ID: %s", alert_id)
-'''
-'''SRS
-def send_notification(notification: Notification):
-	"""Send a push notification to all current subscriptions.
-
-	Args:
-		notification (Notification): The notification object to send. Should have 'title' and 'body' fields at minimum.
-
-	Returns:
-		bool: True if at least one notification was sent successfully, False otherwise.
-	"""
-	logger.info("Starting notification send process")
-	logger.debug(notification)
-
-	if duet_send_notification(notification):
-		logger.debug("Notification send completed")
-		return True
-	else:
-		logger.error("Unexpected error sending notification")
-		return False
-'''
 
