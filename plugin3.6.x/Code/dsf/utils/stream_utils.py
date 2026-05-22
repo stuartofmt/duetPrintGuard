@@ -18,13 +18,12 @@ from .config import (STREAM_MAX_FPS,
 					 STREAM_JPEG_QUALITY,
 					 STREAM_MAX_WIDTH,
 					 DETECTION_INTERVAL_MS)
-from .config import (CAMERA_SETTINGS,CAMERA_STATES,COUNTDOWN_SETTINGS,ALERTS)
-
+from .config import (CAMERA_SETTINGS,CAMERA_STATES,COUNTDOWN_SETTINGS)
 
 import uuid
 
-from .alert_utils import (dismiss_alert, alert_to_response_json,
-						  get_alert, append_new_alert)
+#from .alert_utils import (dismiss_alert, alert_to_response_json,
+#						  get_alert, append_new_alert)
 
 #from .camera_utils import (get_camera_state, get_camera_state_sync,
 #						   update_camera_state, update_camera_detection_history)
@@ -349,13 +348,13 @@ async def create_optimized_detection_loop(app_state, camera_uuid):
 						"""SRS
 						Invokes a coundown timer in sse utils - so only called once per alert
 						"""
+						#Send defect notification
 						send_defect_notification(camera_uuid) # sync
-
-						# await _create_alert_and_notify(camera_uuid, frame, current_timestamp)
-						
-						asyncio.create_task(start_countdown(COUNTDOWN_SETTINGS['countdown_time'], COUNTDOWN_SETTINGS['countdown_action'])) # async but non-blocking
-						asyncio.create_task(_terminate_alert_after_countdown()) #ensures wait
-						#asyncio.create_task(_send_alert(alert))
+						#Start the UI countdown disply
+						await start_UI_countdown(COUNTDOWN_SETTINGS['countdown_time'], COUNTDOWN_SETTINGS['countdown_action']) # sync but non-blocking
+						# If no user intervention before countdown - perform action
+						asyncio.create_task(_take_action_after_countdown())
+						print(f'after terminate alert {time.time()}')
 
 						# Wait for countdown time during active alert
 						await asyncio.sleep(countdown_time)
@@ -363,8 +362,7 @@ async def create_optimized_detection_loop(app_state, camera_uuid):
 						_MAJORITY_VOTE = {}
 						_CAMERA_AGREEMENT = []
 
-			detection_interval = stream_optimizer.get_detection_interval()
-			print(f'sleeping for {detection_interval} seconds')			
+			detection_interval = stream_optimizer.get_detection_interval()		
 			await asyncio.sleep(detection_interval)
 
 	finally:
@@ -410,7 +408,7 @@ def generate_frames(camera_uuid: str):
 						  fallback_e)
 			
 
-def _camera_failure_threshold(uuid,window,threshold,latest_failure):
+def _camera_failure_threshold(cam_uuid,window,threshold,latest_failure):
 	'''
 	latest_failure == 1 for failure and 0 for success
 	'''
@@ -419,13 +417,13 @@ def _camera_failure_threshold(uuid,window,threshold,latest_failure):
 
 	counts = _MAJORITY_VOTE
 
-	# Add new uuid
-	if counts.get(uuid) is None:
-		counts[uuid] = {'failure_count': 0, 'stack': (), 'stack_length':0}
+	# Add new cam_uuid
+	if counts.get(cam_uuid) is None:
+		counts[cam_uuid] = {'failure_count': 0, 'stack': (), 'stack_length':0}
 
-	failure_count = counts[uuid]['failure_count']
-	stack = counts[uuid]['stack']
-	stack_length = counts[uuid]['stack_length']
+	failure_count = counts[cam_uuid]['failure_count']
+	stack = counts[cam_uuid]['stack']
+	stack_length = counts[cam_uuid]['stack_length']
  
 	slicer = stack_length // window # integer divide ==>  0 if < window else 1
 	
@@ -443,7 +441,7 @@ def _camera_failure_threshold(uuid,window,threshold,latest_failure):
 		return True
 
 	stack = (*stack[slicer:], latest_failure) # max # entries == window 
-	counts[uuid] = {'failure_count': failure_count, 'stack': stack, 'stack_length':stack_length}
+	counts[cam_uuid] = {'failure_count': failure_count, 'stack': stack, 'stack_length':stack_length}
 	return False
 
 
@@ -471,13 +469,13 @@ def _passed_multi_camera_test(countdown_control, camera_uuid,num_cameras):
 		return False
 	
 
-async def start_countdown(countdown_time, countdown_action=None):
+async def start_UI_countdown(countdown_time, countdown_action=None):
 	"""Send a direct countdown SSE event to the browser.
 
 	This bypasses the ALERT model and the alert queueing path.
 	Only the countdown payload is sent to the SSE client.
 	"""
-	logger.debug(f'STARTING COUNTDOWN: {countdown_time} seconds, action: {countdown_action}')
+	logger.debug(f'Starting UI Countdowm: {countdown_time} seconds, action: {countdown_action}')
 	if countdown_time is None:
 		return
 
@@ -504,7 +502,7 @@ async def _send_alert(alert):
 	"""
 	await append_new_outbound_packet(alert_to_response_json(alert), SSEDataType.ALERT)
 '''
-async def _terminate_alert_after_countdown():
+async def _take_action_after_countdown():
 	"""
 	Wait for the alert's countdown, then ignore or act on the print job.
 	"""
@@ -524,71 +522,6 @@ async def _terminate_alert_after_countdown():
 				suspend_print_job(COUNTDOWN_SETTINGS['countdown_action'])
 				# Not reset since print job has been stopped
 
-
-async def _create_alert_and_notify(camera_uuid, frame, timestamp_arg):
-	"""Create a new Alert object and notify all subsystems.
-	The design of this function assumes that the alert will be created
-	and notifications sent immediately when a defect situation is detected.
-	Actions that should occur after a countdown (like pausing a print job)
-	are handled separately in the _terminate_alert_after_countdown function.
-
-	Args:
-		camera_uuid (str): The UUID of the camera.
-		frame (ndarray): The image frame where a defect was detected.
-		timestamp_arg (float): The timestamp of detection.
-
-	Returns:
-		Alert: The newly created alert.
-	"""
-
-	#SRS alert_id = f"{camera_uuid}_{str(uuid.uuid4())}"
-
-	"""SRS - modify to support only a single alert
-	COUNTDOWN_SETTINGS['active_alert'] = True
-	should allow removal of ALERT object
-	"""
-
-
-	# pylint: disable=E1101
-	_, img_buf = cv2.imencode('.jpg', frame)
-
-	"""
-	has_printer = get_printer_config(camera_uuid) is not None
-
-	alert = Alert(
-		id=alert_id,
-		camera_uuid=camera_uuid,
-		timestamp=timestamp_arg,
-		snapshot=img_buf.tobytes(),
-		title=f"Defect - Camera {CAMERA_SETTINGS[camera_uuid]['nickname']}",
-		message=f"Defect detected on camera {CAMERA_SETTINGS[camera_uuid]['nickname']}",
-		countdown_time=COUNTDOWN_SETTINGS['countdown_time'],
-		countdown_action=COUNTDOWN_SETTINGS['countdown_action'],
-		countdown_control=COUNTDOWN_SETTINGS['countdown_control'],
-		has_printer=has_printer,
-	)
-
-	append_new_alert(alert)
-	"""
-
-	"""SRS - We want to trigger UI interactions immediately,
-	but handle the countdown and any resulting actions asynchronously
-	after the specified time.
-	This allows the UI to update right away with the new alert
-	while still enforcing the cooldown period before any print job actions are taken
-	or the alert is dismissed.
-	"""
-	asyncio.create_task(_terminate_alert_after_countdown())
-
-	
-	"""SRS - We can send notifications immediately upon alert creation
-	to ensure that users are informed right away,
-	rather than waiting for the countdown to complete.
-	The notification includes information about the detected defect and the camera,
-	but does not include any actions"""
-	#await send_defect_notification(alert_id)
-
-	return
 
 async def _live_detection_loop(app_state, camera_uuid):
 	"""Continuously run detection on camera frames and generate alerts using shared video stream.
@@ -640,14 +573,6 @@ def send_defect_notification(camera_uuid):
 		logger.debug("Notification send completed")
 	else:
 		logger.error("Unexpected error sending notification")
-
-
-
-
-
-
-
-
 
 
 '''	
