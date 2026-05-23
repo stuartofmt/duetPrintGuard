@@ -18,7 +18,7 @@ from .model_downloader import get_model_downloader
 from duet_config import DUET
 
 # Config version - increment this when the config structure changes
-CONFIG_VERSION = "2.0.1"
+CONFIG_VERSION = "2.0.0"
 
 # The camera configuration that is accessed by other modules
 # Frequently updated and exist only in memory - not persisted to disk
@@ -186,6 +186,7 @@ def init_config():
 		config_needs_reset = False
 		if os.path.exists(CONFIG_FILE):
 			try:
+
 				existing_config = _get_config_from_file()
 				if existing_config is None:
 					logger.info("Config file is corrupted or empty, recreating")

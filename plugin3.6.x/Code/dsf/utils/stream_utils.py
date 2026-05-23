@@ -447,6 +447,7 @@ async def _take_action_after_countdown():
 	"""
 
 	await asyncio.sleep(COUNTDOWN_SETTINGS['countdown_time'])
+	
 	# Check if the alert is still active (not dismissed or overridden by user)
 	if COUNTDOWN_SETTINGS['alert_status'] == 'active':
 		match COUNTDOWN_SETTINGS['countdown_action']:
@@ -455,11 +456,14 @@ async def _take_action_after_countdown():
 			case 'pause_print':
 				COUNTDOWN_SETTINGS['alert_status'] = 'paused'
 				suspend_print_job(COUNTDOWN_SETTINGS['countdown_action'])
-				COUNTDOWN_SETTINGS['alert_status'] = 'inactive' # reset after action
-			case 'cancel_print':
-				COUNTDOWN_SETTINGS['alert_status'] = 'cancelled'
+			case 'resume_print':
+				COUNTDOWN_SETTINGS['alert_status'] = 'resumed'
 				suspend_print_job(COUNTDOWN_SETTINGS['countdown_action'])
-				# Not reset since print job has been stopped
+				COUNTDOWN_SETTINGS['alert_status'] = 'inactive' # reset after action				
+			case 'cancel_print':
+				COUNTDOWN_SETTINGS['alert_status'] = 'cancelled' # Not reset since print job has been stopped
+				suspend_print_job(COUNTDOWN_SETTINGS['countdown_action'])
+
 
 
 async def _live_detection_loop(app_state, camera_uuid):

@@ -99,6 +99,16 @@ def _duet_pause():
 	_send_duet_code(f'''echo "{msg}"''')
 	return _send_duet_code(pause_command)
 
+def _duet_resume():
+	resume_command = 'M24'
+
+	if ACTION.RESUME != '':
+		resume_command = ACTION.RESUME
+
+	msg = f'Resuming print with command {resume_command}'
+	_send_duet_code(f'''echo "{msg}"''')
+	return _send_duet_code(resume_command)
+
 def _duet_cancel():
 	cancel_command = 'M2'  # Currently equivalent to M0
 
@@ -135,8 +145,14 @@ def suspend_print_job(action):
 			_duet_pause()
 			_send_duet_code(f'''M291 S1 T0 P"Paused Printing"''')
 
+	elif action  == 'resume_print':
+		if suspend_status  == 'paused':
+			suspend_status = 'running'
+			_duet_resume()
+			_send_duet_code(f'''M291 S1 T0 P"Resumed Printing"''')
+
 	elif action  == 'cancel_print':
-		if suspend_status =='running':
+		if suspend_status =='running': # pause the printer first
 			suspend_status ='paused'
 			_duet_pause()
 

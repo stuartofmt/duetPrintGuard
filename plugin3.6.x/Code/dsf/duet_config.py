@@ -80,6 +80,7 @@ def get_DWC_config(file_path,file_name,logger):
 
         # ACTION
         if not hasattr(ACTION,'PAUSE') : ACTION.PAUSE = ''
+        if not hasattr(ACTION,'RESUME') : ACTION.RESUME = ''
         if not hasattr(ACTION,'CANCEL') : ACTION.CANCEL = ''
 
         # MACRO

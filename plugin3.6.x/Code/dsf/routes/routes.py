@@ -77,13 +77,16 @@ async def alert_response(request: Request,
 		case 'ignore': # allowing new alerts to be triggered 
 			COUNTDOWN_SETTINGS['alert_status'] = 'inactive'
 		case 'pause_print':
-			COUNTDOWN_SETTINGS['alert_status'] = 'paused'
+			COUNTDOWN_SETTINGS['alert_status'] = 'paused' # stay in paused until resumed or cancelled
+			suspend_print_job(action)
+		case 'resume_print':
+			COUNTDOWN_SETTINGS['alert_status'] = 'resumed'
 			suspend_print_job(action)
 			COUNTDOWN_SETTINGS['alert_status'] = 'inactive' # reset after action
 		case 'cancel_print':
-			COUNTDOWN_SETTINGS['alert_status'] = 'cancelled'
+			COUNTDOWN_SETTINGS['alert_status'] = 'cancelled' # Not reset since print job has been stopped
 			suspend_print_job(action)
-			# Not reset since print job has been stopped
+
 
 # detection_routes.py
 @router.post("/detect/live/start")
@@ -409,7 +412,7 @@ async def get_camera_setting(request: Request, camera_uuid: str = Body(..., embe
 @router.post("/config/get-camera-state", include_in_schema=False)
 async def get_camera_state_config(request: Request, camera_uuid: str = Body(..., embed=True)):
 	"""Get the current state of a specific camera."""
-	if camera_uuid not in CAMERA_SETTINGS:
+	if camera_uuid not in CAMERA_STATES:
 		raise HTTPException(status_code=404, detail=f"Camera {camera_uuid} not found.")
 	
 	latest_state = CAMERA_STATES[camera_uuid]

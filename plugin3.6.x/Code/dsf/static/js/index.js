@@ -90,8 +90,18 @@ function createTopRowButtons(){
 
   // Event for Pause button
   pauseBtn.addEventListener("click", () => {
-    alert('Are you sure you want to Pause the Print?');
-    executeCountdownAction('pause_print')
+    if (pauseBtn.textContent === 'Resume'){
+      alert('Are you sure you want to Resume the Print?');
+      executeCountdownAction('resume_print');
+      pauseBtn.textContent = 'Pause';
+      pauseBtn.style.backgroundColor = '#e6b30d';
+    } else {
+      alert('Are you sure you want to Pause the Print?');
+      executeCountdownAction('pause_print')
+      pauseBtn.textContent = 'Resume';
+      pauseBtn.style.backgroundColor = '#38e60d';
+    }
+
   });
 
   // Event for Cancel button
@@ -410,16 +420,7 @@ function executeCountdownAction(action_type) {
     })
         .then(response => {
             if (response.ok) {
-            /*
-                const alertElement = document.getElementById(`alert-${alertId}`);
-                if (alertElement) alertElement.remove();
-            */
-                //removeActiveAlert(alertId);
-                /*
-                if (document.getElementById('notificationsContainer').children.length === 0) {
-                    notificationPopup.style.display = 'none';
-                }
-                */
+                console.warn(`Successfully executed alert action: ${action_type}`);
             } else {
                 console.error('Failed to execute alert action');
             }
