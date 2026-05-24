@@ -18,7 +18,7 @@ from .model_downloader import get_model_downloader
 from duet_config import DUET
 
 # Config version - increment this when the config structure changes
-CONFIG_VERSION = "2.0.0"
+CONFIG_VERSION = "1.0.0"
 
 # The camera configuration that is accessed by other modules
 # Frequently updated and exist only in memory - not persisted to disk
@@ -50,8 +50,9 @@ DEFAULT_CAMERA_SETTINGS = {'majority_vote_window': DETECTION_VOTING_WINDOW,
 COUNTDOWN_TIME = 60
 COUNTDOWN_ACTION = 'ignore'
 COUNTDOWN_CONTROL = "any_camera"
+ALERT_STATUS = 'inactive'
 
-COUNTDOWN_SETTINGS = {'countdown_time': COUNTDOWN_TIME, 'countdown_action': COUNTDOWN_ACTION, 'countdown_control': COUNTDOWN_CONTROL}
+COUNTDOWN_SETTINGS = {'countdown_time': COUNTDOWN_TIME, 'countdown_action': COUNTDOWN_ACTION, 'countdown_control': COUNTDOWN_CONTROL, 'alert_status': ALERT_STATUS}
 
 # Streaming and detection parameters
 DETECTIONS_PER_SECOND = 1 #15
@@ -115,9 +116,11 @@ def add_to_config(updates: dict):
 	try:
 		if updates.get("countdown_settings") is not None or "countdown_settings" in updates:
 			# Countdown settings are all persisted together so we can just update the whole section if any of the settings are included in the request. This allows for partial updates without needing to resend all settings, but also ensures that the persisted config is always complete for countdown settings.
-			config['countdown_settings'] = updates['countdown_settings']
-			COUNTDOWN_SETTINGS.clear()
-			COUNTDOWN_SETTINGS.update(updates['countdown_settings'])
+			# config['countdown_settings'] = updates['countdown_settings']
+			for setting_type, value in updates['countdown_settings'].items():				
+					config['countdown_settings'][setting_type] = value
+					COUNTDOWN_SETTINGS[setting_type] = value
+
 
 		elif updates.get("camera_settings") is not None or "camera_settings" in updates:
 			# We want to allow partial updates to camera settings so we loop through the provided settings and only update the ones that are included in the request. This allows the frontend to send only the settings that were changed without needing to resend all settings for a camera.
@@ -131,7 +134,7 @@ def add_to_config(updates: dict):
 							CAMERA_SETTINGS[camera_uuid][setting_type] = value
 
 				logger.debug(f'{config["camera_settings"][camera_uuid]=}')
-
+		"""
 		elif updates.get("camera_states") is not None or "camera_states" in updates:
 			# CAMERA_STATES are not persisted to config file but we want to validate the keys here and update the in memory state
 			for camera_uuid, settings in updates['camera_states'].items():
@@ -140,7 +143,8 @@ def add_to_config(updates: dict):
 							if camera_uuid not in CAMERA_STATES:
 								CAMERA_STATES[camera_uuid] = {}
 							CAMERA_STATES[camera_uuid][key] = value
-
+		"""
+							
 		with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
 			json.dump(config, f, indent=2)
 	finally:
@@ -200,7 +204,7 @@ def init_config():
 					config_needs_reset = True
 
 				if 'countdown_settings' not in existing_config: # Should be there after first successful setup but just in case
-					logger.info("No settings in config, recreating")
+					logger.info("No COUNTDOWN_SETTINGS in config, recreating")
 					config_needs_reset = True
 			except Exception as e:
 				logger.warning("Error reading config file: %s, recreating", e)
@@ -221,7 +225,7 @@ def init_config():
 			COUNTDOWN_SETTINGS.update(countdown_settings)
 		for camera_uuid,_ in CAMERA_SETTINGS.items():
 			CAMERA_STATES[camera_uuid] = {
-				"live_detection_running": False,
+				"live_detection_running": 'no',
 				"last_result": '',
 				"last_time": None,
 				"defect_active": False,

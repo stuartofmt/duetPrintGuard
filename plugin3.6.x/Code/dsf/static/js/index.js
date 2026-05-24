@@ -15,7 +15,6 @@ const grid = document.getElementById("grid");
  let detectionStatus;
  let BTNSTOP = 'Stop Detection';
  let BTNSTART =  'Start Detection';
- let ALERTID;
  let defectActive = false;
  //let cameraUUID;
  // const countdownTimers = new Map(); // cameraId -> intervalId
@@ -229,7 +228,8 @@ function updateCameraDisplay(item, d) {
   let statusIndicator = item.querySelector('.camera-status');
   let startStopButton = item.querySelector('.start-stop-camera-btn');
   detectionStatus = d.live_detection_running;
-  if (detectionStatus) {
+  console.warn (`Camera ${item.dataset.cameraId} detection status: ${detectionStatus}`);
+  if (detectionStatus === 'yes') {
       statusIndicator.textContent = `Detecting`;
       statusIndicator.style.color = '#2ecc40';
       statusIndicator.style.backgroundColor = 'transparent';
@@ -322,7 +322,7 @@ function update_cameras () {
 // Called from sse when defect confirmed
 document.addEventListener('defectRaised', evt => {
   const { alert_id, action, countdown } = evt.detail;
-  ALERTID = alert_id;
+  
   if (!defectActive && countdown > 0) {
     ignoreBtn.style.display = "block";
     countdownTimer.style.display = "block";

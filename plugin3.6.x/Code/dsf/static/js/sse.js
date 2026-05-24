@@ -20,8 +20,8 @@ if (evtSource) {
     evtSource.addEventListener('countdown_time', (e) => {
         try {
             const countdownData = JSON.parse(e.data);
-            console.warn('Received countdown_time event:', countdownData);
-            startAlertCountdown(countdownData);
+            console.warn('event listener Received countdown_time event:', countdownData);
+            AlertCountdown(countdownData);
         } catch (error) {
             console.error('Error parsing countdown_time SSE event data:', error, e.data);
         }
@@ -126,17 +126,43 @@ function parseAlertData(alert_data) {
 }
 
 
-function startAlertCountdown(data) {
+function AlertCountdown(data) {
+    // Typically only called once with alert
+    //calling with countdownTime <=0 stops the countdown after sending 0 to UI
+
     console.warn('Starting countdown for alert:', data);
     const countdownTime = typeof data === 'number' ? data : (data?.countdown_time || 0);
-    if (countdownTime <= 0) return;
+    //if (countdownTime <= 0) return;
 
     const countdownTimerId = 'countdown';
     const countdownAction = typeof data === 'object' ? data.countdown_action : null;
 
+    const alert_status = typeof data === 'object' ? data.alert_status : null;
+
+    // Check to see if stop requested
+    if (countdownTime <= 0) {
+        if (window[countdownTimerId]) {
+            console.warn('Stopping countdown timer');
+            clearInterval(window[countdownTimerId]);
+            delete window[countdownTimerId];
+        }
+        // Dispatch event
+        console.warn('stopping countdown');
+        document.dispatchEvent(new CustomEvent('defectRaised', {
+            detail: {
+                action: countdownAction,
+                countdown: 0,
+                alert_status: alert_status
+            }
+        }));
+        return;
+        }
+
+    // Prevent multiple timers
     if (window[countdownTimerId]) {
         return;
     }
+
 
     const startTime = Date.now();
     const endTime = startTime + countdownTime * 1000;
@@ -150,7 +176,8 @@ function startAlertCountdown(data) {
         document.dispatchEvent(new CustomEvent('defectRaised', {
             detail: {
                 action: countdownAction,
-                countdown: secondsLeft
+                countdown: secondsLeft,
+                alert_status: alert_status
             }
         }));
 
@@ -179,8 +206,8 @@ if (evtSource) {
                     console.warn('Wrong call');
                 }
                 else if (packet_data.event == "countdown_time") {
-                    console.warn('Received countdown_time event:', packet_data);
-                    startAlertCountdown(packet_data.data);
+                    console.warn('onmessage countdown_time event:', packet_data);
+                    AlertCountdown(packet_data.data);
                 }
             } else {
                 console.warn('No data in SSE message');

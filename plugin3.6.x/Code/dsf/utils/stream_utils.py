@@ -24,6 +24,7 @@ import uuid
 
 from duet_printer import get_printer_config, suspend_print_job, duet_send_notification
 
+
 class StreamOptimizer:
 	"""Optimizes video stream frames and detection loops based on configuration."""
 
@@ -54,7 +55,6 @@ class StreamOptimizer:
 				'detection_interval_ms': DETECTION_INTERVAL_MS
 			}
 			'''SRS Loops thrrough here like a banchee every time - need to optimize'''
-		print(f'{self._config_cache=}')	
 		return self._config_cache
 
 	def get_stream_settings(self) -> Dict:
@@ -207,13 +207,13 @@ async def create_optimized_detection_loop(app_state, camera_uuid):
 		logger.debug(f'STARTING DETECTION LOOP FOR CAMERA {camera_uuid}')
 		while True:
 			camera_state = CAMERA_STATES[camera_uuid]
-			if not CAMERA_STATES[camera_uuid]['live_detection_running']:
+			if CAMERA_STATES[camera_uuid]['live_detection_running'] != 'yes':
 				break
 			try:
 				frame = get_shared_camera_frame(camera_uuid)
 			except Exception as e:
 				logger.warning("Failed to get frame from shared camera stream %s", camera_uuid)
-				CAMERA_STATES[camera_uuid]['live_detection_running'] = False
+				CAMERA_STATES[camera_uuid]['live_detection_running'] = 'no'
 				CAMERA_STATES[camera_uuid]['last_result'] = 'Failed to get frame'
 				break
 
@@ -246,15 +246,17 @@ async def create_optimized_detection_loop(app_state, camera_uuid):
 												app_state.prototypes,
 												app_state.defect_idx,
 												app_state.device)
-				logger.debug(f'GOT PREDICTION {prediction} FOR {camera_uuid}')
 				numeric = prediction[0] if isinstance(prediction, list) else prediction
 			except Exception as e:
 				logger.debug("Detection inference error for camera %s: %s", camera_uuid, e)
 				numeric = None
+
+			#SRS Nonesense - just take numeric o or 1 and make success / failure	
 			label = app_state.class_names[numeric] if (
 				isinstance(numeric, int)
 				and 0 <= numeric < len(app_state.class_names)
 				) else str(numeric)
+			
 			current_timestamp = time.time()
 			
 			"""
@@ -273,7 +275,7 @@ async def create_optimized_detection_loop(app_state, camera_uuid):
 			The multi-camera agreement logic checks if other cameras are also detecting
 			accoding to COUNTDOWN_SETTINGS.
 			"""
-			COUNTDOWN_SETTINGS['alert_status'] = 'inactive' # reset alert status
+			#SRS COUNTDOWN_SETTINGS['alert_status'] = 'inactive' # reset alert status
 			detection_count += 1
 			if isinstance(numeric, int) and numeric == app_state.defect_idx:
 				do_alert = False
@@ -292,23 +294,23 @@ async def create_optimized_detection_loop(app_state, camera_uuid):
 				if passed_majority_vote and passed_camera_combination:
 					logger.debug(f'{passed_camera_combination =}')
 					do_alert = True
-					if do_alert:
-						'''SRS Not needed  - delete globally later once we confirm functionality'''
-						CAMERA_STATES[camera_uuid]['defect_active'] = True # only requires one camera to trigger
 
-						#Send defect notification
-						send_defect_notification(camera_uuid) # sync
-						#Start the UI countdown disply
-						await start_UI_countdown(COUNTDOWN_SETTINGS['countdown_time'], COUNTDOWN_SETTINGS['countdown_action']) # sync but non-blocking
-						# If no user intervention before countdown - perform action
-						asyncio.create_task(_take_action_after_countdown())
-						print(f'after terminate alert {time.time()}')
+				if COUNTDOWN_SETTINGS['alert_status'] == 'inactive' and do_alert:
+					'''SRS Not needed  - delete globally later once we confirm functionality'''
+					CAMERA_STATES[camera_uuid]['defect_active'] = True # only requires one camera to trigger
 
-						# Wait for countdown time during active alert
-						await asyncio.sleep(countdown_time)
+					#Send defect notification
+					send_defect_notification(camera_uuid) # sync
+					#Start the UI countdown disply
+					await UI_countdown('start') # sync but non-blocking
+					# If no user intervention before countdown - perform action
+					asyncio.create_task(_take_action_after_countdown())
 
-						_MAJORITY_VOTE = {}
-						_CAMERA_AGREEMENT = []
+					# Wait for countdown time during active alert
+					await asyncio.sleep(countdown_time)
+
+					_MAJORITY_VOTE = {}
+					_CAMERA_AGREEMENT = []
 
 			detection_interval = stream_optimizer.get_detection_interval()		
 			await asyncio.sleep(detection_interval)
@@ -417,23 +419,25 @@ def _passed_multi_camera_test(countdown_control, camera_uuid,num_cameras):
 		return False
 	
 
-async def start_UI_countdown(countdown_time, countdown_action=None):
+async def UI_countdown(action):
 	"""Send a direct countdown SSE event to the browser.
 
 	This bypasses the ALERT model and the alert queueing path.
 	Only the countdown payload is sent to the SSE client.
 	"""
-	logger.debug(f'Starting UI Countdowm: {countdown_time} seconds, action: {countdown_action}')
-	if countdown_time is None:
-		return
-
+	if action == 'start':
+		countdown_time = COUNTDOWN_SETTINGS['countdown_time']
+	else:
+		countdown_time = 0
+	
 	try:
 		from routes.routes import managerSSE
 		payload = {
 			"event": "countdown_time",
 			"data": json.dumps({
 				"countdown_time": countdown_time,
-				"countdown_action": countdown_action
+				"countdown_action": COUNTDOWN_SETTINGS['countdown_action'],
+				"alert_status": COUNTDOWN_SETTINGS['alert_status']
 			})
 		}
 		await managerSSE.broadcast(payload)
@@ -449,6 +453,7 @@ async def _take_action_after_countdown():
 	await asyncio.sleep(COUNTDOWN_SETTINGS['countdown_time'])
 	
 	# Check if the alert is still active (not dismissed or overridden by user)
+	# No there is no Resume print Countdown action
 	if COUNTDOWN_SETTINGS['alert_status'] == 'active':
 		match COUNTDOWN_SETTINGS['countdown_action']:
 			case 'ignore': # allowing new alerts to be triggered 
@@ -456,13 +461,17 @@ async def _take_action_after_countdown():
 			case 'pause_print':
 				COUNTDOWN_SETTINGS['alert_status'] = 'paused'
 				suspend_print_job(COUNTDOWN_SETTINGS['countdown_action'])
-			case 'resume_print':
-				COUNTDOWN_SETTINGS['alert_status'] = 'resumed'
-				suspend_print_job(COUNTDOWN_SETTINGS['countdown_action'])
-				COUNTDOWN_SETTINGS['alert_status'] = 'inactive' # reset after action				
+				for camera_uuid,settings in CAMERA_STATES.items():
+					if settings['live_detection_running'] == 'yes': # only pause cameras that are currently running
+						await stop_live_detection(camera_uuid)
+						CAMERA_STATES[camera_uuid]['live_detection_running'] = 'paused'
 			case 'cancel_print':
 				COUNTDOWN_SETTINGS['alert_status'] = 'cancelled' # Not reset since print job has been stopped
 				suspend_print_job(COUNTDOWN_SETTINGS['countdown_action'])
+				for camera_uuid,settings in CAMERA_STATES.items():
+					if settings['live_detection_running'] == 'yes': # only stop cameras that are currently running
+						await stop_live_detection(camera_uuid)
+				
 
 
 
@@ -487,7 +496,7 @@ async def _live_detection_loop(app_state, camera_uuid):
 	except Exception as e:
 		logger.error("Error creating optimized detection loop for camera %s: %s", camera_uuid, e)
 		CAMERA_STATES[camera_uuid]["last_result"] = 'Error in detection loop'
-		CAMERA_STATES[camera_uuid]["live_detection_running"] = False
+		CAMERA_STATES[camera_uuid]["live_detection_running"] = 'no'
 
 	
 def send_defect_notification(camera_uuid):
@@ -516,6 +525,65 @@ def send_defect_notification(camera_uuid):
 		logger.debug("Notification send completed")
 	else:
 		logger.error("Unexpected error sending notification")
+
+
+async def start_live_detection(request,camera_uuid):
+	"""Start continuous live detection on a specified camera."""
+	global CAMERA_STATES
+
+	camera_state = CAMERA_STATES.get(camera_uuid)
+	if camera_state and camera_state["live_detection_running"] == 'yes':
+		return {"success": True, "message": f"Live detection already running for camera {camera_uuid}"}
+
+	CAMERA_STATES[camera_uuid] = {
+			"live_detection_running": 'no',
+			"last_result": '',
+			"last_time": None,
+			"defect_active": False,
+			"live_detection_task": None
+	}
+
+	try:
+		print(f'attempting to create live detection loop for {camera_uuid}')
+		print(f'REQUEST LOOKS LIKE THIS {request}')
+		print(f'with app.state {request.app.state}')
+		task = asyncio.create_task(_live_detection_loop(request.app.state, camera_uuid))
+		
+		CAMERA_STATES[camera_uuid]['live_detection_running'] = 'yes'
+		CAMERA_STATES[camera_uuid]['live_detection_task'] = task
+		CAMERA_STATES[camera_uuid]['last_time'] = time.time()
+		COUNTDOWN_SETTINGS['alert_status'] = 'inactive' # reset global countdown status when starting detection
+
+	except Exception as e:
+		logger.error("Error starting live detection for camera %s: %s", camera_uuid, e)
+		return {"success": False, "message": f"Failed to start live detection for camera {camera_uuid}"}
+
+	return {"success": True, "message": f"Live detection started for camera {camera_uuid}"}
+
+
+async def stop_live_detection(camera_uuid):
+	"""Stop continuous live detection on a specified camera."""
+	global CAMERA_STATES
+
+	if CAMERA_STATES[camera_uuid]['live_detection_running'] != 'yes':
+		return {"message": f"Live detection not running for camera {camera_uuid}"}
+	
+	live_detection_task = CAMERA_STATES[camera_uuid]['live_detection_task']
+	if live_detection_task:
+		try: 
+			live_detection_task.cancel()
+			CAMERA_STATES[camera_uuid] = {
+				"live_detection_running": 'no',
+				"last_result": '',
+				"last_time": None,
+				"defect_active": False,
+				"live_detection_task": None
+			}
+			logger.debug("Stopped live detection task for camera %s", camera_uuid)
+		except Exception as e:
+			logger.error("Error stopping live detection task for camera %s: %s", camera_uuid, e)
+
+	return {"message": f"Live detection stopped for camera {camera_uuid}"}
 
 
 

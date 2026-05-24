@@ -26,7 +26,7 @@ from utils.config import (
 	delete_from_config
 )
 from utils.shared_video_stream import get_shared_stream_manager
-from utils.stream_utils import _live_detection_loop, generate_frames
+from utils.stream_utils import UI_countdown,start_live_detection, stop_live_detection
 
 router = APIRouter()
 
@@ -69,25 +69,40 @@ def find_available_serial_cameras() -> list[str]:
 async def alert_response(request: Request,
 						 action = Body(..., embed=True)):
 	"""
-	Handle alert response actions including ignore, cancel, and pause.
+	Handle alert response actions including ignore, cancel, and pause resume.
 	Can be raised at any time independent of the alert's countdown status
 	"""
+
+	await UI_countdown('stop') #Stop the countdown timer on the UI immediately when an action is taken
+	print(f'sent {action} command to stop countdown timer')
 	global COUNTDOWN_SETTINGS
 	match action:
 		case 'ignore': # allowing new alerts to be triggered 
 			COUNTDOWN_SETTINGS['alert_status'] = 'inactive'
 		case 'pause_print':
-			COUNTDOWN_SETTINGS['alert_status'] = 'paused' # stay in paused until resumed or cancelled
-			suspend_print_job(action)
+			COUNTDOWN_SETTINGS['alert_status'] = 'paused'
+			suspend_print_job(COUNTDOWN_SETTINGS['countdown_action'])
+			for camera_uuid,settings in CAMERA_STATES.items():
+				if settings['live_detection_running'] == 'yes': # only pause cameras that are currently running
+					await stop_live_detection(camera_uuid)
+					CAMERA_STATES[camera_uuid]['live_detection_running'] = 'paused'
 		case 'resume_print':
 			COUNTDOWN_SETTINGS['alert_status'] = 'resumed'
 			suspend_print_job(action)
+			for camera_uuid,settings in CAMERA_STATES.items():
+				print(f'checking if live detection is paused for {camera_uuid} with settings {settings}')
+				if settings['live_detection_running'] == 'paused':
+					await start_live_detection(None,camera_uuid)
 			COUNTDOWN_SETTINGS['alert_status'] = 'inactive' # reset after action
 		case 'cancel_print':
 			COUNTDOWN_SETTINGS['alert_status'] = 'cancelled' # Not reset since print job has been stopped
 			suspend_print_job(action)
+			for camera_uuid,settings in CAMERA_STATES.items():
+				print(f'checking if live detection is running for {camera_uuid} with settings {settings}')
+				if settings['live_detection_running'] == 'yes':
+					await stop_live_detection(camera_uuid)
 
-
+'''
 # detection_routes.py
 @router.post("/detect/live/start")
 async def start_live_detection(request: Request, camera_uuid: str = Body(..., embed=True)):
@@ -113,6 +128,7 @@ async def start_live_detection(request: Request, camera_uuid: str = Body(..., em
 		CAMERA_STATES[camera_uuid]['live_detection_running'] = True
 		CAMERA_STATES[camera_uuid]['live_detection_task'] = task
 		CAMERA_STATES[camera_uuid]['last_time'] = time.time()
+		COUNTDOWN_SETTINGS['alert_status'] = 'inactive' # reset global countdown status when starting detection
 
 	except Exception as e:
 		logger.error("Error starting live detection for camera %s: %s", camera_uuid, e)
@@ -145,7 +161,7 @@ async def stop_live_detection(request: Request, camera_uuid: str = Body(..., emb
 			logger.error("Error stopping live detection task for camera %s: %s", camera_uuid, e)
 
 	return {"message": f"Live detection stopped for camera {camera_uuid}"}
-
+'''
 
 # index_routes.py
 @router.get("/index", include_in_schema=False)
