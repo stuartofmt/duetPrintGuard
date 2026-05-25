@@ -40,7 +40,7 @@ def init_routes_and_modules():
 	from utils.inference_lib import get_inference_engine
 
 	from routes.routes import router as app_router
-	from routes.detection_routes import router as detection_router
+	# from routes.detection_routes import router as detection_router
 
 	@asynccontextmanager
 	async def lifespan(app_instance: FastAPI):
@@ -127,7 +127,7 @@ def init_routes_and_modules():
 	templates = Jinja2Templates(directory=templates_dir)
 
 	app.include_router(app_router)
-	app.include_router(detection_router)
+	# app.include_router(detection_router)
 
 	@app.middleware("http")
 	async def http_redirect_middleware(request: Request, call_next):
