@@ -26,7 +26,7 @@ from utils.config import (
 	delete_from_config
 )
 from utils.shared_video_stream import get_shared_stream_manager
-from utils.stream_utils import UI_countdown,start_live_detection, stop_live_detection
+from utils.stream_utils import _SAVED_REQUEST, UI_countdown,start_live_detection, stop_live_detection, _SAVED_REQUEST
 
 router = APIRouter()
 
@@ -81,18 +81,18 @@ async def alert_response(request: Request,
 			COUNTDOWN_SETTINGS['alert_status'] = 'inactive'
 		case 'pause_print':
 			COUNTDOWN_SETTINGS['alert_status'] = 'paused'
-			suspend_print_job(COUNTDOWN_SETTINGS['countdown_action'])
+			suspend_print_job(action)
 			for camera_uuid,settings in CAMERA_STATES.items():
 				if settings['live_detection_running'] == 'yes': # only pause cameras that are currently running
 					await stop_live_detection(camera_uuid)
-					CAMERA_STATES[camera_uuid]['live_detection_running'] = 'paused'
+					CAMERA_STATES[camera_uuid]['live_detection_running'] = 'paused' # Need cuz stop sets to inacive
 		case 'resume_print':
 			COUNTDOWN_SETTINGS['alert_status'] = 'resumed'
 			suspend_print_job(action)
 			for camera_uuid,settings in CAMERA_STATES.items():
 				print(f'checking if live detection is paused for {camera_uuid} with settings {settings}')
 				if settings['live_detection_running'] == 'paused':
-					await start_live_detection(None,camera_uuid)
+					await start_live_detection(_SAVED_REQUEST,camera_uuid)
 			COUNTDOWN_SETTINGS['alert_status'] = 'inactive' # reset after action
 		case 'cancel_print':
 			COUNTDOWN_SETTINGS['alert_status'] = 'cancelled' # Not reset since print job has been stopped

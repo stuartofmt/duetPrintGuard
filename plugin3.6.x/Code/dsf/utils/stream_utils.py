@@ -526,10 +526,13 @@ def send_defect_notification(camera_uuid):
 	else:
 		logger.error("Unexpected error sending notification")
 
+global _SAVED_REQUEST
+_SAVED_REQUEST = None
 
 async def start_live_detection(request,camera_uuid):
 	"""Start continuous live detection on a specified camera."""
-	global CAMERA_STATES
+	global CAMERA_STATES, _SAVED_REQUEST
+	_SAVED_REQUEST = request
 
 	camera_state = CAMERA_STATES.get(camera_uuid)
 	if camera_state and camera_state["live_detection_running"] == 'yes':
@@ -545,7 +548,8 @@ async def start_live_detection(request,camera_uuid):
 
 	try:
 		print(f'attempting to create live detection loop for {camera_uuid}')
-		print(f'REQUEST LOOKS LIKE THIS {request}')
+		print(f'request LOOKS LIKE THIS {request}')
+		print(f'fastapy Request looks like this {_SAVED_REQUEST}')
 		print(f'with app.state {request.app.state}')
 		task = asyncio.create_task(_live_detection_loop(request.app.state, camera_uuid))
 		

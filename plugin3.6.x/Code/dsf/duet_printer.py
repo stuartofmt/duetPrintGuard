@@ -133,7 +133,7 @@ def get_printer_config(camera_uuid):
 
 def suspend_print_job(action):
 	global suspend_status
-	logger.warning(f'Requested action {action} --- current status {suspend_status}')
+	suspend_status = 'running' # Default state is running
 	
 	# Use of suspend_status is to account for request from more than one camera
 	# Do not want to send multiple commands of the same type
