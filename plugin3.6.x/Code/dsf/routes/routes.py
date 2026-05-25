@@ -26,7 +26,7 @@ from utils.config import (
 	delete_from_config
 )
 from utils.shared_video_stream import get_shared_stream_manager
-from utils.stream_utils import _SAVED_REQUEST, UI_countdown,start_live_detection, stop_live_detection, _SAVED_REQUEST
+from utils.stream_utils import UI_countdown,start_live_detection, stop_live_detection
 
 router = APIRouter()
 
@@ -92,7 +92,7 @@ async def alert_response(request: Request,
 			for camera_uuid,settings in CAMERA_STATES.items():
 				print(f'checking if live detection is paused for {camera_uuid} with settings {settings}')
 				if settings['live_detection_running'] == 'paused':
-					await start_live_detection(_SAVED_REQUEST,camera_uuid)
+					await start_live_detection(camera_uuid)
 			COUNTDOWN_SETTINGS['alert_status'] = 'inactive' # reset after action
 		case 'cancel_print':
 			COUNTDOWN_SETTINGS['alert_status'] = 'cancelled' # Not reset since print job has been stopped

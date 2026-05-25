@@ -527,12 +527,16 @@ def send_defect_notification(camera_uuid):
 		logger.error("Unexpected error sending notification")
 
 global _SAVED_REQUEST
-_SAVED_REQUEST = None
 
-async def start_live_detection(request,camera_uuid):
+def save_request(request):
+	global _SAVED_REQUEST
+	_SAVED_REQUEST = request
+
+
+async def start_live_detection(camera_uuid):
 	"""Start continuous live detection on a specified camera."""
 	global CAMERA_STATES, _SAVED_REQUEST
-	_SAVED_REQUEST = request
+	request = _SAVED_REQUEST
 
 	camera_state = CAMERA_STATES.get(camera_uuid)
 	if camera_state and camera_state["live_detection_running"] == 'yes':
@@ -547,10 +551,6 @@ async def start_live_detection(request,camera_uuid):
 	}
 
 	try:
-		print(f'attempting to create live detection loop for {camera_uuid}')
-		print(f'request LOOKS LIKE THIS {request}')
-		print(f'fastapy Request looks like this {_SAVED_REQUEST}')
-		print(f'with app.state {request.app.state}')
 		task = asyncio.create_task(_live_detection_loop(request.app.state, camera_uuid))
 		
 		CAMERA_STATES[camera_uuid]['live_detection_running'] = 'yes'
@@ -559,7 +559,7 @@ async def start_live_detection(request,camera_uuid):
 		COUNTDOWN_SETTINGS['alert_status'] = 'inactive' # reset global countdown status when starting detection
 
 	except Exception as e:
-		logger.error("Error starting live detection for camera %s: %s", camera_uuid, e)
+		logger.error(f"Error starting live detection for camera {camera_uuid} with request {request}: {e}")
 		return {"success": False, "message": f"Failed to start live detection for camera {camera_uuid}"}
 
 	return {"success": True, "message": f"Live detection started for camera {camera_uuid}"}

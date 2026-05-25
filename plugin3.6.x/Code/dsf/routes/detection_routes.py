@@ -8,7 +8,7 @@ from fastapi import APIRouter, Body, Request
 from logger_module import logger
 
 
-from utils.stream_utils import start_live_detection, stop_live_detection
+from utils.stream_utils import start_live_detection, stop_live_detection, save_request
 
 router = APIRouter()
 
@@ -18,7 +18,8 @@ router = APIRouter()
 async def starting_detection(request: Request, camera_uuid: str = Body(..., embed=True)):
 	"""Start continuous live detection on a specified camera."""
 	try:
-		await start_live_detection(request,camera_uuid)
+		save_request(request)
+		await start_live_detection(camera_uuid)
 	except Exception as e:
 		logger.error("Error starting live detection for camera %s: %s", camera_uuid, e)
 		return {"success": False, "message": f"Failed to start live detection for camera {camera_uuid}"}
