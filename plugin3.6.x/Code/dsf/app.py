@@ -67,7 +67,7 @@ def init_routes_and_modules():
 				prototypes, class_names, defect_idx = inference_engine.compute_prototypes(
 					app_instance.state.model, get_prototypes_dir(), app_instance.state.transform,
 					app_instance.state.device, SUCCESS_LABEL
-				)
+				) # Last param optional use_cache defaults to True - tries to read model prototype from cache else download
 				app_instance.state.prototypes = prototypes
 				app_instance.state.class_names = class_names
 				app_instance.state.defect_idx = defect_idx
