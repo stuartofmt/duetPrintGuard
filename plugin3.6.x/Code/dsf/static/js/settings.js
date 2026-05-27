@@ -13,7 +13,7 @@ let cameraUUID;
 
 const camVideoPreview = document.getElementById('videoPreview');
 const loadingOverlay = document.getElementById('loadingOverlay');
-//const cameraItems = document.querySelectorAll('.camera-items');
+
 
 const settingsCameraUUID = document.getElementById('camera_uuid');
 const settingsSensitivity = document.getElementById('sensitivity');
@@ -385,17 +385,7 @@ document.querySelectorAll('.control-form select').forEach(control => {
 	});
 });
 
-/*
-document.querySelector('.settings-form')?.addEventListener('submit', (e) => {
-	e.preventDefault();
-});
-*/
-/*
-document.querySelector('.countrol-form')?.addEventListener('submit', (e) => {
-	e.preventDefault();
-	console.warn('form event');
-});
-*/
+
 
 addCameraModalClose?.addEventListener('click', function() {
 	if (addCameraModalOverlay) {
