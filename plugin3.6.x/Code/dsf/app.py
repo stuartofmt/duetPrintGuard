@@ -126,24 +126,24 @@ def init_routes_and_modules():
 	@app.middleware("http")
 	async def http_redirect_middleware(request: Request, call_next):
 		"""
-		Middleware to handle HTTP requests - redirect to setup page unless accessing setup routes.
-		Only allows setup routes and static files when using HTTP.
+		Middleware to handle HTTP requests
+		Defaults to index.html
+		Currently just used for initial connection logging
 		"""
 		if request.url.scheme == "http":
-			if (request.url.path.startswith("/")):
-				response = await call_next(request)
-				return response
-			elif request.url.path.startswith("/index"):
-				logger.warning(f'Redirecting to index')
-				return RedirectResponse(url="/index", status_code=307)
+
+			if request.url.path == '/': #Calling at root
+				return RedirectResponse(url="/index", status_code=308)  #Permanent redirect
+
+			if request.url.path.startswith("/index"):
+				logger.debug(f'Index connection recieved from {request.client}')
 			elif request.url.path.startswith("/settings"):
-				logger.warning(f'Redirecting to settings')
-				return RedirectResponse(url="/settings", status_code=307)
-			else:
-				return RedirectResponse(url="/index", status_code=307)
+				logger.debug(f'Settings connection recieved from {request.client}')
+
 		response = await call_next(request)
 		return response
 
+		
 def appstartup():
 	'''
 	Run the FastAPI application with uvicorn
@@ -156,10 +156,13 @@ def appstartup():
 
 	init_routes_and_modules()
 	
-	#app_config = get_config()
-	#site_domain = app_config.get(SavedConfig.SITE_DOMAIN, "")
-	site_domain = "TO BE SET IN CONFIG"
-	logger.info(f"Starting PrintGuard on domain: {site_domain} and port: {UI.PORT}")
+	logger.info(f'duetPrintGuard can be access using one of the following:')
+	logger.info(f'Detection')
+	logger.info(f'http://localhost:{UI.PORT}')
+	logger.info(f'http://{DUET.IP}:{UI.PORT}')
+	logger.info(f"Settings")
+	logger.info(f'http://localhost:{UI.PORT}/settings')
+	logger.info(f'http://{DUET.IP}:{UI.PORT}/settings')
 
 	port = str(UI.PORT)  #unicorn looks for strings	
 
