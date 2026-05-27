@@ -8,7 +8,6 @@
   <link rel="stylesheet" href="{{ url_for('static', path='css/index.css') }}" />
 
   <script src="{{ url_for('static', path='js/sse.js') }}" defer></script>
-  <script type="module" src="{{ url_for('static', path='js/utils.js') }}"></script>
   <script type="module" src="{{ url_for('static', path='js/index.js') }}"></script>
   <script src="https://cdn.jsdelivr.net/npm/figlet@1.8.1/lib/figlet.min.js"></script>
 </head>
@@ -46,14 +45,6 @@
           <span class="update-label">Last Update: </span>
           <span class="update-value">Never</span>
         </div>
-        <!--
-        <div class="countdown-action" style="display: none;">
-          <span class="action-label"></span>
-          <span class="action-value"></span>
-          <span class="countdown-label"></span>
-          <span class="countdown-value"></span>
-        </div>
-        -->
       </div>
 
       <div class="camera-footer">
