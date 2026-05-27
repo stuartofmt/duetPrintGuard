@@ -97,7 +97,7 @@ export default {
 				const ip = javascript_ini['DUET']['IP']
 				const port = javascript_ini['UI']['PORT']
 
-				this.myurl = 'http://' + ip + ":" + port + "/duetindex";
+				this.myurl = 'http://' + ip + ':' + port;
 				console.log('duetPrintGuard url is ' + this.myurl);
 
 			} 
