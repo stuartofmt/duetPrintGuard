@@ -33,14 +33,10 @@ def init_routes_and_modules():
 	Separating this from appstartup to allow for config file imports in route definitions.
 	"""
 
-	#global SavedConfig,SiteStartupMode
-
-	#from models import (SiteStartupMode, SavedConfig)
-
 	from utils.inference_lib import get_inference_engine
 
 	from routes.routes import router as app_router
-	# from routes.detection_routes import router as detection_router
+
 
 	@asynccontextmanager
 	async def lifespan(app_instance: FastAPI):
@@ -115,8 +111,6 @@ def init_routes_and_modules():
 	app.state.defect_idx = -1
 	app.state.alerts = {}
 	app.state.outbound_queue = asyncio.Queue()
-	#config = get_config() or {}
-	#app.state.subscriptions = config.get(SavedConfig.PUSH_SUBSCRIPTIONS, [])
 	app.state.polling_tasks = {}
 
 	base_dir = os.path.dirname(__file__)
@@ -127,7 +121,7 @@ def init_routes_and_modules():
 	templates = Jinja2Templates(directory=templates_dir)
 
 	app.include_router(app_router)
-	# app.include_router(detection_router)
+
 
 	@app.middleware("http")
 	async def http_redirect_middleware(request: Request, call_next):
@@ -136,23 +130,17 @@ def init_routes_and_modules():
 		Only allows setup routes and static files when using HTTP.
 		"""
 		if request.url.scheme == "http":
-			if (request.url.path.startswith("/setup") or
-				request.url.path.startswith("/static") or
-				request.url.path.startswith("/")):
+			if (request.url.path.startswith("/")):
 				response = await call_next(request)
 				return response
-				"""SRS"""
 			elif request.url.path.startswith("/index"):
 				logger.warning(f'Redirecting to index')
 				return RedirectResponse(url="/index", status_code=307)
-			elif request.url.path.startswith("/duetindex"):
-				logger.warning(f'Redirecting to duetindex')
-				return RedirectResponse(url="/duetindex", status_code=307)
 			elif request.url.path.startswith("/settings"):
 				logger.warning(f'Redirecting to settings')
 				return RedirectResponse(url="/settings", status_code=307)
 			else:
-				return RedirectResponse(url="/setup", status_code=307)
+				return RedirectResponse(url="/index", status_code=307)
 		response = await call_next(request)
 		return response
 
