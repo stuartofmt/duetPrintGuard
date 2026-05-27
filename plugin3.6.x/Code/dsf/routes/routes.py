@@ -102,66 +102,6 @@ async def alert_response(request: Request,
 				if settings['live_detection_running'] == 'yes':
 					await stop_live_detection(camera_uuid)
 
-'''
-# detection_routes.py
-@router.post("/detect/live/start")
-async def start_live_detection(request: Request, camera_uuid: str = Body(..., embed=True)):
-	"""Start continuous live detection on a specified camera."""
-	global CAMERA_STATES
-	camera_state = CAMERA_STATES.get(camera_uuid)
-	if camera_state and camera_state.get("live_detection_running"):
-		return {"success": True, "message": f"Live detection already running for camera {camera_uuid}"}
-
-	CAMERA_STATES[camera_uuid] = {
-			"live_detection_running": False,
-			"last_result": '',
-			"last_time": None,
-			"defect_active": False,
-			"live_detection_task": None
-	}
-
-	try:
-		print(f'attempting to create live detection loop for {camera_uuid}')
-		print(f'with app.state {request.app.state}')
-		task = asyncio.create_task(_live_detection_loop(request.app.state, camera_uuid))
-		
-		CAMERA_STATES[camera_uuid]['live_detection_running'] = True
-		CAMERA_STATES[camera_uuid]['live_detection_task'] = task
-		CAMERA_STATES[camera_uuid]['last_time'] = time.time()
-		COUNTDOWN_SETTINGS['alert_status'] = 'inactive' # reset global countdown status when starting detection
-
-	except Exception as e:
-		logger.error("Error starting live detection for camera %s: %s", camera_uuid, e)
-		return {"success": False, "message": f"Failed to start live detection for camera {camera_uuid}"}
-
-	return {"success": True, "message": f"Live detection started for camera {camera_uuid}"}
-
-
-@router.post("/detect/live/stop")
-async def stop_live_detection(request: Request, camera_uuid: str = Body(..., embed=True)):
-	"""Stop continuous live detection on a specified camera."""
-	global CAMERA_STATES
-
-	if not CAMERA_STATES[camera_uuid]['live_detection_running']:
-		return {"message": f"Live detection not running for camera {camera_uuid}"}
-	
-	live_detection_task = CAMERA_STATES[camera_uuid]['live_detection_task']
-	if live_detection_task:
-		try: 
-			live_detection_task.cancel()
-			CAMERA_STATES[camera_uuid] = {
-				"live_detection_running": False,
-				"last_result": '',
-				"last_time": None,
-				"defect_active": False,
-				"live_detection_task": None
-			}
-			logger.debug("Stopped live detection task for camera %s", camera_uuid)
-		except Exception as e:
-			logger.error("Error stopping live detection task for camera %s: %s", camera_uuid, e)
-
-	return {"message": f"Live detection stopped for camera {camera_uuid}"}
-'''
 
 # index_routes.py
 @router.get("/index", include_in_schema=False)
@@ -178,8 +118,6 @@ async def serve_index(request: Request):
 async def serve_settings(request: Request):
 	"""Serve the settings page."""
 	from app import templates
-	if len(CAMERA_SETTINGS) <= 0:
-		logger.warning("No camera UUIDs found, attempting to initialize cameras...")
 	return templates.TemplateResponse("settings.html", {
 		"request": request
 	})
