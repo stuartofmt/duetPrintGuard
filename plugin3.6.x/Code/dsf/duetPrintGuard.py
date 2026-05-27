@@ -11,13 +11,13 @@ Venv python install e.g.
 # Author Stuartofmt - chunks of code sourced from various internet examples
 # Released under The MIT License. Full text available via https://opensource.org/licenses/MIT
 
-# This is more-or-less a wrapper for the detection app PrintGuard.
+# This is based on the app PrintGuard.
 # https://github.com/oliverbravery/PrintGuard
-# This plugin modifies with UI changes and much code simplification
-# to make it more suited to the DWC environment
+# This plugin removed much of the code to streamline
+# and make itmore suited to the DWC environment
 
 """
-Version 1.0 - Initial release
+Version 1.0.0 - Initial release
 """
 
 import sys
