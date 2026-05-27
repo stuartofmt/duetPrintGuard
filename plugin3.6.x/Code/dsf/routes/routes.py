@@ -1,6 +1,6 @@
 """Consolidated FastAPI routes moved from the previous route modules."""
 
-import json
+
 import asyncio
 import time
 import uuid
@@ -159,14 +159,6 @@ async def update_settings_countdown(request: Request,
 							}})
 	return RedirectResponse("/settings", status_code=303)
 
-'''
-@router.get('/camera/feed/{camera_uuid}', include_in_schema=False)
-async def camera_feed(camera_uuid: str):
-	"""Stream live camera feed for a specific camera."""
-	return StreamingResponse(generate_frames(camera_uuid),
-							 media_type='multipart/x-mixed-replace; boundary=frame')
-
-'''
 
 @router.get('/camera/snapshot/{camera_uuid}', include_in_schema=False)
 async def camera_snapshot(camera_uuid: str):
@@ -313,12 +305,6 @@ async def config_camera_list(request: Request):
 	logger.debug(f'{camera_uuid_list=}')
 	return {"camera_list": camera_uuid_list}
 
-'''
-@router.get("/get/camera-settings", include_in_schema=False)
-async def camera_settings(request: Request):
-	"""Get current camera settings."""
-	return {"camera_settings": CAMERA_SETTINGS}
-'''
 
 @router.get("/config/get-countdown-settings", include_in_schema=False)
 async def get_countdown_settings():
@@ -332,27 +318,6 @@ async def get_countdown_settings():
 		}
 	}
 
-'''
-@router.post("/xconfig/save-countdown-settings ", include_in_schema=False)
-async def save_countdown_settings(settings: dict):
-	"""Save countdown settings."""
-	try:
-		add_to_config({
-			'countdown_settings': {
-				'countdown_action': settings['countdown_action'],
-				'countdown_time': settings['countdown_time'],
-				'countdown_control': settings['countdown_control']
-			}
-		})
-		logger.debug("Countdown settings saved successfully.")
-		return {"success": True, "message": "Countdown settings saved successfully."}
-	except Exception as e:
-		logger.error("Error saving countdown settings: %s", e)
-		raise HTTPException(
-			status_code=500,
-			detail=f"Failed to save countdown settings: {str(e)}"
-		)
-'''
 
 @router.post("/config/get-camera-setting", include_in_schema=False)
 async def get_camera_setting(request: Request, camera_uuid: str = Body(..., embed=True)):
