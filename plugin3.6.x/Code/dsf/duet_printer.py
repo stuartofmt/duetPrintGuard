@@ -178,83 +178,95 @@ def suspend_print_job(action):
 
 def _send_macro(alert):
 	global MACRO_TIMES
-	if MACRO.MACRO != '':
-		msg = f'M98 P"{MACRO.MACRO}"'
-		logger.info(f'Sending macro {msg}')
-		if MACRO_TIMES < MACRO_MAXTIMES
-			_send_duet_code(msg)
-			MACRO_TIMES += 1
+	try:
+		if MACRO.MACRO != '':
+			if MACRO_TIMES < MACRO.MAXTIMES:
+				msg = f'M98 P"{MACRO.MACRO}"'
+				_send_duet_code(msg)
+				MACRO_TIMES += 1
+				logger.info(f'MACRO {msg} sent {MACRO_TIMES} time(s)')	
+	except Exception as e:
+		logger.info(f'Error sending macro:  {e}')
+	return True	
 
 
 
 def _send_ntfy(alert):
 	global NTFY_TIMES
-	if NTFY.TOPIC != '': # OK to send
-		if NTFY_TIMES < NTFY_MAXTIMES
-		
-			title = ''
-			message = ''
-			if NTFY.TITLE !='':
-				title = NTFY.TITLE
-			else:
-				title = alert['title']
+	try:
+		if NTFY.TOPIC != '': # OK to send
+			if NTFY_TIMES < NTFY.MAXTIMES:		
+				title = ''
+				message = ''
+				if NTFY.TITLE !='':
+					title = NTFY.TITLE
+				else:
+					title = alert['title']
 
-			if NTFY.MESSAGE !='':
-				message = NTFY.MESSAGE
-			else:
-				message = alert['body']
+				if NTFY.MESSAGE !='':
+					message = NTFY.MESSAGE
+				else:
+					message = alert['body']
 
-			logger.info(f'Sending NTFY with title {title}')	
-
-			data=json.dumps({
-				"Topic": NTFY.TOPIC,
-				"Title": title,
-				"Priority": int(NTFY.PRIORITY),
-				"Message": message,
-				})
+				data=json.dumps({
+					"Topic": NTFY.TOPIC,
+					"Title": title,
+					"Priority": int(NTFY.PRIORITY),
+					"Message": message,
+					})
+				
 			
-		
-			code, _ = _urlCall('https://ntfy.sh', data, True)
-			if code in [200,204]:
-				return True
-			else:
-				logger.info(f'NTFY send failed with code {code}')
-				logger.debug(f'\n{data}\n')
-				return False
+				code, _ = _urlCall('https://ntfy.sh', data, True)
+				if code in [200,204]:
+					NTFY_TIMES += 1
+					logger.info(f'NTFY with title {title} sent {NTFY_TIMES} time(s)')	
+					return True
+				else:
+					logger.info(f'NTFY send failed with code {code}')
+					logger.debug(f'\n{data}\n')
+					return False
+	except Exception as e:
+		logger.info(f'Error sending NTFY:  {e}')
+	return True
 
-			NTFY_TIMES += 1
 	
 def _send_pushover(alert):
-	if PUSHOVER.API != '' and PUSHOVER.USER != '': # OK to send
-		if PUSHOVER_TIMES < PUSHOVER_MAXTIMES
-			title = ''
-			message = ''
-			if PUSHOVER.TITLE !='':
-				title = PUSHOVER.TITLE
-			else:
-				title = alert['title']
-			if PUSHOVER.MESSAGE !='':
-				message = PUSHOVER.MESSAGE
-			else:
-				message = alert['body']
+	global PUSHOVER_TIMES
+	try:
+		if PUSHOVER.API != '' and PUSHOVER.USER != '': # OK to send
+			if PUSHOVER_TIMES < PUSHOVER.MAXTIMES:
+				title = ''
+				message = ''
+				if PUSHOVER.TITLE !='':
+					title = PUSHOVER.TITLE
+				else:
+					title = alert['title']
+				if PUSHOVER.MESSAGE !='':
+					message = PUSHOVER.MESSAGE
+				else:
+					message = alert['body']
 
-			logger.info(f'Sending PUSHOVER with title {title}')
+				logger.info(f'Sending PUSHOVER with title {title}')
 
-			data = {
-				"token": PUSHOVER.API,
-				"user": PUSHOVER.USER,
-				"title":title,
-				"message": message,
-				}
+				data = {
+					"token": PUSHOVER.API,
+					"user": PUSHOVER.USER,
+					"title":title,
+					"message": message,
+					}
 
-			code, _ = _urlCall("https://api.pushover.net/1/messages.json", data, True)
-			if code in [200,204]:
-				return True
-			else:
-				logger.info(f'PUSHOVER send failed with code {code}')
-				logger.debug(f'\n{data}\n')
-				return False	
-
+				code, _ = _urlCall("https://api.pushover.net/1/messages.json", data, True)
+				if code in [200,204]:
+					PUSHOVER_TIMES += 1
+					logger.info(f'Pushover with title {title} sent {PUSHOVER_TIMES} time(s)')	
+					return True
+				else:
+					logger.info(f'PUSHOVER send failed with code {code}')
+					logger.debug(f'\n{data}\n')
+					return False
+	except Exception as e:
+		logger.info(f'Error sending PUSHOVER:  {e}')
+	return True
 
 if __name__ == "__main__":    # Test setup
 	import os

@@ -85,21 +85,21 @@ def get_DWC_config(file_path,file_name,logger):
 
         # MACRO
         if not hasattr(MACRO,'MACRO'): MACRO.MACRO = ''
-        if not hasattr(MACRO,'MAXTIMES'): MACRO.MAXTIMES = ''
+        if not hasattr(MACRO,'MAXTIMES'): MACRO.MAXTIMES = 3
 
         # NTFY
         if not hasattr(NTFY,'TOPIC'): NTFY.TOPIC = ''
         if not hasattr(NTFY,'TITLE'): NTFY.TITLE = ''
         if not hasattr(NTFY,'MESSAGE'): NTFY.MESSAGE = ''
-        if not hasattr(NTFY,'PRIORITY'): NTFY.PRIORITY = ''
-        if not hasattr(NTFY,'MAXTIMES'): MACRO.MAXTIMES = ''
+        if not hasattr(NTFY,'PRIORITY'): NTFY.PRIORITY = 3
+        if not hasattr(NTFY,'MAXTIMES'): NTFY.MAXTIMES = 3
         
         #PUSHOVER
         if not hasattr(PUSHOVER,'API') : PUSHOVER.API = ''
         if not hasattr(PUSHOVER,'USER') : PUSHOVER.USER = ''
         if not hasattr(PUSHOVER,'TITLE') : PUSHOVER.TITLE = ''
         if not hasattr(PUSHOVER,'MESSAGE') : PUSHOVER.MESSAGE = ''
-        if not hasattr(PUSHOVER,'MAXTIMES'): MACRO.MAXTIMES = ''
+        if not hasattr(PUSHOVER,'MAXTIMES'): PUSHOVER.MAXTIMES = 3
         
 
         """  template for booleans 
