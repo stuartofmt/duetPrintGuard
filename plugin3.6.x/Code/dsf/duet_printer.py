@@ -8,6 +8,14 @@ import json
 import time
 import sys
 
+global MACRO_TIMES, NTFY_TIMES, PUSHOVER_TIMES
+MACRO_TIMES = 0
+NTFY_TIMES  = 0
+PUSHOVER_TIMES = 0
+
+global PRINTER_STATUS
+PRINTER_STATUS = 'running' # Default state is running
+
 def _urlCall(url, cmd, post):
 	# Makes all the calls to the printer
 	# If post is True then make a http post call
@@ -70,11 +78,11 @@ def _send_duet_code(command):
 	return code
 		
 def _loginPrinter(printerUrl,duetPassword): #logon and get key parameters
-	global suspend_status
+	global PRINTER_STATUS
 	cmd = (f'''/rr_connect?sessionKey=yes&password={duetPassword}''') # using rr_ API
 	code, _ = _urlCall(printerUrl, cmd, False)
 	if code in [200,204]:
-		suspend_status = 'running'
+		PRINTER_STATUS = 'running'
 		return True
 	elif code == 403:
 		msg = 'Password is invalid'
@@ -132,112 +140,120 @@ def get_printer_config(camera_uuid):
 
 
 def suspend_print_job(action):
-	global suspend_status
-	suspend_status = 'running' # Default state is running
-	
-	# Use of suspend_status is to account for request from more than one camera
+	global PRINTER_STATUS	
+	# Use of PRINTER_STATUS is to account for request from more than one camera
 	# Do not want to send multiple commands of the same type
 	# Need to allow for cancellation of request from one or other camera
 	# States are 'running' ==> 'paused' ==> 'cancelled' after which no more commands sent
+	# or 'running' ==> 'paused' ==> resumed ==> running
+
 	if action  == 'pause_print':
-		if suspend_status  == 'running':
-			suspend_status = 'paused'
+		if PRINTER_STATUS  == 'running':
+			PRINTER_STATUS = 'paused'
 			_duet_pause()
 			_send_duet_code(f'''M291 S1 T0 P"Paused Printing"''')
 
 	elif action  == 'resume_print':
-		if suspend_status  == 'paused':
-			suspend_status = 'running'
+		if PRINTER_STATUS  == 'paused':
+			PRINTER_STATUS = 'running'
 			_duet_resume()
 			_send_duet_code(f'''M291 S1 T0 P"Resumed Printing"''')
 
 	elif action  == 'cancel_print':
-		if suspend_status =='running': # pause the printer first
-			suspend_status ='paused'
+		if PRINTER_STATUS =='running': # pause the printer first
+			PRINTER_STATUS ='paused'
 			_duet_pause()
 
 		time.sleep(2) #  Allow any prior pause to settle	
 
-		if suspend_status =='paused':
-			suspend_status = 'cancelled' # No more requests to printer
+		if PRINTER_STATUS =='paused':
+			PRINTER_STATUS = 'cancelled' # No more requests to printer
 			_duet_cancel()
 			_send_duet_code(f'''M291 S1 T0 P"Cancelled Printing"''')
 	else:
 		logger.critical(f'Unknown action {action}')
 
 
+
+
 def _send_macro(alert):
+	global MACRO_TIMES
 	if MACRO.MACRO != '':
 		msg = f'M98 P"{MACRO.MACRO}"'
 		logger.info(f'Sending macro {msg}')
-		_send_duet_code(msg)
+		if MACRO_TIMES < MACRO_MAXTIMES
+			_send_duet_code(msg)
+			MACRO_TIMES += 1
+
 
 
 def _send_ntfy(alert):
-	if NTFY.TOPIC != '':
-		title = ''
-		message = ''
-		if NTFY.TITLE !='':
-			title = NTFY.TITLE
-		else:
-			title = alert['title']
+	global NTFY_TIMES
+	if NTFY.TOPIC != '': # OK to send
+		if NTFY_TIMES < NTFY_MAXTIMES
+		
+			title = ''
+			message = ''
+			if NTFY.TITLE !='':
+				title = NTFY.TITLE
+			else:
+				title = alert['title']
 
-		if NTFY.MESSAGE !='':
-			message = NTFY.MESSAGE
-		else:
-			message = alert['body']
+			if NTFY.MESSAGE !='':
+				message = NTFY.MESSAGE
+			else:
+				message = alert['body']
 
-		if NTFY.PRIORITY !='':
-			priority = int(NTFY.PRIORITY)
-		else:
-			priority = 3
+			logger.info(f'Sending NTFY with title {title}')	
 
-		logger.info(f'Sending NTFY with title {title}')	
+			data=json.dumps({
+				"Topic": NTFY.TOPIC,
+				"Title": title,
+				"Priority": int(NTFY.PRIORITY),
+				"Message": message,
+				})
+			
+		
+			code, _ = _urlCall('https://ntfy.sh', data, True)
+			if code in [200,204]:
+				return True
+			else:
+				logger.info(f'NTFY send failed with code {code}')
+				logger.debug(f'\n{data}\n')
+				return False
 
-		data=json.dumps({
-			"Topic": NTFY.TOPIC,
-			"Title": title,
-			"Priority": priority,
-			"Message": message,
-			})
-	
-	code, _ = _urlCall('https://ntfy.sh', data, True)
-	if code in [200,204]:
-		return True
-	else:
-		logger.info(f'NTFY send failed with code {code}')
-		logger.debug(f'\n{data}\n')
-		return False
+			NTFY_TIMES += 1
 	
 def _send_pushover(alert):
-	if PUSHOVER.API != '':
-		title = ''
-		message = ''
-		if PUSHOVER.TITLE !='':
-			title = PUSHOVER.TITLE
-		else:
-			title = alert['title']
-		if PUSHOVER.MESSAGE !='':
-			message = PUSHOVER.MESSAGE
-		else:
-			message = alert['body']
+	if PUSHOVER.API != '' and PUSHOVER.USER != '': # OK to send
+		if PUSHOVER_TIMES < PUSHOVER_MAXTIMES
+			title = ''
+			message = ''
+			if PUSHOVER.TITLE !='':
+				title = PUSHOVER.TITLE
+			else:
+				title = alert['title']
+			if PUSHOVER.MESSAGE !='':
+				message = PUSHOVER.MESSAGE
+			else:
+				message = alert['body']
 
-		logger.info(f'Sending PUSHOVER with title {title}')
+			logger.info(f'Sending PUSHOVER with title {title}')
 
-		data = {
-			"token": PUSHOVER.API,
-			"user": PUSHOVER.USER,
-			"title":title,
-			"message": message,
-			}
+			data = {
+				"token": PUSHOVER.API,
+				"user": PUSHOVER.USER,
+				"title":title,
+				"message": message,
+				}
 
-		code, _ = _urlCall("https://api.pushover.net/1/messages.json", data, True)
-		if code in [200,204]:
-			return True
-		else:
-			logger.info(f'PUSHOVER send failed with code {code}')
-			logger.debug(f'\n{data}\n')
-			return False	
+			code, _ = _urlCall("https://api.pushover.net/1/messages.json", data, True)
+			if code in [200,204]:
+				return True
+			else:
+				logger.info(f'PUSHOVER send failed with code {code}')
+				logger.debug(f'\n{data}\n')
+				return False	
 
 
 if __name__ == "__main__":    # Test setup

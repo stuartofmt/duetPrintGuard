@@ -157,7 +157,7 @@ def appstartup():
 	init_routes_and_modules()
 	
 	logger.info(f'duetPrintGuard can be access using one of the following:')
-	logger.info(f'Detection')
+	logger.info(f'Control')
 	logger.info(f'http://localhost:{UI.PORT}')
 	logger.info(f'http://{DUET.IP}:{UI.PORT}')
 	logger.info(f"Settings")
