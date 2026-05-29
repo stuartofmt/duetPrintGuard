@@ -277,4 +277,3 @@ def get_prototypes_dir() -> str:
 		return get_model_downloader().get_prototypes_path()
 	except ImportError:
 		return os.path.join(BASE_DIR, "model", "prototypes")
-
