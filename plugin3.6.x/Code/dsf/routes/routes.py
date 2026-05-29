@@ -307,16 +307,9 @@ async def config_camera_list(request: Request):
 
 
 @router.get("/config/get-countdown-settings", include_in_schema=False)
-async def get_countdown_settings():
+async def get_countdown_settings(request: Request):
 	"""Retrieve countdown settings."""
-	return {
-		"success": True,
-		"countdown_settings": {
-			'countdown_action': COUNTDOWN_SETTINGS.get('countdown_action'),
-			'countdown_time': COUNTDOWN_SETTINGS.get('countdown_time'),
-			'countdown_control': COUNTDOWN_SETTINGS.get('countdown_control')
-		}
-	}
+	return COUNTDOWN_SETTINGS
 
 
 @router.post("/config/get-camera-setting", include_in_schema=False)

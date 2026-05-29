@@ -1,5 +1,3 @@
-console.warn("Countdown abstacted");
-
 // =========================
 // Templates
 // =========================
@@ -11,21 +9,20 @@ const grid = document.getElementById("grid");
 // =========================
 // Globals
 // =========================
- let cameraItems;
- let detectionStatus;
- let BTNSTOP = 'Stop Detection';
- let BTNSTART =  'Start Detection';
- let defectActive = false;
- //let cameraUUID;
- // const countdownTimers = new Map(); // cameraId -> intervalId
+let cameraItems = [];
+let detectionStatus;
 
- //
-  let topControls;
-  let ignoreBtn;
-  let pauseBtn;
-  let cancelBtn;
-  let countdownTimer;
-  let flashButton;
+const BTNSTOP = 'Stop Detection';
+const BTNSTART = 'Start Detection';
+
+let defectActive = false;
+
+let topControls;
+let ignoreBtn;
+let pauseBtn;
+let cancelBtn;
+let countdownTimer;
+let flashButton;
 
 // =========================
 // Snapshot Queue
@@ -41,239 +38,380 @@ function enqueue(task) {
 }
 
 function processQueue() {
-  if (activeRequests >= MAX_CONCURRENT_SNAPSHOTS || queue.length === 0) return;
+  if (activeRequests >= MAX_CONCURRENT_SNAPSHOTS) return;
+  if (queue.length === 0) return;
 
   const task = queue.shift();
+
   activeRequests++;
 
-  task().finally(() => {
-    activeRequests--;
-    processQueue();
-  });
+  task()
+    .catch(err => console.error("Snapshot error:", err))
+    .finally(() => {
+      activeRequests--;
+      processQueue();
+    });
 }
 
 // =========================
 // Snapshot Loop
 // =========================
 function startSnapshots(img, camId) {
-  function loop() {
-    if (document.hidden) return;
 
-    enqueue(async () => {
-      img.src = `/camera/snapshot/${camId}?t=${Date.now()}`;
-    });
+  let stopped = false;
+
+  async function loop() {
+
+    if (stopped) return;
+
+    if (!document.hidden) {
+      enqueue(async () => {
+        img.src = `/camera/snapshot/${camId}?t=${Date.now()}`;
+      });
+    }
 
     setTimeout(loop, 2000 + Math.random() * 500);
   }
 
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) {
+      loop();
+    }
+  });
+
   loop();
+
+  return () => {
+    stopped = true;
+  };
 }
 
 // =========================
 // Create UI
 // =========================
-function createTopRowButtons(){
+function createTopRowButtons() {
+
   const row = document.createElement("div");
-  row.className = "button-row";
+  row.className = "top-controls";
+
   const btnFrag = btnTemplate.content.cloneNode(true);
   const btn = btnFrag.firstElementChild;
 
   ignoreBtn = btn.querySelector(".btn-ignore");
   pauseBtn = btn.querySelector(".btn-pause");
   cancelBtn = btn.querySelector(".btn-cancel");
+  countdownTimer = btn.querySelector(".countdown-timer");
 
-  // Event for Ignore button
-  ignoreBtn.addEventListener("click", () => {
-    executeCountdownAction('ignore')
-  });
+  // Ignore
+  if (ignoreBtn) {
+    ignoreBtn.addEventListener("click", () => {
+      executeCountdownAction('ignore');
+    });
+  }
 
-  // Event for Pause button
-  pauseBtn.addEventListener("click", () => {
-    if (pauseBtn.textContent === 'Resume'){
-      alert('Are you sure you want to Resume the Print?');
-      executeCountdownAction('resume_print');
-      pauseBtn.textContent = 'Pause';
-      pauseBtn.style.backgroundColor = '#e6b30d';
-    } else {
-      alert('Are you sure you want to Pause the Print?');
-      executeCountdownAction('pause_print')
-      pauseBtn.textContent = 'Resume';
-      pauseBtn.style.backgroundColor = '#38e60d';
-    }
+  // Pause
+  if (pauseBtn) {
+    pauseBtn.addEventListener("click", () => {
 
-  });
+      if (pauseBtn.textContent === 'Resume') {
 
-  // Event for Cancel button
-  cancelBtn.addEventListener("click", () => {
-    alert('Are you sure you want to Cancel the Print?');
-    executeCountdownAction('cancel_print')
-  });
+        if (confirm('Resume the print?')) {
+          executeCountdownAction('resume_print');
+        }
+
+      } else {
+
+        if (confirm('Pause the print?')) {
+          executeCountdownAction('pause_print');
+        }
+
+      }
+
+    });
+  }
+
+  // Cancel
+  if (cancelBtn) {
+    cancelBtn.addEventListener("click", () => {
+
+      if (confirm('Cancel the print?')) {
+        executeCountdownAction('cancel_print');
+      }
+
+    });
+  }
 
   row.appendChild(btn);
   grid.appendChild(row);
-
 }
 
-function createDisplayItem(camId,nickname) {
-  // Wrapper (CRITICAL)
+// =========================
+// Create Camera Display
+// =========================
+function createDisplayItem(camId, nickname) {
+
   const row = document.createElement("div");
   row.className = "camera-row";
 
   // Card
   const camFrag = camTemplate.content.cloneNode(true);
   const card = camFrag.firstElementChild;
+
+  if (!card) {
+    console.error("Camera template invalid");
+    return null;
+  }
+
   card.dataset.cameraId = camId;
 
-    // 🔑 Update template content
+  // Ensure class exists
+  card.classList.add("camera-card");
+
+  // Nickname
   const nicknameEl = card.querySelector('.nickname');
-  if (nicknameEl) nicknameEl.textContent = nickname;
+
+  if (nicknameEl) {
+    nicknameEl.textContent = nickname;
+  }
 
   // Button
-  const button = card.querySelector("button");
-  button.addEventListener("click", () => {
-    //alert(`Camera ${camId} says ${btnState}`);
-    const btnState = button.textContent;
-    let isStart = false;
-    if (btnState === BTNSTART){
-      isStart = true;
-    }
-    sendDetectionRequest(isStart,card,camId);
-  });
+  const button = card.querySelector(".start-stop-camera-btn");
+
+  if (button) {
+
+    button.addEventListener("click", () => {
+
+      const isStart = button.textContent === BTNSTART;
+
+      sendDetectionRequest(isStart, card, camId);
+
+    });
+
+  }
+
+  row.appendChild(card);
+
 
   // Video
   const vidFrag = vidTemplate.content.cloneNode(true);
   const video = vidFrag.firstElementChild;
-  const img = video.querySelector("img");
 
-  video.dataset.cameraId = camId;
+  if (video) {
 
-  startSnapshots(img, camId);
+    video.dataset.cameraId = camId;
 
-  // Assemble
-  row.appendChild(card);
-  row.appendChild(video);
+    const img = video.querySelector("img");
+
+    if (img) {
+      startSnapshots(img, camId);
+    }
+
+    row.appendChild(video);
+  }
+
+
 
   grid.appendChild(row);
+
+  return card;
 }
 
 // =========================
 // API
 // =========================
 async function getCameraList() {
+
   console.warn('Fetching camera list');
+
   try {
+
     const res = await fetch("/config/get-camera-list");
-    if (!res.ok) return [];
+
+    if (!res.ok) {
+      return [];
+    }
+
     const data = await res.json();
+
     return data.camera_list || [];
-  } catch {
+
+  } catch (err) {
+
+    console.error(err);
     return [];
+
   }
 }
 
+// =========================
+// Update Camera State
+// =========================
+async function updateDisplayItem(item, cameraUUID) {
 
-function updateDisplayItem(item ,cameraUUID) {
-    fetch(`/config/get-camera-state`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ camera_uuid: cameraUUID })
-    })
-    .then(response => {
-        if (!response.ok) {
-            console.warn(`Failed 1 to fetch data for camera ${cameraUUID}. Status: ${response.status} ${response.statusText}`);
-            return response.json().then(errData => {
-                throw new Error(`Failed 2 to fetch data for camera ${cameraUUID}: ${errData.detail || response.statusText}`);
-            }).catch(() => {
-                throw new Error(`Failed 3 to fetch data for camera ${cameraUUID}: ${response.statusText}`);
-            });
-        }
-        return response.json();
-    })
-    .then(data => {
-        console.warn(`Got data for camera ${cameraUUID}:`, data);
-        const camData = {
-            last_result: data.last_result,
-            last_time: data.last_time,
-            live_detection_running: data.live_detection_running,
-            defect_active: data.defect_active
-        };
-        updateCameraDisplay(item,camData);
-    })
-    .catch(error => {
-        console.error(`Error fetching state for camera ${cameraUUID}:`, error.message);
-        const emptyData = {
-            last_result: 'Error',
-            last_time: 0,
-            live_detection_running: 'Error',
-            defect_active: false
-        };
-        return emptyData;
+  try {
+
+    const response = await fetch(`/config/get-camera-state`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        camera_uuid: cameraUUID
+      })
     });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    const camData = {
+      last_result: data.last_result,
+      last_time: data.last_time,
+      live_detection_running: data.live_detection_running,
+      defect_active: data.defect_active
+    };
+
+    updateCameraDisplay(item, camData);
+
+  } catch (error) {
+
+    console.error(`Error fetching state for ${cameraUUID}:`, error);
+
+    updateCameraDisplay(item, {
+      last_result: 'Error',
+      last_time: 0,
+      live_detection_running: 'Error',
+      defect_active: false
+    });
+
+  }
 }
 
+// =========================
+// Control Display
+// =========================
+function updateControlDisplay(alert_status) {
 
+  if (!pauseBtn) return;
+
+  if (alert_status === 'paused') {
+
+    pauseBtn.textContent = 'Resume';
+    pauseBtn.style.backgroundColor = '#38e60d';
+
+  } else {
+
+    pauseBtn.textContent = 'Pause';
+    pauseBtn.style.backgroundColor = '#e6b30d';
+
+  }
+}
+
+// =========================
+// Camera Display
+// =========================
 function updateCameraDisplay(item, d) {
 
-  const camPred = item.querySelector(".camera-detection .detection-value"); 
-  camPred.textContent = d.last_result;
-  camPred.style.color = d.last_result === 'success' ? 'green' : 'red';
-  if (defectActive === true) {
-    console.warn('Defect active');
-    camPred.textContent = 'DEFECT';
+  const camPred = item.querySelector(".camera-detection .detection-value");
+
+  if (camPred) {
+
+    camPred.textContent = d.last_result;
+
+    camPred.style.color =
+      d.last_result === 'success'
+        ? 'green'
+        : 'red';
+
+    if (defectActive) {
+      camPred.textContent = 'DEFECT';
+    }
+
   }
 
-  const lastUpdate = item.querySelector(".last-update .update-value")
-  lastUpdate.textContent = d.last_time ? new Date(d.last_time * 1000).toLocaleTimeString() : '-';
+  const lastUpdate =
+    item.querySelector(".last-update .update-value");
 
-  let statusIndicator = item.querySelector('.camera-status');
-  let startStopButton = item.querySelector('.start-stop-camera-btn');
+  if (lastUpdate) {
+
+    lastUpdate.textContent =
+      d.last_time
+        ? new Date(d.last_time * 1000).toLocaleTimeString()
+        : '-';
+
+  }
+
+  const statusIndicator =
+    item.querySelector('.camera-status');
+
+  const startStopButton =
+    item.querySelector('.start-stop-camera-btn');
+
+  if (!statusIndicator || !startStopButton) {
+    return;
+  }
+
   detectionStatus = d.live_detection_running;
-  console.warn (`Camera ${item.dataset.cameraId} detection status: ${detectionStatus}`);
+
   if (detectionStatus === 'yes') {
-      statusIndicator.textContent = `Detecting`;
-      statusIndicator.style.color = '#2ecc40';
-      statusIndicator.style.backgroundColor = 'transparent';
-      startStopButton.textContent = BTNSTOP;
-      startStopButton.style.backgroundColor = '#f30606';
+
+    statusIndicator.textContent = 'Detecting';
+    statusIndicator.style.color = '#2ecc40';
+
+    startStopButton.textContent = BTNSTOP;
+    startStopButton.style.backgroundColor = '#f30606';
+
   } else {
-      statusIndicator.textContent = `Inactive`;
-      statusIndicator.style.color = '#f30606';
-      statusIndicator.style.backgroundColor = 'transparent';
-      startStopButton.textContent = BTNSTART;
-      startStopButton.style.backgroundColor = '#2ecc40';
-      //camPred.textContent = '';
+
+    statusIndicator.textContent = 'Inactive';
+    statusIndicator.style.color = '#f30606';
+
+    startStopButton.textContent = BTNSTART;
+    startStopButton.style.backgroundColor = '#2ecc40';
+
   }
+}
 
-};
-
-
+// =========================
+// Flash Countdown
+// =========================
 function flashCountdown(action) {
-  //const topControls = document.querySelector(".top-controls");
-  //const ignoreBtn = topControls.querySelector(".btn-ignore");
-  //const pauseBtn = topControls.querySelector(".btn-pause");
-  //const cancelBtn = topControls.querySelector(".btn-cancel");
 
   flashButton = ignoreBtn;
-  if (action == 'cancel_print'){
+
+  if (action === 'cancel_print') {
     flashButton = cancelBtn;
-  } else if (action == 'pause_print'){
+  }
+
+  if (action === 'pause_print') {
     flashButton = pauseBtn;
   }
-  // Get the current background color of the button
-  const currentColor = window.getComputedStyle(flashButton).backgroundColor;
 
-  // Set the current color as a CSS variable
-  flashButton.style.setProperty('--current-color', currentColor);
+  if (!flashButton) return null;
+
+  const currentColor =
+    window.getComputedStyle(flashButton).backgroundColor;
+
+  flashButton.style.setProperty(
+    '--current-color',
+    currentColor
+  );
 
   flashButton.classList.add("flash");
 
   return flashButton;
 }
 
-
 function triggerFlash(el) {
+
+  if (!el) return;
+
   el.classList.remove('flash');
+
   void el.offsetWidth;
+
   el.classList.add('flash');
 
   setTimeout(() => {
@@ -281,151 +419,250 @@ function triggerFlash(el) {
   }, 600);
 }
 
-function sendDetectionRequest(isStart,item, cameraUUID) {
-    if (cameraUUID === null || cameraUUID === undefined) {
-        console.warn(`Cannot ${isStart ? 'start' : 'stop'} detection: no valid camera selected`);
-        return;
-    }
-    console.warn(`Sending request to ${isStart ? 'start' : 'stop'} live detection for camera ${cameraUUID}`);
-    fetch(`/detect/live/${isStart ? 'start' : 'stop'}`, {
+// =========================
+// Detection Request
+// =========================
+async function sendDetectionRequest(
+  isStart,
+  item,
+  cameraUUID
+) {
+
+  if (!cameraUUID) {
+    console.warn("No camera UUID");
+    return;
+  }
+
+  try {
+
+    const response = await fetch(
+      `/detect/live/${isStart ? 'start' : 'stop'}`,
+      {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json'
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ camera_uuid: cameraUUID })
-    })
-    .then(response => {
-        if (response.ok) {
-          console.warn(`Successfully ${isStart ? 'started' : 'stopped'} live detection for camera ${cameraUUID}`);
-        } else {
-            response.json().then(errData => {
-                console.error(`Failed to ${isStart ? 'start' : 'stop'} live detection for camera ${cameraUUID}. Server: ${errData.detail || response.statusText}`);
-            }).catch(() => {
-                console.error(`Failed to ${isStart ? 'start' : 'stop'} live detection for camera ${cameraUUID}. Status: ${response.status} ${response.statusText}`);
-            });
-        }
-    })
-    .catch(error => {
-        console.error(`Network error or exception during ${isStart ? 'start' : 'stop'} request for camera ${cameraUUID}:`, error);
-    });
-}
+        body: JSON.stringify({
+          camera_uuid: cameraUUID
+        })
+      }
+    );
 
-// Update each camera item with the latest data
-function update_cameras () {
-    cameraItems.forEach(item => {
-        const camId = item.dataset.cameraId;
-        updateDisplayItem(item,camId);
-    });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
 
-}
+    console.warn(
+      `${isStart ? 'Started' : 'Stopped'} detection`
+    );
 
-// Called from sse when defect confirmed
-document.addEventListener('defectRaised', evt => {
-  const { alert_id, action, countdown } = evt.detail;
-  
-  if (!defectActive && countdown > 0) {
-    ignoreBtn.style.display = "block";
-    countdownTimer.style.display = "block";
-    flashButton = flashCountdown(action);
+  } catch (err) {
+
+    console.error(err);
+
   }
-  if (countdown > 0) {
-    defectActive  = true;
-    countdownTimer.textContent = 'in ' + countdown + ' sec';
-  } else {
-    defectActive = false;
-    flashButton.classList.remove('flash');
-    ignoreBtn.style.display = "none";
-    countdownTimer.style.display = "none";
-  } 
-});
+}
 
-//SRS If active - this is where its tracked
-/*
-document.addEventListener('cameraStateUpdated', evt => {
-  return;
-    console.warn('camera state updated');
-    console.warn(evt.detail.camera_uuid)
+// =========================
+// Update Display
+// =========================
+async function updateDisplay() {
 
-    cameraItems.forEach(item => {
-        const camId = item.dataset.cameraId; // data-camera-id ==> dataset.cameraId camelCase
-        if (evt.detail.camera_uuid == camId){
-        updateDisplayItem(item,camId);
-        }
-    });
-});
-*/
+  try {
 
+    const countdown =
+      await getCountdownSettings();
 
+    const alert_status =
+      countdown.alert_status;
+    
+    console.warn(`ALERT_STATUS = ${alert_status}`)
 
+    updateControlDisplay(alert_status);
 
+    await Promise.all(
+      Array.from(cameraItems).map(item => {
+
+        const camId =
+          item.dataset.cameraId;
+
+        return updateDisplayItem(item, camId);
+
+      })
+    );
+
+  } catch (err) {
+
+    console.error("updateDisplay failed:", err);
+
+  }
+}
+
+// =========================
+// Defect Raised Event
+// =========================
+document.addEventListener(
+  'defectRaised',
+  evt => {
+
+    const {
+      alert_id,
+      action,
+      countdown
+    } = evt.detail;
+
+    if (!defectActive && countdown > 0) {
+
+      if (ignoreBtn) {
+        ignoreBtn.style.display = "block";
+      }
+
+      if (countdownTimer) {
+        countdownTimer.style.display = "block";
+      }
+
+      flashButton =
+        flashCountdown(action);
+
+    }
+
+    if (countdown > 0) {
+
+      defectActive = true;
+
+      if (countdownTimer) {
+        countdownTimer.textContent =
+          'in ' + countdown + ' sec';
+      }
+
+    } else {
+
+      defectActive = false;
+
+      if (flashButton) {
+        flashButton.classList.remove('flash');
+      }
+
+      if (ignoreBtn) {
+        ignoreBtn.style.display = "none";
+      }
+
+      if (countdownTimer) {
+        countdownTimer.style.display = "none";
+      }
+
+    }
+
+  }
+);
+
+// =========================
+// Countdown Settings
+// =========================
+async function getCountdownSettings() {
+
+  try {
+
+    const res = await fetch(
+      "/config/get-countdown-settings"
+    );
+
+    if (!res.ok) {
+      return {};
+    }
+
+    const data = await res.json();
+
+    return data || {};
+
+  } catch {
+
+    return {
+      countdown_action: null,
+      countdown_time: null,
+      countdown_control: null,
+      alert_status: null
+    };
+
+  }
+}
+
+// =========================
+// Execute Countdown Action
+// =========================
+async function executeCountdownAction(action_type) {
+
+  try {
+
+    const response = await fetch(
+      `/countdown/action`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          action: action_type
+        })
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    console.warn(
+      `Executed action: ${action_type}`
+    );
+
+  } catch (error) {
+
+    console.error(
+      'Failed to execute action:',
+      error
+    );
+
+  }
+}
 
 // =========================
 // Init
 // =========================
 (async function init() {
+
   console.warn('Initializing');
+
+  createTopRowButtons();
 
   const cameras = await getCameraList();
 
   if (cameras.length === 0) {
-    document.getElementById("noCamera").style.display = "block";
+
+    const noCam =
+      document.getElementById("noCamera");
+
+    if (noCam) {
+      noCam.style.display = "block";
+    }
+
   }
 
-  //create top row of buttons
-  createTopRowButtons();
-  topControls = document.querySelector(".top-controls");
-  ignoreBtn = topControls.querySelector(".btn-ignore");
-  pauseBtn = topControls.querySelector(".btn-pause");
-  cancelBtn = topControls.querySelector(".btn-cancel");
-  countdownTimer = topControls.querySelector(".countdown-timer");
+  Object.keys(cameras).forEach(camera_uuid => {
 
-  	//create a row for each camera
-	Object.keys(cameras).forEach(camera_uuid => {
-			const item = createDisplayItem(camera_uuid, cameras[camera_uuid].nickname);
+    createDisplayItem(
+      camera_uuid,
+      cameras[camera_uuid].nickname
+    );
 
-		//addListenerToDisplayItem(item, camera_uuid);
-		});
+  });
 
+  cameraItems =
+    document.querySelectorAll('.camera-card');
 
-  //Get a list of all camera rows
-    cameraItems = document.querySelectorAll('.camera-card');
+  await updateDisplay();
 
-    update_cameras();
-    setInterval(update_cameras, 5000);
+  setInterval(() => {
+    updateDisplay().catch(console.error);
+  }, 5000);
+
 })();
-
-//test feed settings
-async function getCountdownSettings() {
-  try {
-    const res = await fetch("/get-countdown-settings");
-    //const res = await fetch("/get-feed-settings");
-    
-    if (!res.ok) return [];
-    const data = await res.json();
-    return data.countdown || { countdown_action: null, countdown_time: null, countdown_control: null };;
-  } catch {
-    return { countdown_action: null, countdown_time: null, countdown_control: null };
-  }
-}
-
-
-
-function executeCountdownAction(action_type) {
-    fetch(`/countdown/action`, { 
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({action: action_type })
-    })
-        .then(response => {
-            if (response.ok) {
-                console.warn(`Successfully executed alert action: ${action_type}`);
-            } else {
-                console.error('Failed to execute alert action');
-            }
-        })
-        .catch(error => console.error('Error trying to execute alert action:', error));
-}
-
-
