@@ -10,15 +10,13 @@ from PIL import Image
 
 from .model_utils import _run_inference
 
-#from .sse_utils import append_new_outbound_packet
-
 from .shared_video_stream import get_shared_camera_frame
 
 from .config import (STREAM_MAX_FPS,
 					 STREAM_JPEG_QUALITY,
 					 STREAM_MAX_WIDTH,
 					 DETECTION_INTERVAL_MS)
-from .config import (CAMERA_SETTINGS,CAMERA_STATES,COUNTDOWN_SETTINGS)
+from .config import (CAMERA_SETTINGS,CAMERA_STATES,COUNTDOWN_SETTINGS, DEFAULT_CAMERA_STATE)
 
 import uuid
 
@@ -31,8 +29,6 @@ class StreamOptimizer:
 	def __init__(self):
 		"""Initialize the stream optimizer with empty cache and timing."""
 		self._config_cache = {}
-		# self._last_config_check = 0
-		# self._config_check_interval = 30.0
 
 	def _get_current_settings(self) -> Dict:
 		"""Retrieve or update current stream settings from configuration.
@@ -251,7 +247,8 @@ async def create_optimized_detection_loop(app_state, camera_uuid):
 				logger.debug("Detection inference error for camera %s: %s", camera_uuid, e)
 				numeric = None
 
-			#SRS Nonesense - just take numeric o or 1 and make success / failure	
+			#SRS Nonesense - just take numeric o or 1 and make success / failure
+			label = ''	
 			label = app_state.class_names[numeric] if (
 				isinstance(numeric, int)
 				and 0 <= numeric < len(app_state.class_names)
@@ -263,7 +260,7 @@ async def create_optimized_detection_loop(app_state, camera_uuid):
 			UI periodically polls for camera state updates to show
 			the latest detection result and timestamp.
 			"""
-			print(f'Camera {camera_uuid} - Detection result: {label} at {current_timestamp}')
+
 			CAMERA_STATES[camera_uuid]['last_time'] = current_timestamp
 			CAMERA_STATES[camera_uuid]['last_result'] = label
 			
@@ -542,13 +539,7 @@ async def start_live_detection(camera_uuid):
 	if camera_state and camera_state["live_detection_running"] == 'yes':
 		return {"success": True, "message": f"Live detection already running for camera {camera_uuid}"}
 
-	CAMERA_STATES[camera_uuid] = {
-			"live_detection_running": 'no',
-			"last_result": '',
-			"last_time": None,
-			"defect_active": False,
-			"live_detection_task": None
-	}
+	CAMERA_STATES[camera_uuid] = deepcopy(DEFAULT_CAMERA_STATE) # Precaution vs shallow copy
 
 	try:
 		task = asyncio.create_task(_live_detection_loop(request.app.state, camera_uuid))
@@ -576,13 +567,7 @@ async def stop_live_detection(camera_uuid):
 	if live_detection_task:
 		try: 
 			live_detection_task.cancel()
-			CAMERA_STATES[camera_uuid] = {
-				"live_detection_running": 'no',
-				"last_result": '',
-				"last_time": None,
-				"defect_active": False,
-				"live_detection_task": None
-			}
+			CAMERA_STATES[camera_uuid] = deepcopy(DEFAULT_CAMERA_STATE) # Precaution vs shallow copy
 			logger.debug("Stopped live detection task for camera %s", camera_uuid)
 		except Exception as e:
 			logger.error("Error stopping live detection task for camera %s: %s", camera_uuid, e)

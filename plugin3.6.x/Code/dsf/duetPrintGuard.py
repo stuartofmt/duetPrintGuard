@@ -31,10 +31,10 @@ from duet_config import get_DWC_config
 
 global progName, progVersion
 progName = 'duetPrintGuard'
-progVersion = '0.0.2'
+progVersion = '1.0.0'
 # Min python version
 pythonMajor = 3
-pythonMinor = 8
+pythonMinor = 9
 
 CONFIGFILENAME = 'duetPrintGuard.config'
 LOGFILENAME = 'duetPrintGuard.log'

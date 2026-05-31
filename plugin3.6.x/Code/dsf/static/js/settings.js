@@ -146,8 +146,7 @@ async function getCameraList() {
 		}
 
 		const data = await res.json();
-
-		return data.camera_list || {};
+		return data.list || {};
 
 	} catch (err) {
 
@@ -348,17 +347,18 @@ function fetchAndUpdateCameraSettings(
 
 	})
 	.then(data => {
+		const setting = data.setting
 
 		updateSelectedCameraSettings({
 			camera_uuid: cameraUUID,
-			brightness: data.brightness,
-			contrast: data.contrast,
-			focus: data.focus,
-			sensitivity: data.sensitivity,
-			majority_vote_threshold:
-				data.majority_vote_threshold,
-			majority_vote_window:
-				data.majority_vote_window
+			brightness: setting.brightness,
+			contrast: setting.contrast,
+			focus: setting.focus,
+			sensitivity: setting.sensitivity,
+			//majority_vote_threshold:
+			//	data.majority_vote_threshold,
+			//majority_vote_window:
+			//	data.majority_vote_window
 		});
 
 	})

@@ -8,6 +8,7 @@ from logger_module import logger
 import os
 import fcntl
 import threading
+from copy import deepcopy
 
 import torch
 from platformdirs import user_data_dir
@@ -18,16 +19,19 @@ from .model_downloader import get_model_downloader
 from duet_config import DUET
 
 # Config version - increment this when the config structure changes
-CONFIG_VERSION = "1.0.0"
+CONFIG_VERSION = "1.0.1"
 
 # The camera configuration that is accessed by other modules
 # Frequently updated and exist only in memory - not persisted to disk
 CAMERA_STATES = {}
-ALLOWED_CAMERA_STATES = set('last_result last_time live_detection_running defect_active live_detection_task'.split())
-
+DEFAULT_CAMERA_STATE = {
+				"live_detection_running": 'no',
+				"last_result": '',
+				"last_time": 0,
+				"defect_active": False,
+				"live_detection_task": None
+							}
 # Defaults
-# DETECTION_TIMEOUT = 5
-# DETECTION_THRESHOLD = 3
 DETECTION_VOTING_WINDOW = 5
 DETECTION_VOTING_THRESHOLD = 2
 SENSITIVITY = 1.0
@@ -46,7 +50,6 @@ DEFAULT_CAMERA_SETTINGS = {'majority_vote_window': DETECTION_VOTING_WINDOW,
 						   'focus': FOCUS}
 
 #Settings that determine if a defect should be declared
-
 COUNTDOWN_TIME = 60
 COUNTDOWN_ACTION = 'ignore'
 COUNTDOWN_CONTROL = "any_camera"
@@ -115,35 +118,28 @@ def add_to_config(updates: dict):
 	config = _get_config_from_file() or {}
 	try:
 		if updates.get("countdown_settings") is not None or "countdown_settings" in updates:
-			# Countdown settings are all persisted together so we can just update the whole section if any of the settings are included in the request. This allows for partial updates without needing to resend all settings, but also ensures that the persisted config is always complete for countdown settings.
-			# config['countdown_settings'] = updates['countdown_settings']
+			# Countdown settings are all persisted together so we can just update the whole section
 			for setting_type, value in updates['countdown_settings'].items():				
 					config['countdown_settings'][setting_type] = value
 					COUNTDOWN_SETTINGS[setting_type] = value
 
 
 		elif updates.get("camera_settings") is not None or "camera_settings" in updates:
-			# We want to allow partial updates to camera settings so we loop through the provided settings and only update the ones that are included in the request. This allows the frontend to send only the settings that were changed without needing to resend all settings for a camera.
+			# We want to allow partial updates to camera settings so we loop through
+			# the provided settings and only update the ones that are included in the request.
+			# This allows the frontend to send only the settings that were changed
+			# without needing to resend all settings for a camera.
 			for camera_uuid, settings in updates['camera_settings'].items():
-				if camera_uuid not in config['camera_settings']:
+				if camera_uuid not in config['camera_settings']: # New camera entry
 					config['camera_settings'][camera_uuid] = {}
-					CAMERA_SETTINGS[camera_uuid] = {}
+					CAMERA_SETTINGS[camera_uuid] = deepcopy(DEFAULT_CAMERA_SETTINGS) # Precaution vs shallow copy
+					CAMERA_STATES[camera_uuid] = deepcopy(DEFAULT_CAMERA_STATE)
 				for setting_type, value in settings.items():
 						if setting_type in PERSISTED_CAMERA_SETTINGS:					
 							config['camera_settings'][camera_uuid][setting_type] = value
 							CAMERA_SETTINGS[camera_uuid][setting_type] = value
 
 				logger.debug(f'{config["camera_settings"][camera_uuid]=}')
-		"""
-		elif updates.get("camera_states") is not None or "camera_states" in updates:
-			# CAMERA_STATES are not persisted to config file but we want to validate the keys here and update the in memory state
-			for camera_uuid, settings in updates['camera_states'].items():
-				for key, value in settings.items():
-						if key in ALLOWED_CAMERA_STATES:
-							if camera_uuid not in CAMERA_STATES:
-								CAMERA_STATES[camera_uuid] = {}
-							CAMERA_STATES[camera_uuid][key] = value
-		"""
 							
 		with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
 			json.dump(config, f, indent=2)
@@ -165,7 +161,7 @@ def delete_from_config(updates: dict):
 			# We also remove it from the in memory CAMERA_SETTINGS so that it is consistent with what is persisted.
 			config['camera_settings'].pop(updates['camera_settings'], None)
 			CAMERA_SETTINGS.pop(updates['camera_settings'], None)
-			print(f'{config['camera_settings']=}')
+
 			with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
 				json.dump(config, f, indent=2)
 
@@ -224,13 +220,7 @@ def init_config():
 			COUNTDOWN_SETTINGS.clear()
 			COUNTDOWN_SETTINGS.update(countdown_settings)
 		for camera_uuid,_ in CAMERA_SETTINGS.items():
-			CAMERA_STATES[camera_uuid] = {
-				"live_detection_running": 'no',
-				"last_result": '',
-				"last_time": None,
-				"defect_active": False,
-				"live_detection_task": None
-							}
+			CAMERA_STATES[camera_uuid] = deepcopy(DEFAULT_CAMERA_STATE)
 				
 		logger.debug('Starting with configuration')
 		logger.debug(f'{startup_config=}')

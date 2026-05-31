@@ -171,8 +171,8 @@ async function getCameraList() {
   }
 }
 
-
-function updateDisplayItem(item ,cameraUUID) {
+/*
+function xupdateDisplayItem(item ,cameraUUID) {
     fetch(`/config/get-camera-state`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -191,6 +191,7 @@ function updateDisplayItem(item ,cameraUUID) {
     })
     .then(data => {
         console.warn(`Got data for camera ${cameraUUID}:`, data);
+        
         const camData = {
             last_result: data.last_result,
             last_time: data.last_time,
@@ -198,6 +199,8 @@ function updateDisplayItem(item ,cameraUUID) {
             defect_active: data.defect_active
         };
         updateCameraDisplay(item,camData);
+        
+       updateCameraDisplay(item,data);
     })
     .catch(error => {
         console.error(`Error fetching state for camera ${cameraUUID}:`, error.message);
@@ -211,6 +214,7 @@ function updateDisplayItem(item ,cameraUUID) {
     });
 }
 
+*/
 
 function updateCameraDisplay(item, d) {
 
@@ -394,17 +398,33 @@ document.addEventListener('cameraStateUpdated', evt => {
     setInterval(update_cameras, 5000);
 })();
 
-//test feed settings
+
 async function getCountdownSettings() {
   try {
-    const res = await fetch("/get-countdown-settings");
+    const res = await fetch("/config/get-countdown-settings");
     //const res = await fetch("/get-feed-settings");
     
     if (!res.ok) return [];
     const data = await res.json();
-    return data.countdown || { countdown_action: null, countdown_time: null, countdown_control: null };;
+    return data;
   } catch {
-    return { countdown_action: null, countdown_time: null, countdown_control: null };
+    return {} ;
+  }
+}
+
+function updateDisplayItem(item ,cameraUUID) {
+  try {
+    const res = await fetch("/config/get-camera-state");
+    //const res = await fetch("/get-feed-settings");
+    
+    if (!res.ok) return [];
+    const data = await res.json();
+    console.warn(`Got data for camera ${cameraUUID}:`, data);
+    updateCameraDisplay(item,data);
+    return data;
+  } catch {
+    console.warn(`Error from /config/get-camera-state for camera ${cameraUUID}:`, data);
+    return {};
   }
 }
 

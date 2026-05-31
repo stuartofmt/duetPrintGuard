@@ -16,8 +16,6 @@ const grid = document.getElementById("grid");
  let BTNSTOP = 'Stop Detection';
  let BTNSTART =  'Start Detection';
  let defectActive = false;
- //let cameraUUID;
- // const countdownTimers = new Map(); // cameraId -> intervalId
 
  //
   let topControls;
@@ -156,61 +154,6 @@ function createDisplayItem(camId,nickname) {
   grid.appendChild(row);
 }
 
-// =========================
-// API
-// =========================
-async function getCameraList() {
-  console.warn('Fetching camera list');
-  try {
-    const res = await fetch("/config/get-camera-list");
-    if (!res.ok) return [];
-    const data = await res.json();
-    return data.camera_list || [];
-  } catch {
-    return [];
-  }
-}
-
-
-function updateDisplayItem(item ,cameraUUID) {
-    fetch(`/config/get-camera-state`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ camera_uuid: cameraUUID })
-    })
-    .then(response => {
-        if (!response.ok) {
-            console.warn(`Failed 1 to fetch data for camera ${cameraUUID}. Status: ${response.status} ${response.statusText}`);
-            return response.json().then(errData => {
-                throw new Error(`Failed 2 to fetch data for camera ${cameraUUID}: ${errData.detail || response.statusText}`);
-            }).catch(() => {
-                throw new Error(`Failed 3 to fetch data for camera ${cameraUUID}: ${response.statusText}`);
-            });
-        }
-        return response.json();
-    })
-    .then(data => {
-        console.warn(`Got data for camera ${cameraUUID}:`, data);
-        const camData = {
-            last_result: data.last_result,
-            last_time: data.last_time,
-            live_detection_running: data.live_detection_running,
-            defect_active: data.defect_active
-        };
-        updateCameraDisplay(item,camData);
-    })
-    .catch(error => {
-        console.error(`Error fetching state for camera ${cameraUUID}:`, error.message);
-        const emptyData = {
-            last_result: 'Error',
-            last_time: 0,
-            live_detection_running: 'Error',
-            defect_active: false
-        };
-        return emptyData;
-    });
-}
-
 
 function updateCameraDisplay(item, d) {
 
@@ -248,10 +191,6 @@ function updateCameraDisplay(item, d) {
 
 
 function flashCountdown(action) {
-  //const topControls = document.querySelector(".top-controls");
-  //const ignoreBtn = topControls.querySelector(".btn-ignore");
-  //const pauseBtn = topControls.querySelector(".btn-pause");
-  //const cancelBtn = topControls.querySelector(".btn-cancel");
 
   flashButton = ignoreBtn;
   if (action == 'cancel_print'){
@@ -339,26 +278,6 @@ document.addEventListener('defectRaised', evt => {
   } 
 });
 
-//SRS If active - this is where its tracked
-/*
-document.addEventListener('cameraStateUpdated', evt => {
-  return;
-    console.warn('camera state updated');
-    console.warn(evt.detail.camera_uuid)
-
-    cameraItems.forEach(item => {
-        const camId = item.dataset.cameraId; // data-camera-id ==> dataset.cameraId camelCase
-        if (evt.detail.camera_uuid == camId){
-        updateDisplayItem(item,camId);
-        }
-    });
-});
-*/
-
-
-
-
-
 // =========================
 // Init
 // =========================
@@ -394,21 +313,6 @@ document.addEventListener('cameraStateUpdated', evt => {
     setInterval(update_cameras, 5000);
 })();
 
-//test feed settings
-async function getCountdownSettings() {
-  try {
-    const res = await fetch("/get-countdown-settings");
-    //const res = await fetch("/get-feed-settings");
-    
-    if (!res.ok) return [];
-    const data = await res.json();
-    return data.countdown || { countdown_action: null, countdown_time: null, countdown_control: null };;
-  } catch {
-    return { countdown_action: null, countdown_time: null, countdown_control: null };
-  }
-}
-
-
 
 function executeCountdownAction(action_type) {
     fetch(`/countdown/action`, { 
@@ -426,4 +330,88 @@ function executeCountdownAction(action_type) {
             }
         })
         .catch(error => console.error('Error trying to execute alert action:', error));
+}
+
+
+// =========================
+// API
+// =========================
+async function getCameraList() {
+  try {
+    const result = await fetch("/config/get-camera-list");
+
+    if (!result.ok) {
+      if (result.status){
+        throw new Error(`HTTP ${result.status}`);
+      }
+      else{
+        throw new Error('Did not get data');
+      }
+    }
+
+    const data = await result.json();
+    return data.list;
+    
+  } catch (err){
+    console.warn('Error from /config/get-camera-list', err);
+    return {};
+  }
+}
+
+
+async function getCountdownSettings() {
+  try {
+    const result = await fetch("/config/get-countdown-settings");
+
+    if (!result.ok) {
+      if (result.status){
+        throw new Error(`HTTP ${result.status}`);
+      }
+      else{
+        throw new Error('Did not get data');
+      }
+    }
+
+    const data = await result.json();
+    return data.settings;
+
+  } catch (err){
+    console.warn('Error from /config/get-countdown-settings', err);
+    return {} ;
+  }
+}
+
+async function updateDisplayItem(item, cameraUUID) {
+  try {
+    const result = await fetch("/config/get-camera-state", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        camera_uuid: cameraUUID
+      })
+    });
+
+    if (!result.ok) {
+      if (result.status){
+        throw new Error(`HTTP ${result.status}`);
+      }
+      else{
+        throw new Error('Did not get data');
+      }
+    }
+
+    const data = await result.json();
+    updateCameraDisplay(item, data.state);
+    return data.state;
+
+  } catch (err) {
+    console.warn(
+      `Error from /config/get-camera-state for camera ${err}:`,
+      err
+    );
+
+    return {};
+  }
 }

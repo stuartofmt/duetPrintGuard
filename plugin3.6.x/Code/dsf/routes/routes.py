@@ -6,6 +6,7 @@ import time
 import uuid
 import sys
 import glob
+from copy import deepcopy
 
 from fastapi import APIRouter, Body, Form, HTTPException, Request
 from fastapi.responses import StreamingResponse, Response, RedirectResponse
@@ -74,7 +75,7 @@ async def alert_response(request: Request,
 	"""
 
 	await UI_countdown('stop') #Stop the countdown timer on the UI immediately when an action is taken
-	print(f'sent {action} command to stop countdown timer')
+
 	global COUNTDOWN_SETTINGS
 	match action:
 		case 'ignore': # allowing new alerts to be triggered 
@@ -90,7 +91,7 @@ async def alert_response(request: Request,
 			COUNTDOWN_SETTINGS['alert_status'] = 'resumed'
 			suspend_print_job(action)
 			for camera_uuid,settings in CAMERA_STATES.items():
-				print(f'checking if live detection is paused for {camera_uuid} with settings {settings}')
+
 				if settings['live_detection_running'] == 'paused':
 					await start_live_detection(camera_uuid)
 			COUNTDOWN_SETTINGS['alert_status'] = 'inactive' # reset after action
@@ -98,7 +99,7 @@ async def alert_response(request: Request,
 			COUNTDOWN_SETTINGS['alert_status'] = 'cancelled' # Not reset since print job has been stopped
 			suspend_print_job(action)
 			for camera_uuid,settings in CAMERA_STATES.items():
-				print(f'checking if live detection is running for {camera_uuid} with settings {settings}')
+
 				if settings['live_detection_running'] == 'yes':
 					await stop_live_detection(camera_uuid)
 
@@ -264,10 +265,11 @@ async def add_camera_config(request: Request):
 	if not nickname or not source:
 		raise HTTPException(status_code=400, detail="Missing camera nickname or source.")
 	camera_uuid = str(uuid.uuid4())
+	default_camera_settings = deepcopy(DEFAULT_CAMERA_SETTINGS) # Precaution vs shallow copy
 	add_to_config({'camera_settings': {camera_uuid: {
 		"nickname": nickname,
 		"source": source,
-		**DEFAULT_CAMERA_SETTINGS
+		**default_camera_settings
 	}}})
 	return {"camera_uuid": camera_uuid, "nickname": nickname, "source": source}
 
@@ -290,50 +292,62 @@ async def remove_camera_config(request: Request):
 			delete_from_config({'camera_states': camera_uuid})
 		return {"success": True}
 	except KeyError:
-		raise HTTPException(status_code=404, detail="Camera not found.")
+		return {"success": False}
 
 
 @router.get("/config/get-camera-list", include_in_schema=False)
 async def config_camera_list(request: Request):
 	"""Get a list of current camera id's, nickname and source."""
-	camera_uuid_list = {}
-	for camera_uuid in CAMERA_SETTINGS:
-		camera_uuid_list[camera_uuid] = {
-			"nickname": CAMERA_SETTINGS[camera_uuid].get("nickname", ""),
-			"source": CAMERA_SETTINGS[camera_uuid].get("source", "")
-		}
-	logger.debug(f'{camera_uuid_list=}')
-	return {"camera_list": camera_uuid_list}
+	try:
+		camera_uuid_list = {}
+		for camera_uuid in CAMERA_SETTINGS:
+			camera_uuid_list[camera_uuid] = {
+				"nickname": CAMERA_SETTINGS[camera_uuid].get("nickname", ""),
+				"source": CAMERA_SETTINGS[camera_uuid].get("source", "")
+			}
+		logger.debug(f'{camera_uuid_list=}')
+		return {"success": True, "list": camera_uuid_list}
+	except:
+		return {"success": False}
 
 
 @router.get("/config/get-countdown-settings", include_in_schema=False)
 async def get_countdown_settings(request: Request):
 	"""Retrieve countdown settings."""
-	return COUNTDOWN_SETTINGS
-
+	try:
+		settings = COUNTDOWN_SETTINGS
+		return {"success": True, "settings": settings}
+	except:
+		return {"success": False}
 
 @router.post("/config/get-camera-setting", include_in_schema=False)
 async def get_camera_setting(request: Request, camera_uuid: str = Body(..., embed=True)):
 	"""Get the current setting of a specific camera."""
-	camera_setting = CAMERA_SETTINGS.get(camera_uuid)
-	if camera_setting is None:
-		raise HTTPException(status_code=404, detail=f"Camera {camera_uuid} not found.")
-	return camera_setting
+	try:
+		setting = CAMERA_SETTINGS.get(camera_uuid)
+		return {"success": True, "setting": setting}
+	except:
+		return {"success": False}		
 
 
 @router.post("/config/get-camera-state", include_in_schema=False)
 async def get_camera_state_config(request: Request, camera_uuid: str = Body(..., embed=True)):
-	"""Get the current state of a specific camera."""
-	if camera_uuid not in CAMERA_STATES:
-		raise HTTPException(status_code=404, detail=f"Camera {camera_uuid} not found.")
-	
-	latest_state = CAMERA_STATES[camera_uuid]
-	return {
-		'live_detection_running': latest_state.get('live_detection_running'),
-		'last_result': latest_state.get('last_result'),
-		'last_time': latest_state.get('last_time'),
-		'defect_active': latest_state.get('defect_active')
-	}
+	"""
+	Get the current state of a specific camera.
+	LEAVE OUT NON SERIALIZABLE
+	'live_detection_task'
+	"""
+	try:
+		state = deepcopy(CAMERA_STATES[camera_uuid]) # A precaution vs shallow copy
+		try:
+			del state['live_detection_task']
+		except KeyError:
+			logger.critical(f'CAMERA_STATES is missing key live_detection_task for {camera_uuid}')
+			logger.critical(f'{state=}')
+		return {"success": True, "state": state}
+	except Exception as e:
+		logger.critical(f'Camera is not recognized {e=} Try restarting')
+		return {"success": False}
 
 
 @router.post("/config/update-countdown", include_in_schema=False)
@@ -343,13 +357,15 @@ async def update_countdown(request: Request,
 							countdown_control: str = Form(...)
 						  ):
 	"""Update countdown settings from config."""
-	add_to_config({'countdown_settings': {
-							"countdown_action": countdown_action,
-							"countdown_time": countdown_time,
-							"countdown_control": countdown_control
-							}})
-	return {"success": True}
-
+	try:
+		add_to_config({'countdown_settings': {
+								"countdown_action": countdown_action,
+								"countdown_time": countdown_time,
+								"countdown_control": countdown_control
+								}})
+		return {"success": True}
+	except:
+		return {"success": False}
 
 # sse_routes.py
 class SSEManager:

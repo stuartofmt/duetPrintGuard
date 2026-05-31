@@ -22,7 +22,7 @@ def _urlCall(url, cmd, post):
 	# Get commands need a leading /
 	# Set defaults for return codes
 	code = 0
-	error = 'Unknown'
+	error = ''
 
 	timelimit = 5  # timout for call to return
 	loop = 0
