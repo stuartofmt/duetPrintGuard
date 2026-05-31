@@ -338,12 +338,12 @@ async def get_camera_state_config(request: Request, camera_uuid: str = Body(...,
 	'live_detection_task'
 	"""
 	try:
-		state = deepcopy(CAMERA_STATES[camera_uuid]) # A precaution vs shallow copy
-		try:
-			del state['live_detection_task']
-		except KeyError:
-			logger.critical(f'CAMERA_STATES is missing key live_detection_task for {camera_uuid}')
-			logger.critical(f'{state=}')
+		# state = deepcopy(CAMERA_STATES[camera_uuid]) # A precaution vs shallow copy
+		# Cannot use because raises error trying tp parse task object
+		state = {}
+		for key, value in CAMERA_STATES[camera_uuid].items():
+			if key != 'live_detection_task':
+				state[key] = value
 		return {"success": True, "state": state}
 	except Exception as e:
 		logger.critical(f'Camera is not recognized {e=} Try restarting')

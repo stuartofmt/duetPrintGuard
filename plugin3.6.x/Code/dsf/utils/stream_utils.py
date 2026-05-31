@@ -7,6 +7,7 @@ from typing import Dict, Tuple
 import cv2
 import numpy as np
 from PIL import Image
+from copy import deepcopy
 
 from .model_utils import _run_inference
 
