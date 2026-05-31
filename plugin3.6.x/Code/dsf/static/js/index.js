@@ -160,7 +160,8 @@ function updateCameraDisplay(item, d) {
   const camPred = item.querySelector(".camera-detection .detection-value"); 
   camPred.textContent = d.last_result;
   camPred.style.color = d.last_result === 'success' ? 'green' : 'red';
-  if (defectActive === true) {
+  //if (defectActive === true) {
+  if (d.defect_active) {
     console.warn('Defect active');
     camPred.textContent = 'DEFECT';
   }

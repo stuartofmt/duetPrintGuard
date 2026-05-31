@@ -71,7 +71,7 @@ async def alert_response(request: Request,
 						 action = Body(..., embed=True)):
 	"""
 	Handle alert response actions including ignore, cancel, and pause resume.
-	Can be raised at any time independent of the alert's countdown status
+	Can be raised m the UI at any time independent of the alert's countdown status
 	"""
 
 	await UI_countdown('stop') #Stop the countdown timer on the UI immediately when an action is taken
@@ -91,7 +91,6 @@ async def alert_response(request: Request,
 			COUNTDOWN_SETTINGS['alert_status'] = 'resumed'
 			suspend_print_job(action)
 			for camera_uuid,settings in CAMERA_STATES.items():
-
 				if settings['live_detection_running'] == 'paused':
 					await start_live_detection(camera_uuid)
 			COUNTDOWN_SETTINGS['alert_status'] = 'inactive' # reset after action
@@ -99,7 +98,6 @@ async def alert_response(request: Request,
 			COUNTDOWN_SETTINGS['alert_status'] = 'cancelled' # Not reset since print job has been stopped
 			suspend_print_job(action)
 			for camera_uuid,settings in CAMERA_STATES.items():
-
 				if settings['live_detection_running'] == 'yes':
 					await stop_live_detection(camera_uuid)
 

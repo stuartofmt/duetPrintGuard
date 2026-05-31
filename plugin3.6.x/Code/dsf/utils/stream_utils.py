@@ -185,7 +185,7 @@ async def create_optimized_detection_loop(app_state, camera_uuid):
 			e.g., {'update_camera_state': ..., 'update_camera_detection_history': ...}.
 	"""
 	global CAMERA_SETTINGS, CAMERA_STATES, COUNTDOWN_SETTINGS
-
+	COUNTDOWN_SETTINGS['alert_status'] = 'inactive' # reset alert status
 	detection_count = 0
 
 	majority_vote_window = CAMERA_SETTINGS[camera_uuid]['majority_vote_window']
@@ -203,112 +203,122 @@ async def create_optimized_detection_loop(app_state, camera_uuid):
 	try:
 		logger.debug(f'STARTING DETECTION LOOP FOR CAMERA {camera_uuid}')
 		while True:
-			camera_state = CAMERA_STATES[camera_uuid]
 			if CAMERA_STATES[camera_uuid]['live_detection_running'] != 'yes':
 				break
-			try:
-				frame = get_shared_camera_frame(camera_uuid)
-			except Exception as e:
-				logger.warning("Failed to get frame from shared camera stream %s", camera_uuid)
-				CAMERA_STATES[camera_uuid]['live_detection_running'] = 'no'
-				CAMERA_STATES[camera_uuid]['last_result'] = 'Failed to get frame'
-				break
 
-			# SRS possibly remove and instead get once from above loop
-			# Leaving here may allow settings changes on-the-fly
-			camera_setting = CAMERA_SETTINGS[camera_uuid]
-			contrast = camera_setting['contrast']
-			brightness = camera_setting['brightness']
-			focus = camera_setting['focus']
+			if COUNTDOWN_SETTINGS['alert_status'] == 'inactive': # No point in burning CPU
+				try:
+					frame = get_shared_camera_frame(camera_uuid)
+				except Exception as e:
+					logger.warning("Failed to get frame from shared camera stream %s", camera_uuid)
+					CAMERA_STATES[camera_uuid]['live_detection_running'] = 'no'
+					CAMERA_STATES[camera_uuid]['last_result'] = 'Failed to get frame'
+					break
 
-			frame = cv2.convertScaleAbs(frame, alpha=contrast, beta=int((brightness - 1.0) * 255))
-			if focus and focus != 1.0:
-				blurred = cv2.GaussianBlur(frame, (0, 0), sigmaX=focus)
-				frame = cv2.addWeighted(frame, 1.0 + focus, blurred, -focus, 0)
-			detection_frame, _ = stream_optimizer.optimize_frame(frame)
-			image = Image.fromarray(cv2.cvtColor(detection_frame, cv2.COLOR_BGR2RGB))
-			tensor = app_state.transform(image).unsqueeze(0).to(app_state.device)
-			
-			"""
-			This is where the detection happens
-			we run inference on the current frame tensor, get a numeric prediction
-			and then map that to a label.
-			We also handle any exceptions that occur during inference and log them.
-			The resulting label and timestamp are stored in the camera state for
-			potential use in alerting logic.
-			"""
-			try:
-				prediction = await _run_inference(app_state.model,
-												tensor,
-												app_state.prototypes,
-												app_state.defect_idx,
-												app_state.device)
-				numeric = prediction[0] if isinstance(prediction, list) else prediction
-			except Exception as e:
-				logger.debug("Detection inference error for camera %s: %s", camera_uuid, e)
-				numeric = None
+				# SRS possibly remove and instead get once from above loop
+				# Leaving here may allow settings changes on-the-fly
+				camera_setting = CAMERA_SETTINGS[camera_uuid]
+				contrast = camera_setting['contrast']
+				brightness = camera_setting['brightness']
+				focus = camera_setting['focus']
 
-			#SRS Nonesense - just take numeric o or 1 and make success / failure
-			label = ''	
-			label = app_state.class_names[numeric] if (
-				isinstance(numeric, int)
-				and 0 <= numeric < len(app_state.class_names)
-				) else str(numeric)
-			
-			current_timestamp = time.time()
-			
-			"""
-			UI periodically polls for camera state updates to show
-			the latest detection result and timestamp.
-			"""
-
-			CAMERA_STATES[camera_uuid]['last_time'] = current_timestamp
-			CAMERA_STATES[camera_uuid]['last_result'] = label
-			
-			"""
-			A running count of successive detections is maintained
-			to determine if we have enough evidence to trigger an alert.
-			The majority vote logic checks if we have seen enough failures
-			in the recent history to consider the defect active.
-			The multi-camera agreement logic checks if other cameras are also detecting
-			accoding to COUNTDOWN_SETTINGS.
-			"""
-			#SRS COUNTDOWN_SETTINGS['alert_status'] = 'inactive' # reset alert status
-			detection_count += 1
-			if isinstance(numeric, int) and numeric == app_state.defect_idx:
-				do_alert = False
-				last_result = 0 # assumes success
-				if label == 'failure':
-					last_result = 1
-
-				CAMERA_STATES[camera_uuid]['defect_active'] = False  # reset defect active state on each failure detection - only set to true if we pass both majority vote and multi camera test
+				frame = cv2.convertScaleAbs(frame, alpha=contrast, beta=int((brightness - 1.0) * 255))
+				if focus and focus != 1.0:
+					blurred = cv2.GaussianBlur(frame, (0, 0), sigmaX=focus)
+					frame = cv2.addWeighted(frame, 1.0 + focus, blurred, -focus, 0)
+				detection_frame, _ = stream_optimizer.optimize_frame(frame)
+				image = Image.fromarray(cv2.cvtColor(detection_frame, cv2.COLOR_BGR2RGB))
+				tensor = app_state.transform(image).unsqueeze(0).to(app_state.device)
 				
-				passed_majority_vote = _camera_failure_threshold(camera_uuid,majority_vote_window,majority_vote_threshold,last_result)
-				passed_camera_combination = False
-				if passed_majority_vote: # only check if the current camera detects failure
-					logger.debug(f'{passed_majority_vote=}')
-					passed_camera_combination = _passed_multi_camera_test(countdown_control,camera_uuid,num_cameras)
+				"""
+				This is where the detection happens
+				we run inference on the current frame tensor, get a numeric prediction
+				and then map that to a label.
+				We also handle any exceptions that occur during inference and log them.
+				The resulting label and timestamp are stored in the camera state for
+				potential use in alerting logic.
+				"""
+				try:
+					prediction = await _run_inference(app_state.model,
+													tensor,
+													app_state.prototypes,
+													app_state.defect_idx,
+													app_state.device)
+					numeric = prediction[0] if isinstance(prediction, list) else prediction
+				except Exception as e:
+					logger.debug("Detection inference error for camera %s: %s", camera_uuid, e)
+					numeric = None
 
-				if passed_majority_vote and passed_camera_combination:
-					logger.debug(f'{passed_camera_combination =}')
-					do_alert = True
+				#SRS Nonesense - just take numeric o or 1 and make success / failure
+				label = ''	
+				label = app_state.class_names[numeric] if (
+					isinstance(numeric, int)
+					and 0 <= numeric < len(app_state.class_names)
+					) else str(numeric)
+				
+				current_timestamp = time.time()
+				
+				"""
+				UI periodically polls for camera state updates to show
+				the latest detection result and timestamp.
+				"""
 
-				if COUNTDOWN_SETTINGS['alert_status'] == 'inactive' and do_alert:
-					'''SRS Not needed  - delete globally later once we confirm functionality'''
-					CAMERA_STATES[camera_uuid]['defect_active'] = True # only requires one camera to trigger
+				CAMERA_STATES[camera_uuid]['last_time'] = current_timestamp
+				CAMERA_STATES[camera_uuid]['last_result'] = label
+				
+				"""
+				A running count of successive detections is maintained
+				to determine if we have enough evidence to trigger an alert.
+				The majority vote logic checks if we have seen enough failures
+				in the recent history to consider the defect active.
+				The multi-camera agreement logic checks if other cameras are also detecting
+				accoding to COUNTDOWN_SETTINGS.
+				"""
 
-					#Send defect notification
-					send_defect_notification(camera_uuid) # sync
-					#Start the UI countdown disply
-					await UI_countdown('start') # sync but non-blocking
-					# If no user intervention before countdown - perform action
-					asyncio.create_task(_take_action_after_countdown())
+				detection_count += 1
+				if isinstance(numeric, int) and numeric == app_state.defect_idx:
 
-					# Wait for countdown time during active alert
-					await asyncio.sleep(countdown_time)
+					last_result = 0 # assumes success
+					if label == 'failure':
+						last_result = 1
 
-					_MAJORITY_VOTE = {}
-					_CAMERA_AGREEMENT = []
+
+					
+					passed_majority_vote = _camera_failure_threshold(camera_uuid,majority_vote_window,majority_vote_threshold,last_result)
+					passed_camera_combination = False
+					CAMERA_STATES[camera_uuid]['defect_active'] = False
+					
+					if passed_majority_vote: # only check if the current camera detects failure
+						logger.debug(f'{passed_majority_vote=} for camera {camera_uuid}')
+						passed_camera_combination = _passed_multi_camera_test(countdown_control,camera_uuid,num_cameras)
+						logger.debug(f'{passed_camera_combination =}')
+						CAMERA_STATES[camera_uuid]['defect_active'] = True # only requires one camera to trigger
+
+					do_alert = False
+					if passed_majority_vote and passed_camera_combination:
+						logger.debug(f'In Alert')
+						# reset tests
+						_MAJORITY_VOTE = {}
+						_CAMERA_AGREEMENT = []
+						do_alert = True
+
+					if do_alert:
+										
+						# Send defect notification
+						send_defect_notification(camera_uuid) # sync
+
+						#Start the UI countdown disply
+						await UI_countdown('start') # sync but non-blocking
+
+						# If no user intervention before countdown - perform action
+						asyncio.create_task(_take_action_after_countdown())
+
+						# Wait for countdown time during active alert
+						await asyncio.sleep(countdown_time)
+						
+						# reset alert status
+						if COUNTDOWN_SETTINGS['alert_status'] == 'active': # Dont change if paused or cancelled
+							COUNTDOWN_SETTINGS['alert_status'] = 'inactive'
 
 			detection_interval = stream_optimizer.get_detection_interval()		
 			await asyncio.sleep(detection_interval)
@@ -396,25 +406,28 @@ def _camera_failure_threshold(cam_uuid,window,threshold,latest_failure):
 def _passed_multi_camera_test(countdown_control, camera_uuid,num_cameras):
 	global _CAMERA_AGREEMENT
 
-	alert_uuids = _CAMERA_AGREEMENT
-	
-	if countdown_control == 'any_camera': #Ok on first camera
-		if len(alert_uuids) == 0:
-			alert_uuids.append(camera_uuid)
+	if countdown_control == 'any_camera':
+		if camera_uuid not in _CAMERA_AGREEMENT:
+				_CAMERA_AGREEMENT.append(camera_uuid)
+
+		print(f'Any {_CAMERA_AGREEMENT=}')
+		
+		if len(_CAMERA_AGREEMENT) >= 1: #Ok on first camera or more
 			return True
 		else:
-			if camera_uuid not in alert_uuids:
-				alert_uuids.append(camera_uuid)
-				return False
+			return False
 		
 	# If all_cameras is active - only trigger if no countdown is active
 	if countdown_control == 'all_cameras':
-		if camera_uuid not in alert_uuids:
-			alert_uuids.append(camera_uuid)
-			if len(alert_uuids) >= num_cameras: # First time we hit the required number of cameras, start the countdown
+		if camera_uuid not in _CAMERA_AGREEMENT:
+			_CAMERA_AGREEMENT.append(camera_uuid)
+		
+		print(f'All {_CAMERA_AGREEMENT=}')
+
+		if len(_CAMERA_AGREEMENT) >= num_cameras: # First time we hit the required number of cameras
 				return True
-				   
-		return False
+		else:		   
+			return False
 	
 
 async def UI_countdown(action):
@@ -450,9 +463,8 @@ async def _take_action_after_countdown():
 
 	await asyncio.sleep(COUNTDOWN_SETTINGS['countdown_time'])
 	
-	# Check if the alert is still active (not dismissed or overridden by user)
-	# No there is no Resume print Countdown action
-	if COUNTDOWN_SETTINGS['alert_status'] == 'active':
+	
+	if COUNTDOWN_SETTINGS['alert_status'] == 'active': # Check if the alert is still active (not dismissed or overridden by user)
 		match COUNTDOWN_SETTINGS['countdown_action']:
 			case 'ignore': # allowing new alerts to be triggered 
 				COUNTDOWN_SETTINGS['alert_status'] = 'inactive'
@@ -499,8 +511,8 @@ async def _live_detection_loop(app_state, camera_uuid):
 	
 def send_defect_notification(camera_uuid):
 
-	if COUNTDOWN_SETTINGS['alert_status'] != 'inactive': # don't send if in countdown
-		return
+	#if COUNTDOWN_SETTINGS['alert_status'] != 'inactive': # don't send if in countdown
+	#	return
 	
 	COUNTDOWN_SETTINGS['alert_status'] = 'active'
 	logger.debug("Attempting to send defect notification")
