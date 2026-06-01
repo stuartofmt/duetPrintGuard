@@ -7,6 +7,9 @@ const camTemplate = document.getElementById("camera-template");
 const vidTemplate = document.getElementById("video-template");
 const btnTemplate = document.getElementById("button-template");
 const grid = document.getElementById("grid");
+const noCameraModal = document.getElementById("noCamera");
+const noCameraClose = document.getElementById("closeModal");
+const noCameraSettingsBtn = document.getElementById("noCameraSettingsBtn");
 
 // =========================
 // Globals
@@ -66,6 +69,21 @@ function startSnapshots(img, camId) {
 
   loop();
 }
+
+// Modal dismiss and Settings navigation for the No Camera modal
+noCameraClose?.addEventListener("click", () => {
+  if (noCameraModal) noCameraModal.style.display = "none";
+});
+
+noCameraModal?.addEventListener("click", (e) => {
+  if (e.target === noCameraModal) {
+    noCameraModal.style.display = "none";
+  }
+});
+
+noCameraSettingsBtn?.addEventListener("click", () => {
+  window.location.href = "/settings";
+});
 
 // =========================
 // Create UI
@@ -151,6 +169,21 @@ function createDisplayItem(camId,nickname) {
   row.appendChild(card);
   row.appendChild(video);
 
+  grid.appendChild(row);
+}
+
+function createSettingsButton() {
+  const row = document.createElement("div");
+  row.className = "top-controls";
+
+  const button = document.createElement("button");
+  button.className = "control btn-settings";
+  button.textContent = "Settings";
+  button.addEventListener("click", () => {
+    window.location.href = "/settings";
+  });
+
+  row.appendChild(button);
   grid.appendChild(row);
 }
 
@@ -287,8 +320,14 @@ document.addEventListener('defectRaised', evt => {
 
   const cameras = await getCameraList();
 
-  if (cameras.length === 0) {
-    document.getElementById("noCamera").style.display = "block";
+  // Support both array and object return types from getCameraList()
+  const cameraCount = cameras
+    ? (Array.isArray(cameras) ? cameras.length : Object.keys(cameras).length)
+    : 0;
+
+  if (cameraCount === 0) {
+    const noCameraEl = document.getElementById("noCamera");
+    if (noCameraEl) noCameraEl.style.display = "block";
   }
 
   //create top row of buttons
@@ -306,6 +345,8 @@ document.addEventListener('defectRaised', evt => {
 		//addListenerToDisplayItem(item, camera_uuid);
 		});
 
+  // add settings button after all camera cards
+  createSettingsButton();
 
   //Get a list of all camera rows
     cameraItems = document.querySelectorAll('.camera-card');

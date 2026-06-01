@@ -19,7 +19,7 @@ from .model_downloader import get_model_downloader
 from duet_config import DUET
 
 # Config version - increment this when the config structure changes
-CONFIG_VERSION = "1.0.1"
+CONFIG_VERSION = "1.0.0"
 
 # The camera configuration that is accessed by other modules
 # Frequently updated and exist only in memory - not persisted to disk

@@ -438,6 +438,18 @@ button:not(.remove-camera-btn),
     box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
 }
 
+.add-new-camera {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+}
+
+.add-new-camera .add-camera {
+    width: auto;
+    flex: 0 0 auto;
+}
+
 button:not(.remove-camera-btn):hover,
 .add-camera:not(.remove-camera-btn):hover {
     background: linear-gradient(135deg, #bfdbfe 0%, #93c5fd 100%);

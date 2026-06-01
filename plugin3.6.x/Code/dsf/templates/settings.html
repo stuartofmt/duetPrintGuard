@@ -44,7 +44,8 @@
                     <!-- Camera list will be rendered here -->
             </div>
             <div class="add-new-camera">
-                <button class="add-camera" id="addCameraBtn">Add a Camera</button>
+                <button type="button" class="add-camera" id="addCameraBtn">Add a Camera</button>
+                <button type="button" class="add-camera" id="detectionBtn">Detection</button>
             </div>
         </div>
         
@@ -87,7 +88,7 @@
                     <div class="settings-item">
                         <label for="countdown_action">Countdown Action</label>
                         <select id="countdown_action" name="countdown_action" class="settings-dropdown">
-                            <option value="dismiss">Ignore</option>
+                            <option value="ignore">Ignore</option>
                             <option value="cancel_print">Cancel Print</option>
                             <option value="pause_print">Pause Print</option>
                         </select>

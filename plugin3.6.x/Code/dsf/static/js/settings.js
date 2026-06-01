@@ -76,6 +76,9 @@ const addCameraModalClose =
 const addCameraBtn =
 	document.getElementById('addCameraBtn');
 
+const detectionBtn =
+	document.getElementById('detectionBtn');
+
 const addFirstCameraBtn =
 	document.getElementById('addFirstCameraBtn');
 
@@ -1054,6 +1057,17 @@ addCameraBtn?.addEventListener(
 	}
 );
 
+const detectionButton = document.getElementById('detectionBtn');
+
+detectionButton?.addEventListener(
+	'click',
+	function(e) {
+
+		e.preventDefault();
+		window.location.href = '/index';
+	}
+);
+
 addFirstCameraBtn?.addEventListener(
 	'click',
 	function(e) {
@@ -1296,14 +1310,17 @@ document
 					await response.json();
 
 				const settings =
-					data.countdown_settings;
+					data.settings;
 
 				if (settings) {
 
 					if (
 						settingsCountdownAction
 					) {
-
+						console.warn(
+							'Applying countdown settings:',
+							settings.countdown_action
+						);
 						settingsCountdownAction.value =
 							settings.countdown_action ||
 							'none';
