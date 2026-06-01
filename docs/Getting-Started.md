@@ -24,114 +24,14 @@ In the [DUET] section:
 In the [UI] section:
 -- PORT ==> the port number for UI elements to access the settings and monitoring pages
 
-```
-# Configuration parameters for duetPrintGuard
-# Optional parameters can be commented out with ;
-# In which case, defaults will be used as appropriate
-# parameter values should not be quoted
-
-[DUET]
-# These settings are for the actual printer
-# They are the same as would be used for DWC
-
-# IP address of duet printer
-# Mandatory e.g. IP = 192.168.1.2
-IP =
-
-# PORT address of duet printer
-# Optional - only use if the DWC port has been changed in /opt/dsf/conf/http.json
-# Note this is NOT the UI port of the settings or monitoring pages (See [UI] section)
-# Default is 80
-;PORT =
-
-# Password for duet
-# Optional - only use if password has been set in DWC configuration
-;PASSWORD = 
-
-[UI]
-# Settings for UI components
-# PORT cannot conflict with other DWC or other apps / plugins
-# Mandatory e.g. PORT = 8001
-PORT =
-
-[LOGGING]
-# Sets the logging detail
-# Valid entries [WARNING,INFO,DEBUG]
-# Optional
-#Default is INFO
-;LEVEL = DEBUG
-
-[ACTION]
-# Duet3D commands to be executed when a failure occurs
-# All parameters in this section are optional
-
-# PAUSE specifies the pause action
-# Optional
-# Default - sends M25 to the printer
-;PAUSE = 
-
-
-# CANCEL specifies the cancel action
-# Optional
-# Default - sends M2 to the printer
-;CANCEL = 
-
- 
-[MACRO]
-# Optional Macro to be called on failure
-# This is to facilitate a custom macro eg using MQTT
-# tO ACTIVATE 
-# Enter string in M98 P"<string>"
-# Mandatory if MACRO to be called  e.g. 0:/macros/Notify.g
-;MACRO =
-
-
-[NTFY]
-# Optional NTFY service to be called on failure
-# To activate requires TOPIC key
-
-# The topic in ntfy that you subscribe to
-# Mandatory if NTFY is to be used
-;TOPIC =
-
-# The title of the message
-# Optional
-# Default is system message
-;TITLE
-
-# The message to be sent to the ntfy topic
-# Optional
-# Default is system message if topic is  set
-;MESSAGE
-
-
-[PUSHOVER]
-# Optional PUSHOVER service to be called on failure
-# To activate requires both API and USER keys
-
-# Application / API token
-# Mandatory if PUSHOVER is to be used
-;API =
-
-# User / Group Key for PUSHOVER
-# Mandatory if PUSHOVER is to be used
-;USER = 
-
-# The title of the PUSHOVER message
-# Optional
-# Default is system message
-;TITLE =
-
-# The message to be sent to PUSHOVER
-# Optional
-# Default is system message if topic is  set
-;MESSAGE = 
-
-```
+[duetPrintGuard.config.example](../plugin3.6.x/Code/sd/sys/duetPrintGuard/duetPrintGuard.config.example)
 
 ## Logging
 
 When the plugin is run, a log file `duetPrintGuard.log`  is placed in the `system/duetPrintGuard directory`.
+
+## On startup
+When the pligin is accessed - the Detection page will display showing configured cameras and provide control such as start / stop detection.  Initially, there will not be any cameras configured 
 
 ## Camera Setup
 

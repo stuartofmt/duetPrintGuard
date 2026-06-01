@@ -573,19 +573,41 @@ async def stop_live_detection(camera_uuid):
 	"""Stop continuous live detection on a specified camera."""
 	global CAMERA_STATES
 
-	if CAMERA_STATES[camera_uuid]['live_detection_running'] != 'yes':
-		return {"message": f"Live detection not running for camera {camera_uuid}"}
-	
-	live_detection_task = CAMERA_STATES[camera_uuid]['live_detection_task']
-	if live_detection_task:
-		try: 
-			live_detection_task.cancel()
-			CAMERA_STATES[camera_uuid] = deepcopy(DEFAULT_CAMERA_STATE) # Precaution vs shallow copy
-			logger.debug("Stopped live detection task for camera %s", camera_uuid)
-		except Exception as e:
-			logger.error("Error stopping live detection task for camera %s: %s", camera_uuid, e)
+	# Ensure countdown is stopped when live detection is stopped
+	try:
+		# If detection isn't running, still ensure the UI countdown is stopped
+		if CAMERA_STATES.get(camera_uuid, {}).get('live_detection_running') != 'yes':
+			# reset any global countdown status
+			COUNTDOWN_SETTINGS['alert_status'] = 'inactive'
+			# broadcast a stop to UI so new SSE clients won't see an active countdown
+			await UI_countdown('stop')
+			return {"message": f"Live detection not running for camera {camera_uuid}"}
 
-	return {"message": f"Live detection stopped for camera {camera_uuid}"}
+		# Cancel running detection task
+		live_detection_task = CAMERA_STATES[camera_uuid].get('live_detection_task')
+		if live_detection_task:
+			try:
+				live_detection_task.cancel()
+				CAMERA_STATES[camera_uuid] = deepcopy(DEFAULT_CAMERA_STATE) # Precaution vs shallow copy
+				# reset global countdown status
+				COUNTDOWN_SETTINGS['alert_status'] = 'inactive'
+				# ensure UI is informed to stop any countdown
+				await UI_countdown('stop')
+				logger.debug("Stopped live detection task for camera %s", camera_uuid)
+			except Exception as e:
+				logger.error("Error stopping live detection task for camera %s: %s", camera_uuid, e)
+
+		return {"message": f"Live detection stopped for camera {camera_uuid}"}
+
+	except Exception as outer_e:
+		logger.error("Unexpected error in stop_live_detection for %s: %s", camera_uuid, outer_e)
+		# attempt best-effort cleanup
+		try:
+			COUNTDOWN_SETTINGS['alert_status'] = 'inactive'
+			await UI_countdown('stop')
+		except Exception:
+			pass
+		return {"message": f"Live detection stopped for camera {camera_uuid} (with errors)"}
 
 
 
