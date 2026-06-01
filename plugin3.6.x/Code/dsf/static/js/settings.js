@@ -137,8 +137,6 @@ let previewRequestId = 0;
 // =========================
 async function getCameraList() {
 
-	console.warn('Fetching camera list');
-
 	try {
 
 		const res =
@@ -350,7 +348,7 @@ function fetchAndUpdateCameraSettings(
 
 	})
 	.then(data => {
-		const setting = data.setting
+		const setting = data.setting;
 
 		updateSelectedCameraSettings({
 			camera_uuid: cameraUUID,
@@ -358,10 +356,8 @@ function fetchAndUpdateCameraSettings(
 			contrast: setting.contrast,
 			focus: setting.focus,
 			sensitivity: setting.sensitivity,
-			//majority_vote_threshold:
-			//	data.majority_vote_threshold,
-			//majority_vote_window:
-			//	data.majority_vote_window
+			majority_vote_threshold: setting.majority_vote_threshold,
+			majority_vote_window: setting.majority_vote_window
 		});
 
 	})
@@ -998,6 +994,62 @@ addCameraForm?.addEventListener(
 			}
 		);
 
+		const existingCameras =
+            await getCameraList();
+
+        // Check for duplicate nickname
+        const newNickname = data.nickname?.trim().toLowerCase();
+
+        if (!newNickname) {
+            alert('Please enter a camera nickname');
+            return;
+        }
+
+        for (const camUuid in existingCameras) {
+            const existingNick =
+                existingCameras[camUuid]
+                    .nickname
+                    ?.trim()
+                    .toLowerCase();
+
+            if (existingNick === newNickname) {
+                alert(
+                    `A camera with the nickname "${data.nickname}" already exists. ` +
+                    'Please use a unique name.'
+                );
+                return;
+            }
+
+        }
+
+
+        // Check for duplicate source
+
+        const newSource = data.source?.trim().toLowerCase();
+
+        if (!newSource) {
+            alert('Please enter a camera source');
+            return;
+        }
+
+        for (const camUuid in existingCameras) {
+
+            const existingSource =
+                existingCameras[camUuid]
+                    .source
+                    ?.trim()
+                    .toLowerCase();
+
+            if (existingSource === newSource) {
+                alert(
+                    `A camera with the source "${data.source}" already exists. ` +
+                    'Each camera must have a unique source.'
+                );
+                return;
+            }
+        }
+
+
 		try {
 
 			const response =
@@ -1252,8 +1304,6 @@ document
 // =========================
 (async function init() {
 
-	console.warn('Initializing');
-
 	try {
 
 		const cameras =
@@ -1317,10 +1367,6 @@ document
 					if (
 						settingsCountdownAction
 					) {
-						console.warn(
-							'Applying countdown settings:',
-							settings.countdown_action
-						);
 						settingsCountdownAction.value =
 							settings.countdown_action ||
 							'none';

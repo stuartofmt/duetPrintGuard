@@ -1,4 +1,4 @@
-console.warn("Countdown abstacted");
+
 
 // =========================
 // Templates
@@ -165,6 +165,14 @@ function createDisplayItem(camId,nickname) {
 
   startSnapshots(img, camId);
 
+  // Add click listener to open stream in new tab
+  img.addEventListener("click", (event) => {
+
+      event.preventDefault();
+      window.open(`/stream/${nickname}`, '_blank');
+
+  });
+
   // Assemble
   row.appendChild(card);
   row.appendChild(video);
@@ -195,7 +203,6 @@ function updateCameraDisplay(item, d) {
   camPred.style.color = d.last_result === 'success' ? 'green' : 'red';
   //if (defectActive === true) {
   if (d.defect_active) {
-    console.warn('Defect active');
     camPred.textContent = 'DEFECT';
   }
 
@@ -205,7 +212,7 @@ function updateCameraDisplay(item, d) {
   let statusIndicator = item.querySelector('.camera-status');
   let startStopButton = item.querySelector('.start-stop-camera-btn');
   detectionStatus = d.live_detection_running;
-  console.warn (`Camera ${item.dataset.cameraId} detection status: ${detectionStatus}`);
+
   if (detectionStatus === 'yes') {
       statusIndicator.textContent = `Detecting`;
       statusIndicator.style.color = '#2ecc40';
@@ -259,7 +266,7 @@ function sendDetectionRequest(isStart,item, cameraUUID) {
         console.warn(`Cannot ${isStart ? 'start' : 'stop'} detection: no valid camera selected`);
         return;
     }
-    console.warn(`Sending request to ${isStart ? 'start' : 'stop'} live detection for camera ${cameraUUID}`);
+
     fetch(`/detect/live/${isStart ? 'start' : 'stop'}`, {
         method: 'POST',
         headers: {
@@ -316,7 +323,6 @@ document.addEventListener('defectRaised', evt => {
 // Init
 // =========================
 (async function init() {
-  console.warn('Initializing');
 
   const cameras = await getCameraList();
 

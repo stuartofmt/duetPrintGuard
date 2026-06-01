@@ -27,7 +27,7 @@ from utils.config import (
 	delete_from_config
 )
 from utils.shared_video_stream import get_shared_stream_manager
-from utils.stream_utils import UI_countdown,start_live_detection, stop_live_detection, save_request
+from utils.stream_utils import UI_countdown, start_live_detection, stop_live_detection, save_request, create_optimized_frame_generator
 
 router = APIRouter()
 
@@ -122,6 +122,33 @@ async def serve_settings(request: Request):
 	})
 
 
+def get_camera_uuid_by_nickname(nickname: str):
+	"""Resolve a configured camera UUID from its nickname."""
+	if not nickname:
+		return None
+
+	normalized = nickname.strip().lower()
+	for camera_uuid, settings in CAMERA_SETTINGS.items():
+		if settings and settings.get('nickname', '').strip().lower() == normalized:
+			return camera_uuid
+
+	return None
+
+
+@router.get("/stream/{nickname}", include_in_schema=False)
+async def serve_camera_stream(request: Request, nickname: str):
+	"""Serve an HTML page for a named camera stream."""
+	camera_uuid = get_camera_uuid_by_nickname(nickname)
+	if not camera_uuid:
+		raise HTTPException(status_code=404, detail="Camera not found")
+	from app import templates
+	return templates.TemplateResponse("stream.html", {
+		"request": request,
+		"camera_uuid": camera_uuid,
+		"nickname": CAMERA_SETTINGS[camera_uuid].get('nickname', nickname)
+	})
+
+
 @router.post("/settings/save-settings", include_in_schema=False)
 async def update_settings(request: Request,
 						  camera_uuid: str = Form(...),
@@ -196,6 +223,16 @@ async def camera_snapshot(camera_uuid: str):
 	except Exception as e:
 		logger.error("Snapshot error for %s: %s", camera_uuid, e)
 		raise
+
+
+@router.get('/camera/stream/{camera_uuid}', include_in_schema=False)
+async def camera_stream(camera_uuid: str):
+	if camera_uuid not in CAMERA_SETTINGS:
+		raise HTTPException(status_code=404, detail="Camera not found")
+	return StreamingResponse(
+		create_optimized_frame_generator(camera_uuid, lambda: None),
+		media_type='multipart/x-mixed-replace; boundary=frame'
+	)
 
 
 @router.get("/camera/serial_devices")

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ nickname }} - Camera Stream</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='css/settings.css') }}" />
+    <style>
+        body {
+            margin: 0;
+            font-family: system-ui, sans-serif;
+            background: #111;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+        h1 {
+            margin: 0 0 16px;
+            font-size: 1.8rem;
+        }
+        .stream-wrapper {
+            width: min(100%, 960px);
+            max-width: 100%;
+            border: 2px solid rgba(255,255,255,.2);
+            border-radius: 12px;
+            overflow: hidden;
+            background: #000;
+        }
+        .stream-wrapper img {
+            display: block;
+            width: 100%;
+            height: auto;
+            background: #000;
+        }
+
+    </style>
+</head>
+<body>
+    <main>
+        <h1>{{ nickname }}</h1>
+        <div class="stream-wrapper">
+            <img id="cameraStream" src="/camera/stream/{{ camera_uuid }}" alt="Live stream for {{ nickname }}" />
+        </div>
+    </main>
+</body>
+</html>
