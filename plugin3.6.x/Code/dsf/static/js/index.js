@@ -130,7 +130,7 @@ function createTopRowButtons(){
 
 }
 
-function createDisplayItem(camId,nickname) {
+function createDisplayItem(camId,nickname,autostart = false) {
   // Wrapper (CRITICAL)
   const row = document.createElement("div");
   row.className = "camera-row";
@@ -139,6 +139,8 @@ function createDisplayItem(camId,nickname) {
   const camFrag = camTemplate.content.cloneNode(true);
   const card = camFrag.firstElementChild;
   card.dataset.cameraId = camId;
+  card.dataset.autostart = autostart ? '1' : '0';
+  card.dataset.autostartPending = '0';
 
     // 🔑 Update template content
   const nicknameEl = card.querySelector('.nickname');
@@ -196,7 +198,7 @@ function createSettingsButton() {
 }
 
 
-function updateCameraDisplay(item, d) {
+async function updateCameraDisplay(item, d) {
 
   const camPred = item.querySelector(".camera-detection .detection-value"); 
   camPred.textContent = d.last_result;
@@ -219,6 +221,7 @@ function updateCameraDisplay(item, d) {
       statusIndicator.style.backgroundColor = 'transparent';
       startStopButton.textContent = BTNSTOP;
       startStopButton.style.backgroundColor = '#f30606';
+      item.dataset.autostartPending = '0';
   } else {
       statusIndicator.textContent = `Inactive`;
       statusIndicator.style.color = '#f30606';
@@ -226,6 +229,19 @@ function updateCameraDisplay(item, d) {
       startStopButton.textContent = BTNSTART;
       startStopButton.style.backgroundColor = '#2ecc40';
       //camPred.textContent = '';
+
+      const autostart = d.autostart || item.dataset.autostart === '1';
+      const pending = item.dataset.autostartPending === '1';
+      if (autostart && !pending) {
+        const printerStatus = await getPrinterStatus();
+        if (printerStatus && printerStatus.toLowerCase() === 'printing') {
+          item.dataset.autostartPending = '1';
+          const started = await sendDetectionRequest(true, item, item.dataset.cameraId);
+          if (!started) {
+            item.dataset.autostartPending = '0';
+          }
+        }
+      }
   }
 
 };
@@ -239,6 +255,11 @@ function flashCountdown(action) {
   } else if (action == 'pause_print'){
     flashButton = pauseBtn;
   }
+
+  if (!flashButton) {
+    return null;
+  }
+
   // Get the current background color of the button
   const currentColor = window.getComputedStyle(flashButton).backgroundColor;
 
@@ -264,10 +285,10 @@ function triggerFlash(el) {
 function sendDetectionRequest(isStart,item, cameraUUID) {
     if (cameraUUID === null || cameraUUID === undefined) {
         console.warn(`Cannot ${isStart ? 'start' : 'stop'} detection: no valid camera selected`);
-        return;
+        return Promise.resolve(false);
     }
 
-    fetch(`/detect/live/${isStart ? 'start' : 'stop'}`, {
+    return fetch(`/detect/live/${isStart ? 'start' : 'stop'}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -277,16 +298,20 @@ function sendDetectionRequest(isStart,item, cameraUUID) {
     .then(response => {
         if (response.ok) {
           console.warn(`Successfully ${isStart ? 'started' : 'stopped'} live detection for camera ${cameraUUID}`);
+          return true;
         } else {
-            response.json().then(errData => {
+            return response.json().then(errData => {
                 console.error(`Failed to ${isStart ? 'start' : 'stop'} live detection for camera ${cameraUUID}. Server: ${errData.detail || response.statusText}`);
+                return false;
             }).catch(() => {
                 console.error(`Failed to ${isStart ? 'start' : 'stop'} live detection for camera ${cameraUUID}. Status: ${response.status} ${response.statusText}`);
+                return false;
             });
         }
     })
     .catch(error => {
         console.error(`Network error or exception during ${isStart ? 'start' : 'stop'} request for camera ${cameraUUID}:`, error);
+        return false;
     });
 }
 
@@ -304,18 +329,18 @@ document.addEventListener('defectRaised', evt => {
   const { alert_id, action, countdown } = evt.detail;
   
   if (!defectActive && countdown > 0) {
-    ignoreBtn.style.display = "block";
-    countdownTimer.style.display = "block";
+    if (ignoreBtn) ignoreBtn.style.display = "block";
+    if (countdownTimer) countdownTimer.style.display = "block";
     flashButton = flashCountdown(action);
   }
   if (countdown > 0) {
     defectActive  = true;
-    countdownTimer.textContent = 'in ' + countdown + ' sec';
+    if (countdownTimer) countdownTimer.textContent = 'in ' + countdown + ' sec';
   } else {
     defectActive = false;
-    flashButton.classList.remove('flash');
-    ignoreBtn.style.display = "none";
-    countdownTimer.style.display = "none";
+    if (flashButton?.classList) flashButton.classList.remove('flash');
+    if (ignoreBtn) ignoreBtn.style.display = "none";
+    if (countdownTimer) countdownTimer.style.display = "none";
   } 
 });
 
@@ -346,8 +371,8 @@ document.addEventListener('defectRaised', evt => {
 
   	//create a row for each camera
 	Object.keys(cameras).forEach(camera_uuid => {
-			const item = createDisplayItem(camera_uuid, cameras[camera_uuid].nickname);
-
+			const camera = cameras[camera_uuid] || {};
+			createDisplayItem(camera_uuid, camera.nickname, camera.autostart);
 		//addListenerToDisplayItem(item, camera_uuid);
 		});
 
@@ -406,6 +431,20 @@ async function getCameraList() {
   }
 }
 
+async function getPrinterStatus() {
+  try {
+    const result = await fetch("/printer/get-status");
+    if (!result.ok) {
+      throw new Error(`HTTP ${result.status}`);
+    }
+    const data = await result.json();
+    return data.status;
+  } catch (err) {
+    console.warn('Error from /printer/get-status', err);
+    return null;
+  }
+}
+
 
 async function getCountdownSettings() {
   try {
@@ -451,7 +490,7 @@ async function updateDisplayItem(item, cameraUUID) {
     }
 
     const data = await result.json();
-    updateCameraDisplay(item, data.state);
+    await updateCameraDisplay(item, data.state);
     return data.state;
 
   } catch (err) {

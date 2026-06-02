@@ -14,7 +14,7 @@ from sse_starlette.sse import EventSourceResponse
 
 from logger_module import logger
 
-from duet_printer import suspend_print_job
+from duet_printer import suspend_print_job, get_duet_printer_status
 
 import cv2
 
@@ -526,3 +526,14 @@ async def stopping_detection(request: Request, camera_uuid: str = Body(..., embe
 			logger.error("Error stopping live detection task for camera %s: %s", camera_uuid, e)
 
 	return {"message": f"Live detection stopped for camera {camera_uuid}"}
+
+
+@router.get("/printer/get-status", include_in_schema=False)
+async def get_printer_status(request: Request):
+	"""Get the status of the printer."""
+	try:
+		status = get_duet_printer_status()
+		return {"success": True, "status": status}
+	except Exception as e:
+		logger.error("Error getting printer status: %s", e)
+		return {"success": False, "message": "Failed to get printer status"}

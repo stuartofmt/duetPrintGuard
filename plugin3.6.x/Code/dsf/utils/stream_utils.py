@@ -21,7 +21,7 @@ from .config import (CAMERA_SETTINGS,CAMERA_STATES,COUNTDOWN_SETTINGS, DEFAULT_C
 
 import uuid
 
-from duet_printer import get_printer_config, suspend_print_job, duet_send_notification
+from duet_printer import suspend_print_job, duet_send_notification
 
 
 class StreamOptimizer:

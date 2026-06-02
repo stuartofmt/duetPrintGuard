@@ -66,9 +66,10 @@ def _urlCall(url, cmd, post):
 		return 0, ''
 
 def _send_duet_code(command):
+	global printerUrl
 	# send a gcode command to Duet
 	command = f'''/rr_gcode?gcode={command}'''  #Post includes command type in url
-	code, _ = _urlCall(printerURL, command, False) # Post form - sent blindly
+	code, _ = _urlCall(printerUrl, command, False) # Post form - sent blindly
 	if code in [200,204]:
 		pass
 	else:
@@ -135,8 +136,16 @@ def duet_send_notification(alert):
 	_send_pushover(alert)
 	return True
 
-def get_printer_config(camera_uuid):
-	return None
+def get_duet_printer_status():
+	cmd = f'''/rr_model?key=state'''
+	code , state = _urlCall(printerUrl, cmd, False)
+	if code in [200,204]:
+		j = json.loads(state)
+		status = j['result']['status']
+		return status
+	else:
+		logger.critical(f'Failed to get printer status with code {code}')
+		return 'idle' # Default to idle if cannot get status
 
 
 def suspend_print_job(action):
@@ -295,9 +304,9 @@ if __name__ == "__main__":    # Test setup
 	# Set logging level
 	logger = set_log_level(LOGGING.LEVEL,logger)
 
-	printerURL = f'http://{DUET.IP}:{DUET.PORT}'
+	printerUrl = f'http://{DUET.IP}:{DUET.PORT}'
 
-	_loginPrinter(printerURL,DUET.PASSWORD)
+	_loginPrinter(printerUrl,DUET.PASSWORD)
 
 	class test:
 		title = 'test'
@@ -309,14 +318,14 @@ else:
 	from duet_config import DUET,ACTION,MACRO,NTFY,PUSHOVER
 	from logger_module import logger
 
-	printerURL = f'http://{DUET.IP}:{DUET.PORT}'
+	printerUrl = f'http://{DUET.IP}:{DUET.PORT}'
 	
-	if _loginPrinter(printerURL,DUET.PASSWORD):
-		logger.info(f'Successful login to printer at {printerURL}')
+	if _loginPrinter(printerUrl,DUET.PASSWORD):
+		logger.info(f'Successful login to printer at {printerUrl}')
 	else:
 		if DUET.POWERCHECK:
-			logger.critical(f'Failed to login to printer at {printerURL} - check printer is turned on')
-			logger.critical(f'Failed to login to printer at {printerURL}')
+			logger.critical(f'Failed to login to printer at {printerUrl} - check printer is turned on')
+			logger.critical(f'Failed to login to printer at {printerUrl} - check printer is turned on')
 			sys.exit(1)
 
 
