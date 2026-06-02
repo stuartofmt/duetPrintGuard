@@ -146,7 +146,6 @@ def create_optimized_frame_generator(camera_uuid: str, camera_state_getter):
 				continue
 
 			camera_state = CAMERA_SETTINGS[camera_uuid] 
-			logger.debug(f'############# Camera {camera_uuid} - Optimized Frame Generation - State: {camera_state}')
 			contrast = CAMERA_SETTINGS.get(camera_uuid).get('contrast')
 			brightness = CAMERA_SETTINGS.get(camera_uuid).get('brightness')
 			focus = CAMERA_SETTINGS.get(camera_uuid).get('focus')

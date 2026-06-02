@@ -234,7 +234,7 @@ async function updateCameraDisplay(item, d) {
       const pending = item.dataset.autostartPending === '1';
       if (autostart && !pending) {
         const printerStatus = await getPrinterStatus();
-        if (printerStatus && printerStatus.toLowerCase() === 'printing') {
+        if (printerStatus && printerStatus.toLowerCase() === 'processing') {
           item.dataset.autostartPending = '1';
           const started = await sendDetectionRequest(true, item, item.dataset.cameraId);
           if (!started) {

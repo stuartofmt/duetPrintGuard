@@ -362,7 +362,7 @@ async def config_camera_list(request: Request):
 				"source": CAMERA_SETTINGS[camera_uuid].get("source", ""),
 				"autostart": CAMERA_SETTINGS[camera_uuid].get("autostart", False)
 			}
-		logger.debug(f'{camera_uuid_list=}')
+
 		return {"success": True, "list": camera_uuid_list}
 	except:
 		return {"success": False}
