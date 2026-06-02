@@ -38,16 +38,18 @@ SENSITIVITY = 1.0
 BRIGHTNESS = 1.0
 CONTRAST = 1.0
 FOCUS = 1.0
+AUTOSTART = False
 
 # Default but can be updated by user and persisted in config
 CAMERA_SETTINGS = {}
-PERSISTED_CAMERA_SETTINGS = set('nickname source majority_vote_window majority_vote_threshold sensitivity brightness contrast focus'.split())
+PERSISTED_CAMERA_SETTINGS = set('nickname source majority_vote_window majority_vote_threshold sensitivity brightness contrast focus autostart'.split())
 # Note nickname and source are created with camera. Default settinga are added at that time
 DEFAULT_CAMERA_SETTINGS = {'majority_vote_window': DETECTION_VOTING_WINDOW,
 						   'majority_vote_threshold': DETECTION_VOTING_THRESHOLD,
 						   'sensitivity': SENSITIVITY, 'brightness': BRIGHTNESS,
 						   'contrast': CONTRAST,
-						   'focus': FOCUS}
+						   'focus': FOCUS,
+						   'autostart': AUTOSTART}
 
 #Settings that determine if a defect should be declared
 COUNTDOWN_TIME = 60

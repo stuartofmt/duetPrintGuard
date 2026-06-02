@@ -1,21 +1,24 @@
 # duetPrintGuard DWC Plugin
 
-**This is a reconstructed version of the original authored by @oliverbravery**
+**This uses the detection engine developed by @oliverbravery**
 
-duetPrintGuard offers local, **real-time print failure detection** for 3D printing on edge devices **(e.g. Rapberry Pi)** .   It is self contained and does not require external connections or subscriptions.
+duetPrintGuard offers local, **real-time print failure detection** for 3D printing on edge devices **(e.g. Rapberry Pi)** . It is self contained and does not require external connections or subscriptions.
 
- When the **computer vision** fault detection model detects an issue it will  **automatically pause or cancel the print job**.
+Additionally - it provides direct access to USB camera feeds using http - thereby bypassing a common limitation on devices such as Raspberry Pi - of only allowing a single application to access a camera.  For example - duetPrintGuard can simultaneously stream to (for example) duetLapse3. 
+
+## Basic Operation
+The plugin monitors one or more camera feeds looking for patterns that indicate a possible defect in printing.  During the monitoring, each feed reports either *success* or *failure* using a frame-by-frame analysis.
+
+Each camera feed has separate settings to determine if there is sufficient evidence to report a *defect*.  If the number of continuous failure frames in a given number of frames exceeds the settings for that camera - a *defect* is declared. If one or all camera feeds (depending on settings) declare a defect then a countdown is started and notification(s) are send out.
+
+At the end the countdown period, if the user does not intervene, the countdown action (Ignore, Pause, Cancel) is executed.  If the user does intervene then the selected action is executed.
 
 
-The detection engine and related functions (from the original) have not been changed.  The author claims superior performance to other solutions.
 
-UI and control elements have been tailored to the DWC plugin context. 
-
-Additional configuration, accesable inside DWC, is provided by a configuration file that facilitaes:
+Primary configuration is through a file accesable from DWC that facilitates:
 -- IP and port setting
--- loggin
--- configurable printer actions when a failure occurs
--- several notofcation type ( Duet Macro, NTFY, Pusher)
+-- Configurable actions when a defect is detected
+-- several notofcation types ( Duet Macro, NTFY, Pusher)
 
 
 **Instructions for installation and configuration are here:**

@@ -30,22 +30,25 @@ In the [UI] section:
 
 When the plugin is run, a log file `duetPrintGuard.log`  is placed in the `system/duetPrintGuard directory`.
 
-## On startup
-When the pligin is accessed - the Detection page will display showing configured cameras and provide control such as start / stop detection.  Initially, there will not be any cameras configured 
+## On initial startup
+When the plugin is first accessed - the Detection page will display with a message stating that there are no cameras defined.  Press the "Settings" button to configure one or more cameras.
+
 
 ## Camera Setup
 
-The camera settings page is accessible via `http://localhost:<PORT>/settings` or `http://<IP>:<PORT>/settings`
+The camera settings page is accessible from the Detection page or via `http://localhost:<PORT>/settings` or `http://<IP>:<PORT>/settings`
 
 Where IP is set in the [DUET] section of the configuration file and PORT is set in the [UI] section
 
-This page allows you to configure the action to be taken on failure, camera settings, and detection settings.
+This page allows you to configure the action to be taken on failure, camera settings and detection settings.
 
 <img src="https://github.com/stuartofmt/duetPrintGuard/blob/main/docs/media/images/Setting1.png" style="width:50%; height:auto;">
   
 ### Adding Cameras
 
 Multiple cameras can be configure, either serial (USB) or newtwork based.
+
+EAch camera must have unique nickname and unique source.
 
 This image shows the serial configuration UI.  The `Serial Device` box provides a dropdown of POSSIBLE serial cameras on your system. Most will not have a camera attached - so some trial and error is needed to find those that work.  The `Show Camera Preview` checkbox can be helful in this.
 
@@ -58,7 +61,7 @@ This image shows the network camera UI.  Both HTTP and RTSP are supported.
 
 ### Countdown Action
 
-`Countdown Action` allows the selection of one of three actions that will occur when a failure is detected.  These are Dismiss, Pause and Cancel. If here is no manual override within the time set in `Countdown Time` then the selected action will be requested of the printer.
+`Countdown Action` allows the selection of one of three actions that will occur when a Defect is detected.  These are Ignore, Pause and Cancel. If here is no manual override within the time set in `Countdown Time` then the selected action will be sent to the printer.
 
 ### Countdown Time
 

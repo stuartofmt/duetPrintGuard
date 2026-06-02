@@ -167,7 +167,8 @@ async function getCameraList() {
 function createDisplayItem(
 	camId,
 	nickname,
-	source
+	source,
+	autostart = false
 ) {
 
 	if (!camTemplate || !grid) {
@@ -203,6 +204,9 @@ function createDisplayItem(
 	const sourceEl =
 		camFrag.querySelector('.source');
 
+	const autostartCheckbox =
+		camFrag.querySelector('.autostart-checkbox');
+
 	if (nicknameEl) {
 		nicknameEl.textContent = nickname;
 	}
@@ -211,11 +215,63 @@ function createDisplayItem(
 		sourceEl.textContent = source;
 	}
 
+	if (autostartCheckbox) {
+		autostartCheckbox.checked = Boolean(autostart);
+		autostartCheckbox.addEventListener('click', event => {
+			event.stopPropagation();
+		});
+		autostartCheckbox.addEventListener('change', function() {
+			updateAutostart(camId, autostartCheckbox.checked);
+		});
+	}
+
+	row.dataset.autostart = autostart ? '1' : '0';
+
 	row.appendChild(card);
 
 	grid.appendChild(row);
 
 	return row;
+}
+
+async function updateAutostart(cameraUUID, enabled) {
+	if (!cameraUUID) {
+		return;
+	}
+
+	try {
+		const response = await fetch(
+			'/settings/update_autostart',
+			{
+				method: 'POST',
+				headers: {
+					'Content-Type':
+						'application/json'
+				},
+				body: JSON.stringify({
+					camera_uuid: cameraUUID,
+					autostart: enabled
+				})
+			}
+		);
+
+		if (!response.ok) {
+			throw new Error(response.statusText);
+		}
+
+		const row = document.querySelector(
+			`.camera-row[data-camera-id="${cameraUUID}"]`
+		);
+
+		if (row && row.dataset) {
+			row.dataset.autostart = enabled ? '1' : '0';
+		}
+	} catch (err) {
+		console.error(
+			'Failed to update autostart:',
+			err
+		);
+	}
 }
 
 // =========================
@@ -299,6 +355,11 @@ function updateSelectedCameraSettings(d) {
 			d.camera_uuid;
 	}
 
+	updateSelectedCameraAutostart(
+		d.camera_uuid,
+		d.autostart
+	);
+
 	settingsMap.forEach(
 		([slider, label, value]) => {
 
@@ -357,7 +418,8 @@ function fetchAndUpdateCameraSettings(
 			focus: setting.focus,
 			sensitivity: setting.sensitivity,
 			majority_vote_threshold: setting.majority_vote_threshold,
-			majority_vote_window: setting.majority_vote_window
+			majority_vote_window: setting.majority_vote_window,
+			autostart: setting.autostart
 		});
 
 	})
@@ -468,6 +530,7 @@ function addListenerToDisplayItem(
 					cameraId;
 			}
 
+			refreshAutostartCheckbox(cameraId);
 			fetchAndUpdateCameraSettings(
 				cameraId
 			);
@@ -499,6 +562,46 @@ function addListenerToDisplayItem(
 // =========================
 // Slider Fill
 // =========================
+function updateSelectedCameraAutostart(cameraUUID, autostart) {
+	const row = document.querySelector(
+		`.camera-row[data-camera-id="${cameraUUID}"]`
+	);
+
+	if (!row) {
+		return;
+	}
+
+	const checkbox =
+		row.querySelector('.autostart-checkbox');
+
+	if (checkbox) {
+		checkbox.checked = Boolean(autostart);
+	}
+
+	if (row.dataset) {
+		row.dataset.autostart = autostart ? '1' : '0';
+	}
+}
+
+function refreshAutostartCheckbox(cameraUUID) {
+	const row = document.querySelector(
+		`.camera-row[data-camera-id="${cameraUUID}"]`
+	);
+
+	if (!row) {
+		return;
+	}
+
+	const checkbox =
+		row.querySelector('.autostart-checkbox');
+
+	if (!checkbox) {
+		return;
+	}
+
+	checkbox.checked = row.dataset.autostart === '1';
+}
+
 function updateSliderFill(slider) {
 
 	if (!slider) {
@@ -1333,7 +1436,9 @@ document
 						cameras[camera_uuid]
 							.nickname,
 						cameras[camera_uuid]
-							.source
+							.source,
+						cameras[camera_uuid]
+							.autostart
 					);
 
 				if (item) {

@@ -170,6 +170,27 @@ async def update_settings(request: Request,
 	}}})
 	return RedirectResponse("/settings", status_code=303)
 
+@router.post("/settings/update_autostart", include_in_schema=False)
+async def update_autostart(request: Request):
+	"""Update camera autostart setting."""
+	data = await request.json()
+	camera_uuid = data.get('camera_uuid')
+	checkbox = data.get('autostart')
+	if isinstance(checkbox, bool):
+		autostart = checkbox
+	elif isinstance(checkbox, str):
+		autostart = checkbox.lower() in ("on", "true", "1")
+	else:
+		autostart = False
+	if not camera_uuid:
+		raise HTTPException(status_code=400, detail="Missing camera_uuid")
+	add_to_config({'camera_settings': {camera_uuid: {
+		"autostart": autostart
+	}}})
+	return {"success": True, "autostart": autostart}
+
+
+
 
 @router.post("/settings/update-countdown", include_in_schema=False)
 async def update_settings_countdown(request: Request,
@@ -338,7 +359,8 @@ async def config_camera_list(request: Request):
 		for camera_uuid in CAMERA_SETTINGS:
 			camera_uuid_list[camera_uuid] = {
 				"nickname": CAMERA_SETTINGS[camera_uuid].get("nickname", ""),
-				"source": CAMERA_SETTINGS[camera_uuid].get("source", "")
+				"source": CAMERA_SETTINGS[camera_uuid].get("source", ""),
+				"autostart": CAMERA_SETTINGS[camera_uuid].get("autostart", False)
 			}
 		logger.debug(f'{camera_uuid_list=}')
 		return {"success": True, "list": camera_uuid_list}
