@@ -137,6 +137,11 @@ def duet_send_notification(alert):
 	return True
 
 def get_duet_printer_status():
+	'''
+	Polled by UI and updates PRINTER_STATUS which is used
+	by the suspend_print_job
+	returns false if cannot get status from printer
+	'''
 	global PRINTER_STATUS
 	cmd = f'''/rr_model?key=state'''
 	code , state = _urlCall(printerUrl, cmd, False)
@@ -145,6 +150,7 @@ def get_duet_printer_status():
 		status = j['result']['status']
 		if status != PRINTER_STATUS:
 			logger.info(f'Printer status changed from {PRINTER_STATUS} to {status}')
+			PRINTER_STATUS = status
 		return status
 	elif code == 204:
 		logger.warning('No content returned when getting printer status')
@@ -162,13 +168,13 @@ def suspend_print_job(action):
 	# States are 'idle' ==> 'processing' ==> 'paused' ==> 'cancelled' after which no more commands sent
 	# or 'idle' ==> 'processing' ==> 'paused' ==> resumed ==> 'cancelled' ==> 'idle'
 
-	PRINTER_STATUS = get_duet_printer_status() or PRINTER_STATUS
+	get_duet_printer_status() # Updates PRINTER_STATUS
 	if action  == 'pause_print':
 		if PRINTER_STATUS  == 'processing':
 			_duet_pause()
 			_send_duet_code(f'''M291 S1 T0 P"Paused Printing"''')
 			while PRINTER_STATUS == 'processing':
-				PRINTER_STATUS = get_duet_printer_status() or 'paused'
+				PRINTER_STATUS = get_duet_printer_status() or 'paused' # get_duet_printer_status returns false if disconnected
 
 	elif action  == 'resume_print':
 		if PRINTER_STATUS  == 'paused':
