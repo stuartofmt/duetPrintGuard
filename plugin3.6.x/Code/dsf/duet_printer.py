@@ -161,9 +161,7 @@ def suspend_print_job(action):
 	# Need to allow for cancellation of request from one or other camera
 	# States are 'idle' ==> 'processing' ==> 'paused' ==> 'cancelled' after which no more commands sent
 	# or 'idle' ==> 'processing' ==> 'paused' ==> resumed ==> 'cancelled' ==> 'idle'
-	if PRINTER_STATUS == 'cancelled': # job cancelled
-		logger.info('Print job is cancelled - no more commands will be sent')
-		return
+
 	PRINTER_STATUS = get_duet_printer_status() or PRINTER_STATUS
 	if action  == 'pause_print':
 		if PRINTER_STATUS  == 'processing':
