@@ -225,7 +225,7 @@ function createDisplayItem(
 		});
 	}
 
-	row.dataset.autostart = autostart ? '1' : '0';
+	row.autostart = Boolean(autostart);
 
 	row.appendChild(card);
 
@@ -263,8 +263,8 @@ async function updateAutostart(cameraUUID, enabled) {
 			`.camera-row[data-camera-id="${cameraUUID}"]`
 		);
 
-		if (row && row.dataset) {
-			row.dataset.autostart = enabled ? '1' : '0';
+		if (row) {
+			row.autostart = Boolean(enabled);
 		}
 	} catch (err) {
 		console.error(
@@ -578,9 +578,7 @@ function updateSelectedCameraAutostart(cameraUUID, autostart) {
 		checkbox.checked = Boolean(autostart);
 	}
 
-	if (row.dataset) {
-		row.dataset.autostart = autostart ? '1' : '0';
-	}
+	row.autostart = Boolean(autostart);
 }
 
 function refreshAutostartCheckbox(cameraUUID) {
@@ -599,7 +597,7 @@ function refreshAutostartCheckbox(cameraUUID) {
 		return;
 	}
 
-	checkbox.checked = row.dataset.autostart === '1';
+	checkbox.checked = Boolean(row.autostart);
 }
 
 function updateSliderFill(slider) {

@@ -139,8 +139,9 @@ function createDisplayItem(camId,nickname,autostart = false) {
   const camFrag = camTemplate.content.cloneNode(true);
   const card = camFrag.firstElementChild;
   card.dataset.cameraId = camId;
-  card.dataset.autostart = autostart ? '1' : '0';
-  card.dataset.autostartPending = '0';
+  // use boolean properties for autostart state (no dataset keys)
+  card.autostart = !!autostart;
+  card.autostartPending = false;
 
     // 🔑 Update template content
   const nicknameEl = card.querySelector('.nickname');
@@ -221,7 +222,26 @@ async function updateCameraDisplay(item, d) {
       statusIndicator.style.backgroundColor = 'transparent';
       startStopButton.textContent = BTNSTOP;
       startStopButton.style.backgroundColor = '#f30606';
-      item.dataset.autostartPending = '0';
+      item.autostartPending = false;
+      // Only auto-stop detection if autostart is enabled for this camera
+      const autostart = Boolean(d.autostart) || Boolean(item.autostart);
+      if (autostart) {
+        try {
+          const printerStatus = await getPrinterStatus();
+          if (printerStatus && printerStatus.toLowerCase() === 'idle') {
+            const stopped = await sendDetectionRequest(false, item, item.dataset.cameraId);
+            if (stopped) {
+              statusIndicator.textContent = `Inactive`;
+              statusIndicator.style.color = '#f30606';
+              statusIndicator.style.backgroundColor = 'transparent';
+              startStopButton.textContent = BTNSTART;
+              startStopButton.style.backgroundColor = '#2ecc40';
+            }
+          }
+        } catch (e) {
+          console.warn('Error checking printer status to stop detection:', e);
+        }
+      }
   } else {
       statusIndicator.textContent = `Inactive`;
       statusIndicator.style.color = '#f30606';
@@ -230,15 +250,15 @@ async function updateCameraDisplay(item, d) {
       startStopButton.style.backgroundColor = '#2ecc40';
       //camPred.textContent = '';
 
-      const autostart = d.autostart || item.dataset.autostart === '1';
-      const pending = item.dataset.autostartPending === '1';
+      const autostart = Boolean(d.autostart) || Boolean(item.autostart);
+      const pending = Boolean(item.autostartPending);
       if (autostart && !pending) {
         const printerStatus = await getPrinterStatus();
         if (printerStatus && printerStatus.toLowerCase() === 'processing') {
-          item.dataset.autostartPending = '1';
+          item.autostartPending = true;
           const started = await sendDetectionRequest(true, item, item.dataset.cameraId);
           if (!started) {
-            item.dataset.autostartPending = '0';
+            item.autostartPending = false;
           }
         }
       }
