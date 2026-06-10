@@ -137,11 +137,14 @@ def duet_send_notification(alert):
 	return True
 
 def get_duet_printer_status():
+	global PRINTER_STATUS
 	cmd = f'''/rr_model?key=state'''
 	code , state = _urlCall(printerUrl, cmd, False)
 	if code == 200:
 		j = json.loads(state)
 		status = j['result']['status']
+		if status != PRINTER_STATUS:
+			logger.info(f'Printer status changed from {PRINTER_STATUS} to {status}')
 		return status
 	elif code == 204:
 		logger.warning('No content returned when getting printer status')
