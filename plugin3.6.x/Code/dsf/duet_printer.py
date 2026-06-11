@@ -175,20 +175,20 @@ def suspend_print_job(action):
 			_send_duet_code(f'''M291 S1 T0 P"Paused Printing"''')
 			# There is possibility of UI calling get_duet_status
 			# which changes PRINTER_STATUS before we get here
-			while PRINTER_STATUS == 'processing':
+			while PRINTER_STATUS != 'paused':
 				PRINTER_STATUS = get_duet_printer_status() or 'paused' # get_duet_printer_status returns false if disconnected
 
 	elif action  == 'resume_print':
 		if PRINTER_STATUS  == 'paused':
 			_duet_resume()
 			_send_duet_code(f'''M291 S1 T0 P"Resumed Printing"''')
-			while PRINTER_STATUS == 'paused':
+			while PRINTER_STATUS != 'processing':
 				PRINTER_STATUS = get_duet_printer_status() or 'processing'
 
 	elif action  == 'cancel_print':
 		if PRINTER_STATUS =='processing': # pause the printer first
 			_duet_pause()
-			while PRINTER_STATUS == 'processing':
+			while PRINTER_STATUS != 'paused':
 				PRINTER_STATUS = get_duet_printer_status() or 'paused'
 
 		if PRINTER_STATUS =='paused':
