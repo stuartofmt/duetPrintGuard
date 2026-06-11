@@ -194,7 +194,9 @@ def suspend_print_job(action):
 		if PRINTER_STATUS =='paused':
 			_duet_cancel()
 			_send_duet_code(f'''M291 S1 T0 P"Cancelled Printing"''')
-			PRINTER_STATUS = 'cancelled' # No more commands job cancelled
+			# Actual printer status will go to 'idle'
+			# but we set to cancelled to stop any more commands being sent
+			PRINTER_STATUS = 'cancelled' 
 	else:
 		logger.critical(f'Unknown action {action}')
 
