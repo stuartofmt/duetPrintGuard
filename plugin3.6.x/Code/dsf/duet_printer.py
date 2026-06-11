@@ -173,6 +173,8 @@ def suspend_print_job(action):
 		if PRINTER_STATUS  == 'processing':
 			_duet_pause()
 			_send_duet_code(f'''M291 S1 T0 P"Paused Printing"''')
+			# There is possibility of UI calling get_duet_status
+			# which changes PRINTER_STATUS before we get here
 			while PRINTER_STATUS == 'processing':
 				PRINTER_STATUS = get_duet_printer_status() or 'paused' # get_duet_printer_status returns false if disconnected
 
@@ -181,13 +183,13 @@ def suspend_print_job(action):
 			_duet_resume()
 			_send_duet_code(f'''M291 S1 T0 P"Resumed Printing"''')
 			while PRINTER_STATUS == 'paused':
-				PRINTER_STATUS = get_duet_printer_status() or 'idle'
+				PRINTER_STATUS = get_duet_printer_status() or 'processing'
 
 	elif action  == 'cancel_print':
 		if PRINTER_STATUS =='processing': # pause the printer first
 			_duet_pause()
-
-		time.sleep(2) #  Allow any prior pause to settle	
+			while PRINTER_STATUS == 'processing':
+				PRINTER_STATUS = get_duet_printer_status() or 'paused'
 
 		if PRINTER_STATUS =='paused':
 			_duet_cancel()
@@ -195,8 +197,6 @@ def suspend_print_job(action):
 			PRINTER_STATUS = 'cancelled' # No more commands job cancelled
 	else:
 		logger.critical(f'Unknown action {action}')
-
-
 
 
 def _send_macro(alert):
