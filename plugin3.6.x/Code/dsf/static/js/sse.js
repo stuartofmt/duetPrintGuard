@@ -27,6 +27,16 @@ if (evtSource) {
         }
     });
 
+    evtSource.addEventListener('camera_updated', (e) => {
+        try {
+            const cameraData = JSON.parse(e.data);
+            console.warn('event listener Received camera_updated event:', cameraData);
+            UpdateCameraState(cameraData);
+        } catch (error) {
+            console.error('Error parsing camera_updated SSE event data:', error, e.data);
+        }
+    });
+
     evtSource.addEventListener('error', (err) => {
         console.error('SSE event error', err, 'readyState=', evtSource.readyState);
     });
@@ -108,6 +118,26 @@ function AlertCountdown(data) {
 }
 
 
+function UpdateCameraState(data) {
+
+    console.warn('updating camera state:', data);
+
+    const camera_uuid = typeof data === 'object' ? data.camera_uuid : null;
+
+    const state = typeof data === 'object' ? data.state : null;
+
+        // Dispatch event
+        console.warn('updating camera status for camera_uuid:', camera_uuid, 'state:', state );
+        document.dispatchEvent(new CustomEvent('cameraStateUpdated', {
+            detail: {
+                camera_uuid: camera_uuid,
+                state: state
+            }
+        }));
+        return;
+}
+
+
 if (evtSource) {
     evtSource.onmessage = (e) => {
         try {
@@ -120,6 +150,10 @@ if (evtSource) {
                 else if (packet_data.event == "countdown_time") {
                     console.warn('onmessage countdown_time event:', packet_data);
                     AlertCountdown(packet_data.data);
+                }
+                else if (packet_data.event == "camera_updated") {
+                    console.warn('onmessage camera_updated event:', packet_data);
+                    UpdateCameraState(packet_data.data);
                 }
             } else {
                 console.warn('No data in SSE message');

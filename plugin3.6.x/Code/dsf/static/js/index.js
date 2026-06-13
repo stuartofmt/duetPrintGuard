@@ -204,10 +204,6 @@ async function updateCameraDisplay(item, d) {
   const camPred = item.querySelector(".camera-detection .detection-value"); 
   camPred.textContent = d.last_result;
   camPred.style.color = d.last_result === 'success' ? 'green' : 'red';
-  //if (defectActive === true) {
-  if (d.defect_active) {
-    camPred.textContent = 'DEFECT';
-  }
 
   const lastUpdate = item.querySelector(".last-update .update-value")
   lastUpdate.textContent = d.last_time ? new Date(d.last_time * 1000).toLocaleTimeString() : '-';
@@ -364,6 +360,18 @@ document.addEventListener('defectRaised', evt => {
   } 
 });
 
+// Called from sse when camera state updated in detection loop
+document.addEventListener('cameraStateUpdated', evt => {
+  const { camera_uuid, state } = evt.detail;
+  console.warn(`Camera state updated for camera ${camera_uuid}: state=${state}`);
+  const item = Array.from(cameraItems).find(item => item.dataset.cameraId === camera_uuid);
+  if (item) {
+    updateCameraDisplay(item, state);
+  } else {
+    console.warn(`No display item found for camera ${camera_uuid}`);
+  }
+});
+
 // =========================
 // Init
 // =========================
@@ -403,7 +411,7 @@ document.addEventListener('defectRaised', evt => {
     cameraItems = document.querySelectorAll('.camera-card');
 
     update_cameras();
-    setInterval(update_cameras, 5000);
+    //setInterval(update_cameras, 5000);
 })();
 
 
@@ -489,6 +497,8 @@ async function getCountdownSettings() {
 }
 
 async function updateDisplayItem(item, cameraUUID) {
+  // Only called to initialize the display item with the latest camera state
+  // SSE is used to push updates when setection is running
   try {
     const result = await fetch("/config/get-camera-state", {
       method: "POST",

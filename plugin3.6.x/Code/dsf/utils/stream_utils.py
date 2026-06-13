@@ -23,6 +23,8 @@ import uuid
 
 from duet_printer import suspend_print_job, duet_send_notification
 
+from routes.routes import managerSSE
+
 
 class StreamOptimizer:
 	"""Optimizes video stream frames and detection loops based on configuration."""
@@ -264,6 +266,8 @@ async def create_optimized_detection_loop(app_state, camera_uuid):
 
 				CAMERA_STATES[camera_uuid]['last_time'] = current_timestamp
 				CAMERA_STATES[camera_uuid]['last_result'] = label
+
+				await send_updateCamera_state(camera_uuid)
 				
 				"""
 				A running count of successive detections is maintained
@@ -289,12 +293,20 @@ async def create_optimized_detection_loop(app_state, camera_uuid):
 					
 					if passed_majority_vote: # only check if the current camera detects failure
 						logger.debug(f'{passed_majority_vote=} for camera {camera_uuid}')
+
+						# defect actve is used to display countdown in UI
+						# Only needs one camera to be active
+						# So we separete it from last_result
+						CAMERA_STATES[camera_uuid]['defect_active'] = True 
+						CAMERA_STATES[camera_uuid]['last_result'] = 'DEFECT'
+						await send_updateCamera_state(camera_uuid)
+						# Check if the current camera is part of the required combination for alerting
 						passed_camera_combination = _passed_multi_camera_test(countdown_control,camera_uuid,num_cameras)
 						logger.debug(f'{passed_camera_combination =}')
-						CAMERA_STATES[camera_uuid]['defect_active'] = True # only requires one camera to trigger
 
 					do_alert = False
-					if passed_majority_vote and passed_camera_combination:
+					#if passed_majority_vote and passed_camera_combination:
+					if passed_camera_combination:
 						logger.debug(f'In Alert')
 						# reset tests
 						_MAJORITY_VOTE = {}
@@ -303,9 +315,15 @@ async def create_optimized_detection_loop(app_state, camera_uuid):
 
 					if do_alert:
 										
-						# Send defect notification
+						# Send defect notification - uses printer notification system
 						send_defect_notification(camera_uuid) # sync
 
+						'''
+						# Update UI once - does not update last_time during countdown
+						await send_updateCamera_state(camera_uuid)
+						CAMERA_STATES[camera_uuid]['last_result'] = label
+						CAMERA_STATES[camera_uuid]['defect_active'] = False # reset for next detection
+						'''
 						#Start the UI countdown disply
 						await UI_countdown('start') # sync but non-blocking
 
@@ -441,7 +459,6 @@ async def UI_countdown(action):
 		countdown_time = 0
 	
 	try:
-		from routes.routes import managerSSE
 		payload = {
 			"event": "countdown_time",
 			"data": json.dumps({
@@ -595,6 +612,11 @@ async def stop_live_detection(camera_uuid):
 				logger.debug("Stopped live detection task for camera %s", camera_uuid)
 			except Exception as e:
 				logger.error("Error stopping live detection task for camera %s: %s", camera_uuid, e)
+		
+		# Dont need to do this on start as its updated in the detection loop
+		# This is just to ensure the UI is updated if the detection loop was stopped externally
+		CAMERA_STATES[camera_uuid]['live_detection_running'] = 'no'
+		await send_updateCamera_state(camera_uuid)
 
 		return {"message": f"Live detection stopped for camera {camera_uuid}"}
 
@@ -608,5 +630,26 @@ async def stop_live_detection(camera_uuid):
 			pass
 		return {"message": f"Live detection stopped for camera {camera_uuid} (with errors)"}
 
+async def send_updateCamera_state(camera_uuid):
+	"""Send a direct camera state SSE event to the browser.
+
+	This bypasses the ALERT model and the alert queueing path.
+	Only the camera state payload is sent to the SSE client.
+	"""
+	try:
+		# Only send relevant camera state fields to the UI
+		# Exclude any non-serializable objects
+		state = {k: v for k, v in CAMERA_STATES[camera_uuid].items() if k not in {'live_detection_task'}}
+		payload = {
+			"event": "camera_updated",
+			"data": json.dumps({
+				"camera_uuid": camera_uuid,
+				"state": state
+			})
+		}
+		await managerSSE.broadcast(payload)
+		logger.debug("Broadcast cameraStateUpdated SSE event successfully for camera %s", camera_uuid)
+	except Exception as e:
+		logger.error("Failed to broadcast cameraStateUpdated SSE event for camera %s: %s", camera_uuid, e)
 
 
