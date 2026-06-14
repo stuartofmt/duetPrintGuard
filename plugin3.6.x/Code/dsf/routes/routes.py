@@ -27,7 +27,7 @@ from utils.config import (
 	delete_from_config
 )
 from utils.shared_video_stream import get_shared_stream_manager
-from utils.stream_utils import UI_countdown, start_live_detection, stop_live_detection, save_request, create_optimized_frame_generator
+from utils.stream_utils import UI_countdown, start_live_detection, stop_live_detection, save_app_state_request, create_optimized_frame_generator
 
 router = APIRouter()
 
@@ -508,7 +508,7 @@ async def sse_connect(request: Request):
 async def starting_detection(request: Request, camera_uuid: str = Body(..., embed=True)):
 	"""Start continuous live detection on a specified camera."""
 	try:
-		save_request(request)
+		save_app_state_request(request.app.state) # Save the request state for later use in start_live_detection
 		await start_live_detection(camera_uuid)
 	except Exception as e:
 		logger.error("Error starting live detection for camera %s: %s", camera_uuid, e)

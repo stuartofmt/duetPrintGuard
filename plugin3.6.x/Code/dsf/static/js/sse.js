@@ -20,7 +20,7 @@ if (evtSource) {
     evtSource.addEventListener('countdown_time', (e) => {
         try {
             const countdownData = JSON.parse(e.data);
-            console.warn('event listener Received countdown_time event:', countdownData);
+            //console.warn('event listener Received countdown_time event:', countdownData);
             AlertCountdown(countdownData);
         } catch (error) {
             console.error('Error parsing countdown_time SSE event data:', error, e.data);
@@ -64,7 +64,7 @@ function AlertCountdown(data) {
     // Check to see if stop requested
     if (countdownTime <= 0) {
         if (window[countdownTimerId]) {
-            console.warn('Stopping countdown timer');
+            //console.warn('Stopping countdown timer');
             clearInterval(window[countdownTimerId]);
             delete window[countdownTimerId];
         }
@@ -120,14 +120,14 @@ function AlertCountdown(data) {
 
 function UpdateCameraState(data) {
 
-    console.warn('updating camera state:', data);
+    //console.warn('updating camera state:', data);
 
     const camera_uuid = typeof data === 'object' ? data.camera_uuid : null;
 
     const state = typeof data === 'object' ? data.state : null;
 
         // Dispatch event
-        console.warn('updating camera status for camera_uuid:', camera_uuid, 'state:', state );
+        //console.warn('updating camera status for camera_uuid:', camera_uuid, 'state:', state );
         document.dispatchEvent(new CustomEvent('cameraStateUpdated', {
             detail: {
                 camera_uuid: camera_uuid,
@@ -145,10 +145,10 @@ if (evtSource) {
             packet_data = packet_data.data;
             if (packet_data) {
                 if (packet_data.event == "alert") {
-                    console.warn('Wrong call');
+                    console.warn('Wrong call - no event called alert should be raised');
                 }
                 else if (packet_data.event == "countdown_time") {
-                    console.warn('onmessage countdown_time event:', packet_data);
+                    //console.warn('onmessage countdown_time event:', packet_data);
                     AlertCountdown(packet_data.data);
                 }
                 else if (packet_data.event == "camera_updated") {

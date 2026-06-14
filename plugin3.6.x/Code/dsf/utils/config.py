@@ -73,7 +73,6 @@ DEVICE_TYPE = "cuda" if (torch.cuda.is_available()) else (
 	"mps" if (torch.backends.mps.is_available()) else "cpu")
 
 def config_set_paths_and_initialize():
-	#global BASE_DIR, APP_DATA_DIR, SSL_DATA_DIR,CONFIG_FILE, SECRETS_FILE, LOCK_FILE, SSL_CERT_FILE, SSL_CA_FILE,KEYRING_SERVICE_NAME
 	global BASE_DIR, APP_DATA_DIR, CONFIG_FILE
 
 	APP_DATA_DIR = ""

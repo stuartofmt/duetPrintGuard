@@ -130,7 +130,8 @@ function createTopRowButtons(){
 
 }
 
-function createDisplayItem(camId,nickname,autostart = false) {
+//function createDisplayItem(camId,nickname,autostart = false) {
+function createDisplayItem(camId,nickname) {
   // Wrapper (CRITICAL)
   const row = document.createElement("div");
   row.className = "camera-row";
@@ -140,8 +141,8 @@ function createDisplayItem(camId,nickname,autostart = false) {
   const card = camFrag.firstElementChild;
   card.dataset.cameraId = camId;
   // use boolean properties for autostart state (no dataset keys)
-  card.autostart = !!autostart;
-  card.autostartPending = false;
+  //card.autostart = !!autostart;
+  //card.autostartPending = false;
 
     // 🔑 Update template content
   const nicknameEl = card.querySelector('.nickname');
@@ -218,9 +219,10 @@ async function updateCameraDisplay(item, d) {
       statusIndicator.style.backgroundColor = 'transparent';
       startStopButton.textContent = BTNSTOP;
       startStopButton.style.backgroundColor = '#f30606';
-      item.autostartPending = false;
+      /*
+      //item.autostartPending = false;
       // Only auto-stop detection if autostart is enabled for this camera
-      const autostart = Boolean(d.autostart) || Boolean(item.autostart);
+      //const autostart = Boolean(d.autostart) || Boolean(item.autostart);
       if (autostart) {
         try {
           const printerStatus = await getPrinterStatus();
@@ -238,6 +240,7 @@ async function updateCameraDisplay(item, d) {
           console.warn('Error checking printer status to stop detection:', e);
         }
       }
+      */
   } else {
       statusIndicator.textContent = `Inactive`;
       statusIndicator.style.color = '#f30606';
@@ -246,18 +249,21 @@ async function updateCameraDisplay(item, d) {
       startStopButton.style.backgroundColor = '#2ecc40';
       //camPred.textContent = '';
 
+      /*
       const autostart = Boolean(d.autostart) || Boolean(item.autostart);
       const pending = Boolean(item.autostartPending);
       if (autostart && !pending) {
         const printerStatus = await getPrinterStatus();
         if (printerStatus && printerStatus.toLowerCase() === 'processing') {
-          item.autostartPending = true;
-          const started = await sendDetectionRequest(true, item, item.dataset.cameraId);
+          //item.autostartPending = true;
+          item.autostartPending = false;
+          //const started = await sendDetectionRequest(true, item, item.dataset.cameraId);
           if (!started) {
             item.autostartPending = false;
           }
         }
       }
+      */
   }
 
 };
@@ -400,7 +406,8 @@ document.addEventListener('cameraStateUpdated', evt => {
   	//create a row for each camera
 	Object.keys(cameras).forEach(camera_uuid => {
 			const camera = cameras[camera_uuid] || {};
-			createDisplayItem(camera_uuid, camera.nickname, camera.autostart);
+			//createDisplayItem(camera_uuid, camera.nickname, camera.autostart);
+      createDisplayItem(camera_uuid, camera.nickname);
 		//addListenerToDisplayItem(item, camera_uuid);
 		});
 
@@ -459,6 +466,7 @@ async function getCameraList() {
   }
 }
 
+/*
 async function getPrinterStatus() {
   try {
     const result = await fetch("/printer/get-status");
@@ -472,7 +480,7 @@ async function getPrinterStatus() {
     return null;
   }
 }
-
+*/
 
 async function getCountdownSettings() {
   try {

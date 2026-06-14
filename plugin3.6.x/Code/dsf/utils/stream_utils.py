@@ -23,8 +23,6 @@ import uuid
 
 from duet_printer import suspend_print_job, duet_send_notification
 
-from routes.routes import managerSSE
-
 
 class StreamOptimizer:
 	"""Optimizes video stream frames and detection loops based on configuration."""
@@ -459,6 +457,7 @@ async def UI_countdown(action):
 		countdown_time = 0
 	
 	try:
+		from routes.routes import managerSSE
 		payload = {
 			"event": "countdown_time",
 			"data": json.dumps({
@@ -554,15 +553,17 @@ def send_defect_notification(camera_uuid):
 
 global _SAVED_REQUEST
 
-def save_request(request):
+def save_app_state_request(app_state):
 	global _SAVED_REQUEST
-	_SAVED_REQUEST = request
+	_SAVED_REQUEST = app_state
 
 
-async def start_live_detection(camera_uuid):
+async def start_live_detection(camera_uuid,request=None):
 	"""Start continuous live detection on a specified camera."""
 	global CAMERA_STATES, _SAVED_REQUEST
-	request = _SAVED_REQUEST
+	if request is None:
+		logger.debug(f'Using saved request value for start_live_detection')
+		request = _SAVED_REQUEST # we just pass through app.state
 
 	camera_state = CAMERA_STATES.get(camera_uuid)
 	if camera_state and camera_state["live_detection_running"] == 'yes':
@@ -571,7 +572,7 @@ async def start_live_detection(camera_uuid):
 	CAMERA_STATES[camera_uuid] = deepcopy(DEFAULT_CAMERA_STATE) # Precaution vs shallow copy
 
 	try:
-		task = asyncio.create_task(_live_detection_loop(request.app.state, camera_uuid))
+		task = asyncio.create_task(_live_detection_loop(request, camera_uuid))
 		
 		CAMERA_STATES[camera_uuid]['live_detection_running'] = 'yes'
 		CAMERA_STATES[camera_uuid]['live_detection_task'] = task
@@ -637,6 +638,7 @@ async def send_updateCamera_state(camera_uuid):
 	Only the camera state payload is sent to the SSE client.
 	"""
 	try:
+		from routes.routes import managerSSE
 		# Only send relevant camera state fields to the UI
 		# Exclude any non-serializable objects
 		state = {k: v for k, v in CAMERA_STATES[camera_uuid].items() if k not in {'live_detection_task'}}
@@ -648,7 +650,7 @@ async def send_updateCamera_state(camera_uuid):
 			})
 		}
 		await managerSSE.broadcast(payload)
-		logger.debug("Broadcast cameraStateUpdated SSE event successfully for camera %s", camera_uuid)
+		logger.debug(f"Broadcast camera_updated for {camera_uuid}")
 	except Exception as e:
 		logger.error("Failed to broadcast cameraStateUpdated SSE event for camera %s: %s", camera_uuid, e)
 

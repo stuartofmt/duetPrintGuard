@@ -1,12 +1,6 @@
-"""SRS
-Refactored app.py to move all initialization into the appstartup function,
-including config setup
-Some imports and other sertup placed in explicit function to allow config to have been set first
-This allows for better control of the application startup process
-"""
-
 
 import asyncio
+import threading
 from logger_module import logger
 import os
 from contextlib import asynccontextmanager
@@ -77,6 +71,18 @@ def init_routes_and_modules():
 			app_instance.state.model = None
 			raise
 		logger.debug("Camera indices set up successfully.")
+
+		# Run autostart_detection in a background daemon thread
+
+		def _run_autostart(app_state):
+			try:
+				asyncio.run(autostart_detection(app_state))
+			except Exception as e:
+				logger.error("Autostart detection background task failed: %s", e)
+
+		threading.Thread(target=_run_autostart, args=(app.state,), daemon=True).start()
+
+
 		yield
 		logger.debug("Cleaning up resources on shutdown...")
 		try:
@@ -142,7 +148,46 @@ def init_routes_and_modules():
 
 		response = await call_next(request)
 		return response
+	
 
+async def autostart_detection(app_state):
+	# Always runs in the background to check for autostart cameras
+	# and start detection when printer is processing
+	# This runs independently to the UI
+	from duet_printer import get_duet_printer_status
+	from utils.stream_utils import start_live_detection, stop_live_detection,save_app_state_request
+	from utils.config import (CAMERA_SETTINGS) # Need to import CAMERA_SETTINGS here to ensure it is initialized before use
+
+	autostart_pending = True
+	autostop_pending = False
+
+	while True:
+		autostart = {k:v for k,v in CAMERA_SETTINGS.items() if v.get('autostart', False)}
+		if autostart:
+			logger.debug(f'Waiting for printer before autostarting detection loop for cameras: {list(autostart.keys())}')
+			printer_status = get_duet_printer_status()
+			if printer_status == 'processing' and autostart_pending:
+				try:
+					logger.info(f'Autostarting detection loop for cameras: {list(autostart.keys())}')
+					for camera_uuid in autostart.keys():
+						save_app_state_request(app_state)
+						await start_live_detection(camera_uuid)
+					autostop_pending = True
+					autostart_pending = False
+				except Exception as e:
+					logger.error(f'Error auto starting detection loop for cameras: {list(autostart.keys())}: {e}')
+			elif printer_status != 'processing' and autostop_pending:
+				try:
+						logger.debug(f'Autostopping detection loop for cameras: {list(autostart.keys())} as printer is not processing')
+						for camera_uuid in autostart.keys():
+							await stop_live_detection(camera_uuid)
+						autostart_pending = True
+						autostop_pending = False
+				except Exception as e:
+					logger.error(f'Error auto stopping detection loop for cameras: {list(autostart.keys())}: {e}')
+
+		await asyncio.sleep(10)  # No need to poll to quickly
+	
 		
 def appstartup():
 	'''
@@ -151,12 +196,13 @@ def appstartup():
 	# pylint: disable=C0415
 	import uvicorn
 
+
 	# Allow config to first set paths for config file
 	config_set_paths_and_initialize()
 
 	init_routes_and_modules()
 	
-	logger.info(f'duetPrintGuard can be access using one of the following:')
+	logger.info(f'duetPrintGuard can be accessed using one of the following:')
 	logger.info(f'Control')
 	logger.info(f'http://localhost:{UI.PORT}')
 	logger.info(f'http://{DUET.IP}:{UI.PORT}')
