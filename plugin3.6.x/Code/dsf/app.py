@@ -17,7 +17,7 @@ from duet_config import (DUET, UI)
 
 from utils.config import (get_prototypes_dir,
 						   get_model_path, get_model_options_path,
-						config_set_paths_and_initialize,DEVICE_TYPE, SUCCESS_LABEL)
+						config_set_paths_and_initialize,DEVICE_TYPE, SUCCESS_LABEL, PRINTER_POLL_SECONDS)
 
 
 def init_routes_and_modules():
@@ -73,15 +73,7 @@ def init_routes_and_modules():
 		logger.debug("Camera indices set up successfully.")
 
 		# Run autostart_detection in a background daemon thread
-
-		def _run_autostart(app_state):
-			try:
-				asyncio.run(autostart_detection(app_state))
-			except Exception as e:
-				logger.error("Autostart detection background task failed: %s", e)
-
-		threading.Thread(target=_run_autostart, args=(app.state,), daemon=True).start()
-
+		activate_autostart_detection()
 
 		yield
 		logger.debug("Cleaning up resources on shutdown...")
@@ -150,43 +142,62 @@ def init_routes_and_modules():
 		return response
 	
 
-async def autostart_detection(app_state):
-	# Always runs in the background to check for autostart cameras
-	# and start detection when printer is processing
-	# This runs independently to the UI
+def activate_autostart_detection():
+	'''
+	If one or more cameras have autostart enabled the start the background poll
+	polling stops after the printer goes from processing to idle
+	so this needs to be called to reset autostart 
+	'''
+
+	from utils.config import CAMERA_SETTINGS # Need to import CAMERA_SETTINGS here to ensure it is initialized before use
+	print(f'{CAMERA_SETTINGS=}')
+	autostartCameras = {k:v for k,v in CAMERA_SETTINGS.items() if v.get('autostart', False)}
+	if not autostartCameras:
+		return
+	
+	def _run_autostart(cameras, app_state):
+		try:
+			asyncio.run(autostart_detection(cameras, app_state))
+		except Exception as e:
+			logger.error("Autostart detection background task failed: %s", e)
+
+	threading.Thread(target=_run_autostart, args=(autostartCameras, app.state,), daemon=True).start()
+	
+
+async def autostart_detection(cameras, app_state):
+	# Start detection when printer is processing
+	# Stops detection when printer goes to idle after processing
+	# Thread exits after idle state
+
 	from duet_printer import get_duet_printer_status
 	from utils.stream_utils import start_live_detection, stop_live_detection,save_app_state_request
-	from utils.config import (CAMERA_SETTINGS) # Need to import CAMERA_SETTINGS here to ensure it is initialized before use
 
 	autostart_pending = True
-	autostop_pending = False
+	monitoring = True
 
-	while True:
-		autostart = {k:v for k,v in CAMERA_SETTINGS.items() if v.get('autostart', False)}
-		if autostart:
-			logger.debug(f'Waiting for printer before autostarting detection loop for cameras: {list(autostart.keys())}')
-			printer_status = get_duet_printer_status()
-			if printer_status == 'processing' and autostart_pending:
-				try:
-					logger.info(f'Autostarting detection loop for cameras: {list(autostart.keys())}')
-					for camera_uuid in autostart.keys():
-						save_app_state_request(app_state)
-						await start_live_detection(camera_uuid)
-					autostop_pending = True
-					autostart_pending = False
-				except Exception as e:
-					logger.error(f'Error auto starting detection loop for cameras: {list(autostart.keys())}: {e}')
-			elif printer_status != 'processing' and autostop_pending:
-				try:
-						logger.debug(f'Autostopping detection loop for cameras: {list(autostart.keys())} as printer is not processing')
-						for camera_uuid in autostart.keys():
-							await stop_live_detection(camera_uuid)
-						autostart_pending = True
-						autostop_pending = False
-				except Exception as e:
-					logger.error(f'Error auto stopping detection loop for cameras: {list(autostart.keys())}: {e}')
+	while monitoring:
+		logger.debug(f'Waiting for printer before autostarting detection loop for cameras: {list(cameras.keys())}')
+		printer_status = get_duet_printer_status()
+		if printer_status == 'processing' and autostart_pending:
+			try:
+				logger.info(f'Autostarting detection loop for cameras: {list(cameras.keys())}')
+				for camera_uuid in cameras.keys():
+					save_app_state_request(app_state)
+					await start_live_detection(camera_uuid)
+				autostart_pending = False
+			except Exception as e:
+				logger.error(f'Error auto starting detection loop for cameras: {list(cameras.keys())}: {e}')
+		elif printer_status == 'idle' and not autostart_pending:
+			try:
+					logger.debug(f'Autostopping detection loop for cameras: {list(cameras.keys())} as printer is not processing')
+					for camera_uuid in cameras.keys():
+						await stop_live_detection(camera_uuid)
+			except Exception as e:
+				logger.error(f'Error auto stopping detection loop for cameras: {list(cameras.keys())}: {e}')
+			finally:
+				monitoring = False
 
-		await asyncio.sleep(10)  # No need to poll to quickly
+		await asyncio.sleep(PRINTER_POLL_SECONDS)  # No need to poll to quickly
 	
 		
 def appstartup():

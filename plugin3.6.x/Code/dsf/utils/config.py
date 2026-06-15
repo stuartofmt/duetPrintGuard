@@ -68,6 +68,7 @@ DETECTION_INTERVAL_MS = 1000 / DETECTIONS_PER_SECOND
 MIN_SSE_DISPATCH_DELAY_MS = 100 #100
 STANDARD_STAT_POLLING_RATE_MS = 250 #250
 SUCCESS_LABEL = "success"
+PRINTER_POLL_SECONDS = 10 
 
 DEVICE_TYPE = "cuda" if (torch.cuda.is_available()) else (
 	"mps" if (torch.backends.mps.is_available()) else "cpu")
