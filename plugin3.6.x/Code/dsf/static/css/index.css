@@ -32,7 +32,7 @@ body {
 /* =========================
    Control
    ========================= */
-.top-controls {
+.top-controls , .bottom-controls {
   display: flex;
   justify-content: center;
   align-items: center;
@@ -73,6 +73,7 @@ button.control {
 .btn-cancel { background-color: #d9534f; }
 .btn-ignore { background-color: #04f810; }
 .btn-settings { background-color: #0078d4; }
+.btn-autostart { background-color: #09e3f3; }
 
 
 

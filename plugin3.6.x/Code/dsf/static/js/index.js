@@ -5,7 +5,8 @@
 // =========================
 const camTemplate = document.getElementById("camera-template");
 const vidTemplate = document.getElementById("video-template");
-const btnTemplate = document.getElementById("button-template");
+const topbtnTemplate = document.getElementById("top-button-template");
+const bottombtnTemplate = document.getElementById("bottom-button-template");
 const grid = document.getElementById("grid");
 const noCameraModal = document.getElementById("noCamera");
 const noCameraClose = document.getElementById("closeModal");
@@ -19,6 +20,7 @@ const noCameraSettingsBtn = document.getElementById("noCameraSettingsBtn");
  let BTNSTOP = 'Stop Detection';
  let BTNSTART =  'Start Detection';
  let defectActive = false;
+ let autostartSet = false;
 
  //
   let topControls;
@@ -27,6 +29,9 @@ const noCameraSettingsBtn = document.getElementById("noCameraSettingsBtn");
   let cancelBtn;
   let countdownTimer;
   let flashButton;
+
+  let settingsBtn;
+  let autostartBtn;
 
 // =========================
 // Snapshot Queue
@@ -90,8 +95,8 @@ noCameraSettingsBtn?.addEventListener("click", () => {
 // =========================
 function createTopRowButtons(){
   const row = document.createElement("div");
-  row.className = "button-row";
-  const btnFrag = btnTemplate.content.cloneNode(true);
+  row.className = "top-button-row";
+  const btnFrag = topbtnTemplate.content.cloneNode(true);
   const btn = btnFrag.firstElementChild;
 
   ignoreBtn = btn.querySelector(".btn-ignore");
@@ -129,6 +134,35 @@ function createTopRowButtons(){
   grid.appendChild(row);
 
 }
+
+function createBottomRowButtons(){
+  const row = document.createElement("div");
+  row.className = "bottom-button-row";
+  const btnFrag = bottombtnTemplate.content.cloneNode(true);
+  const btn = btnFrag.firstElementChild;
+
+  settingsBtn = btn.querySelector(".btn-settings");
+  autostartBtn = btn.querySelector(".btn-autostart");
+  //cancelBtn = btn.querySelector(".btn-cancel");
+
+  // Event for setting button
+  settingsBtn.addEventListener("click", () => {
+    window.location.href = "/settings";
+  });
+
+  // Event for autostart button
+  autostartBtn.addEventListener("click", () => {
+    reenableAutoStart()
+  });
+
+  row.appendChild(btn);
+  grid.appendChild(row);
+
+}
+
+
+
+
 
 //function createDisplayItem(camId,nickname,autostart = false) {
 function createDisplayItem(camId,nickname) {
@@ -199,6 +233,21 @@ function createSettingsButton() {
   grid.appendChild(row);
 }
 
+function createAutostartButton() {
+  const row = document.createElement("div");
+  row.className = "top-controls";
+
+  const button = document.createElement("button");
+  button.className = "control btn-settings";
+  button.textContent = "Reenable Autostart";
+  button.addEventListener("click", () => {
+    reenableAutoStart();
+  });
+
+  row.appendChild(button);
+  grid.appendChild(row);
+}
+
 
 async function updateCameraDisplay(item, d) {
 
@@ -219,55 +268,26 @@ async function updateCameraDisplay(item, d) {
       statusIndicator.style.backgroundColor = 'transparent';
       startStopButton.textContent = BTNSTOP;
       startStopButton.style.backgroundColor = '#f30606';
-      /*
-      //item.autostartPending = false;
-      // Only auto-stop detection if autostart is enabled for this camera
-      //const autostart = Boolean(d.autostart) || Boolean(item.autostart);
-      if (autostart) {
-        try {
-          const printerStatus = await getPrinterStatus();
-          if (printerStatus && printerStatus.toLowerCase() === 'idle') {
-            const stopped = await sendDetectionRequest(false, item, item.dataset.cameraId);
-            if (stopped) {
-              statusIndicator.textContent = `Inactive`;
-              statusIndicator.style.color = '#f30606';
-              statusIndicator.style.backgroundColor = 'transparent';
-              startStopButton.textContent = BTNSTART;
-              startStopButton.style.backgroundColor = '#2ecc40';
-            }
-          }
-        } catch (e) {
-          console.warn('Error checking printer status to stop detection:', e);
-        }
-      }
-      */
+      
   } else {
       statusIndicator.textContent = `Inactive`;
       statusIndicator.style.color = '#f30606';
       statusIndicator.style.backgroundColor = 'transparent';
       startStopButton.textContent = BTNSTART;
       startStopButton.style.backgroundColor = '#2ecc40';
-      //camPred.textContent = '';
-
-      /*
-      const autostart = Boolean(d.autostart) || Boolean(item.autostart);
-      const pending = Boolean(item.autostartPending);
-      if (autostart && !pending) {
-        const printerStatus = await getPrinterStatus();
-        if (printerStatus && printerStatus.toLowerCase() === 'processing') {
-          //item.autostartPending = true;
-          item.autostartPending = false;
-          //const started = await sendDetectionRequest(true, item, item.dataset.cameraId);
-          if (!started) {
-            item.autostartPending = false;
-          }
-        }
-      }
-      */
   }
-
-};
-
+  
+  // Display autostop button if autostart is enabled for any
+  const autostart = Boolean(d.autostart);
+  console.warn(d);
+  console.warn(autostart);
+  if (autostart) {
+    autostartBtn.style.display = "block";
+  }
+  else{
+    autostartBtn.style.display = "none";
+  }
+}
 
 function flashCountdown(action) {
 
@@ -411,8 +431,17 @@ document.addEventListener('cameraStateUpdated', evt => {
 		//addListenerToDisplayItem(item, camera_uuid);
 		});
 
+  
+  createBottomRowButtons();
+
+  //bottomtopControls = document.querySelector(".bottom-controls");
+  //settingsBtn = bottomControls.querySelector(".btn-settings");
+  //autostartBtn = bottomControls.querySelector(".btn-autostart");
+
   // add settings button after all camera cards
-  createSettingsButton();
+  //createSettingsButton();
+
+  //createAutostartButton();
 
   //Get a list of all camera rows
     cameraItems = document.querySelectorAll('.camera-card');
@@ -466,21 +495,23 @@ async function getCameraList() {
   }
 }
 
-/*
-async function getPrinterStatus() {
+
+async function reenableAutoStart() {
   try {
-    const result = await fetch("/printer/get-status");
+    const result = await fetch("/printer/reenableautostart");
     if (!result.ok) {
       throw new Error(`HTTP ${result.status}`);
     }
-    const data = await result.json();
-    return data.status;
+    //const data = await result.json();
+    //return data.status;
+    return;
   } catch (err) {
-    console.warn('Error from /printer/get-status', err);
-    return null;
+    console.warn('Error from /printer/reanableautostart', err);
+    //return null;
+    return;
   }
 }
-*/
+
 
 async function getCountdownSettings() {
   try {

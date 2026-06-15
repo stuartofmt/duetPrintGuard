@@ -537,3 +537,17 @@ async def get_printer_status(request: Request):
 	except Exception as e:
 		logger.error("Error getting printer status: %s", e)
 		return {"success": False, "message": "Failed to get printer status"}
+	
+	
+
+@router.get("/printer/reenableautostart", include_in_schema=False)
+async def reenable_autostart(request: Request):
+	"""Reenable autostart"""
+	from app import activate_autostart_detection
+	try:
+		activate_autostart_detection()
+		return {"success": True}
+	except Exception as e:
+		logger.error("Error reenabling autostart: %s", e)
+		return {"success": False, "message": "Failed to reenable autostart"}
+	

@@ -4,6 +4,7 @@ import threading
 from logger_module import logger
 import os
 from contextlib import asynccontextmanager
+import time
 
 
 
@@ -18,6 +19,10 @@ from duet_config import (DUET, UI)
 from utils.config import (get_prototypes_dir,
 						   get_model_path, get_model_options_path,
 						config_set_paths_and_initialize,DEVICE_TYPE, SUCCESS_LABEL, PRINTER_POLL_SECONDS)
+
+global autostart_running
+autostart_running = threading.Event()
+
 
 
 def init_routes_and_modules():
@@ -73,7 +78,7 @@ def init_routes_and_modules():
 		logger.debug("Camera indices set up successfully.")
 
 		# Run autostart_detection in a background daemon thread
-		activate_autostart_detection()
+		# activate_autostart_detection()
 
 		yield
 		logger.debug("Cleaning up resources on shutdown...")
@@ -148,11 +153,17 @@ def activate_autostart_detection():
 	polling stops after the printer goes from processing to idle
 	so this needs to be called to reset autostart 
 	'''
+	global autostart_running
+	if autostart_running.is_set(): # stop the thread ans start again
+		logger.debug('Autostart will be restarted')
+		autostart_running.clear() # This will allow the thread to stop
+		time.sleep(PRINTER_POLL_SECONDS*1.5)
 
 	from utils.config import CAMERA_SETTINGS # Need to import CAMERA_SETTINGS here to ensure it is initialized before use
-	print(f'{CAMERA_SETTINGS=}')
+
 	autostartCameras = {k:v for k,v in CAMERA_SETTINGS.items() if v.get('autostart', False)}
 	if not autostartCameras:
+		logger.info('Autostart not required')
 		return
 	
 	def _run_autostart(cameras, app_state):
@@ -160,7 +171,9 @@ def activate_autostart_detection():
 			asyncio.run(autostart_detection(cameras, app_state))
 		except Exception as e:
 			logger.error("Autostart detection background task failed: %s", e)
+	logger.info('Starting Autostart')
 
+	autostart_running.set() # Mark the thread as started
 	threading.Thread(target=_run_autostart, args=(autostartCameras, app.state,), daemon=True).start()
 	
 
@@ -169,11 +182,15 @@ async def autostart_detection(cameras, app_state):
 	# Stops detection when printer goes to idle after processing
 	# Thread exits after idle state
 
+
 	from duet_printer import get_duet_printer_status
 	from utils.stream_utils import start_live_detection, stop_live_detection,save_app_state_request
 
+	global autostart_running
+
 	autostart_pending = True
 	monitoring = True
+	
 
 	while monitoring:
 		logger.debug(f'Waiting for printer before autostarting detection loop for cameras: {list(cameras.keys())}')
@@ -198,6 +215,10 @@ async def autostart_detection(cameras, app_state):
 				monitoring = False
 
 		await asyncio.sleep(PRINTER_POLL_SECONDS)  # No need to poll to quickly
+		if not autostart_running.is_set():
+			break
+	autostart_running.clear() #Mark thread as finished
+	logger.info('Autostart Stopped')
 	
 		
 def appstartup():

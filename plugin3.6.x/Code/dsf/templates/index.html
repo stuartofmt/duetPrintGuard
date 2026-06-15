@@ -17,7 +17,7 @@
   </div>
 
   <!-- Templates -->
-  <template id="button-template">
+  <template id="top-button-template">
     <div class="top-controls">
       <button class="control btn-pause">Pause</button>
       <button class="control btn-cancel">Cancel</button>
@@ -56,6 +56,17 @@
   <template id="video-template">
     <div class="camera-video-preview">
       <img src="{{ url_for('static', path='images/default_icon.png') }}" alt="Camera Icon" />
+    </div>
+  </template>
+
+<template id="bottom-button-template">
+    <div class="bottom-controls">
+      <button class="control btn-settings">Settings</button>
+      <button class="control btn-autostart" style="display: none;">Autostart</button>
+      <!--
+      <button class="control btn-ignore" style="display: none;">Ignore</button>
+      <span class="control countdown-timer" style="display: none;"></span>
+      -->
     </div>
   </template>
 
