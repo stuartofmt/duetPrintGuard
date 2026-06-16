@@ -47,6 +47,16 @@ if (evtSource) {
         }
     });
 
+    evtSource.addEventListener('autostart_running', (e) => {
+        try {
+            const autostartRunning = JSON.parse(e.data);
+            console.warn('event listener Received camera_updated event:', autostartRunning);
+            UpdateAutostartRunning(autostartRunning);
+        } catch (error) {
+            console.error('Error parsing autostart_running SSE event data:', error, e.data);
+        }
+    });
+
     evtSource.addEventListener('error', (err) => {
         console.error('SSE event error', err, 'readyState=', evtSource.readyState);
     });
@@ -162,6 +172,20 @@ function UpdateAutostart(data) {
     return;
 }
 
+function UpdateAutostartRunning(data) {
+
+    //console.warn('updating autostart:', data);
+
+    const state = typeof data === 'object' ? data.state : null;
+
+    // Dispatch event
+    document.dispatchEvent(new CustomEvent('autostartRunning', {
+        detail: {
+            state: state
+        }
+    }));
+    return;
+}
 
 
 if (evtSource) {
@@ -184,6 +208,10 @@ if (evtSource) {
                 else if (packet_data.event == "autostart_updated") {
                     console.warn('onmessage autostart updated event:', packet_data);
                     UpdateAutostart(packet_data.data);
+                }
+                else if (packet_data.event == "autostart_running") {
+                    console.warn('onmessage autostart updated event:', packet_data);
+                    UpdateAutostartRunning(packet_data.data);
                 }
             } else {
                 console.warn('No data in SSE message');

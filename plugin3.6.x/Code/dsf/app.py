@@ -5,6 +5,7 @@ from logger_module import logger
 import os
 from contextlib import asynccontextmanager
 import time
+import json
 
 
 
@@ -147,18 +148,23 @@ def init_routes_and_modules():
 		return response
 	
 
-def activate_autostart_detection():
+def activate_autostart_detection(Enable):
 	'''
 	If one or more cameras have autostart enabled the start the background poll
 	polling stops after the printer goes from processing to idle
 	so this needs to be called to reset autostart 
 	'''
 	global autostart_running
-	if autostart_running.is_set(): # stop the thread ans start again
-		logger.debug('Autostart will be restarted')
-		autostart_running.clear() # This will allow the thread to stop
-		time.sleep(PRINTER_POLL_SECONDS*1.5)
-
+	if not Enable: # Stop the thread if its running
+		if autostart_running.is_set(): # stop the thread
+			logger.debug('Autostart will be restarted')
+			autostart_running.clear() # This will allow the thread to stop
+		return
+	
+	if Enable:
+		if autostart_running.is_set(): #Already running
+			return
+	# Need to start the thread
 	from utils.config import CAMERA_SETTINGS # Need to import CAMERA_SETTINGS here to ensure it is initialized before use
 
 	autostartCameras = {k:v for k,v in CAMERA_SETTINGS.items() if v.get('autostart', False)}
@@ -191,7 +197,7 @@ async def autostart_detection(cameras, app_state):
 	autostart_pending = True
 	monitoring = True
 	
-
+	await send_autostart_running(True)
 	while monitoring:
 		logger.debug(f'Waiting for printer before autostarting detection loop for cameras: {list(cameras.keys())}')
 		printer_status = get_duet_printer_status()
@@ -217,8 +223,28 @@ async def autostart_detection(cameras, app_state):
 		await asyncio.sleep(PRINTER_POLL_SECONDS)  # No need to poll to quickly
 		if not autostart_running.is_set():
 			break
+	await send_autostart_running(False)
 	autostart_running.clear() #Mark thread as finished
 	logger.info('Autostart Stopped')
+
+async def send_autostart_running(state):
+	"""Send a direct autostart state SSE event to the browser.
+
+	This bypasses the ALERT model and the alert queueing path.
+	Only the camera state payload is sent to the SSE client.
+	"""
+	try:
+		from routes.routes import managerSSE
+		payload = {
+			"event": "autostart_running",
+			"data": json.dumps({
+				"state": state
+			})
+		}
+		await managerSSE.broadcast(payload)
+		logger.debug(f"Broadcast autostart_running to {state}")
+	except Exception as e:
+		logger.error("Failed to broadcast autostart_running SSE event =  %s: %s", state, e)
 	
 		
 def appstartup():

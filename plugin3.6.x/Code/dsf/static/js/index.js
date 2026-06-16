@@ -21,6 +21,8 @@ const noCameraSettingsBtn = document.getElementById("noCameraSettingsBtn");
  let BTNSTART =  'Start Detection';
  let defectActive = false;
  let autostartSet = false;
+ let AUTOSTOP = 'Disable Autostart';
+ let AUTORESTART =  'Enable Autostart';
 
  //
   let topControls;
@@ -152,7 +154,13 @@ function createBottomRowButtons(){
 
   // Event for autostart button
   autostartBtn.addEventListener("click", () => {
-    reenableAutoStart()
+    if (autostartBtn.textContent == AUTORESTART){
+      enableAutoStart()
+    }else{
+      autostartBtn.textContent = 'Wait ...'
+      autostartBtn.style.backgroundColor = '#e4a00d';
+      disableAutoStart()
+    }
   });
 
   row.appendChild(btn);
@@ -161,7 +169,6 @@ function createBottomRowButtons(){
 }
 
 
-//function createDisplayItem(camId,nickname,autostart = false) {
 function createDisplayItem(camId,nickname) {
   // Wrapper (CRITICAL)
   const row = document.createElement("div");
@@ -359,10 +366,25 @@ document.addEventListener('autostartChanged', evt => {
   // Display autostop button if autostart is enabled for any
   if (autostartSet) {
     autostartBtn.style.display = "block";
+    autostartBtn.style.backgroundColor = '#2ecc40';
   }
   else{
     autostartBtn.style.display = "none";
   }
+});
+
+// Called from sse when autostart thread starts / stops
+document.addEventListener('autostartRunning', evt => {
+  const autostartRun = evt.detail.state;
+  console.warn(`autostart thread updated with state=${autostartRun}`);
+  // Display autostop button if autostart is enabled for any
+    if (autostartRun) {
+          autostartBtn.textContent = AUTOSTOP;
+          autostartBtn.style.backgroundColor = '#f30606';         
+    } else {
+          autostartBtn.textContent = AUTORESTART;
+          autostartBtn.style.backgroundColor = '#2ecc40';
+    }
 });
 
 // =========================
@@ -412,6 +434,7 @@ document.addEventListener('autostartChanged', evt => {
   // Display autostop button if autostart is enabled for any
   if (autostartSet) {
     autostartBtn.style.display = "block";
+    autostartBtn.style.backgroundColor = '#2ecc40';
   }
   else{
     autostartBtn.style.display = "none";
@@ -465,9 +488,9 @@ async function getCameraList() {
 }
 
 
-async function reenableAutoStart() {
+async function enableAutoStart() {
   try {
-    const result = await fetch("/printer/reenableautostart");
+    const result = await fetch("/printer/enableautostart");
     if (!result.ok) {
       throw new Error(`HTTP ${result.status}`);
     }
@@ -475,7 +498,23 @@ async function reenableAutoStart() {
     //return data.status;
     return;
   } catch (err) {
-    console.warn('Error from /printer/reanableautostart', err);
+    console.warn('Error from /printer/enableautostart', err);
+    //return null;
+    return;
+  }
+}
+
+async function disableAutoStart() {
+  try {
+    const result = await fetch("/printer/disableautostart");
+    if (!result.ok) {
+      throw new Error(`HTTP ${result.status}`);
+    }
+    //const data = await result.json();
+    //return data.status;
+    return;
+  } catch (err) {
+    console.warn('Error from /printer/disableautostart', err);
     //return null;
     return;
   }
