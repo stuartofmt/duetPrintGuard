@@ -6,6 +6,7 @@ import time
 import uuid
 import sys
 import glob
+import json
 from copy import deepcopy
 
 from fastapi import APIRouter, Body, Form, HTTPException, Request
@@ -185,8 +186,16 @@ async def update_autostart(request: Request):
 	if not camera_uuid:
 		raise HTTPException(status_code=400, detail="Missing camera_uuid")
 	add_to_config({'camera_settings': {camera_uuid: {
-		"autostart": autostart
-	}}})
+		"autostart": autostart}}})
+
+	# Since we updated autostart - check to see if any cameras have it set then let index UI
+	autostartSet = any(
+		settings.get("autostart", False)
+		for settings in CAMERA_SETTINGS.values()
+	)
+
+	await send_autostartUpdated_state(autostartSet)
+
 	return {"success": True, "autostart": autostart}
 
 
@@ -551,3 +560,21 @@ async def reenable_autostart(request: Request):
 		logger.error("Error reenabling autostart: %s", e)
 		return {"success": False, "message": "Failed to reenable autostart"}
 	
+async def send_autostartUpdated_state(state):
+	"""Send a direct autostart state SSE event to the browser.
+
+	This bypasses the ALERT model and the alert queueing path.
+	Only the camera state payload is sent to the SSE client.
+	"""
+	try:
+		from routes.routes import managerSSE
+		payload = {
+			"event": "autostart_updated",
+			"data": json.dumps({
+				"state": state
+			})
+		}
+		await managerSSE.broadcast(payload)
+		logger.debug(f"Broadcast autostart_updated to {state}")
+	except Exception as e:
+		logger.error("Failed to broadcast autostartUpdated SSE event =  %s: %s", state, e)

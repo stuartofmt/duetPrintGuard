@@ -161,9 +161,6 @@ function createBottomRowButtons(){
 }
 
 
-
-
-
 //function createDisplayItem(camId,nickname,autostart = false) {
 function createDisplayItem(camId,nickname) {
   // Wrapper (CRITICAL)
@@ -174,9 +171,6 @@ function createDisplayItem(camId,nickname) {
   const camFrag = camTemplate.content.cloneNode(true);
   const card = camFrag.firstElementChild;
   card.dataset.cameraId = camId;
-  // use boolean properties for autostart state (no dataset keys)
-  //card.autostart = !!autostart;
-  //card.autostartPending = false;
 
     // 🔑 Update template content
   const nicknameEl = card.querySelector('.nickname');
@@ -218,36 +212,6 @@ function createDisplayItem(camId,nickname) {
   grid.appendChild(row);
 }
 
-function createSettingsButton() {
-  const row = document.createElement("div");
-  row.className = "top-controls";
-
-  const button = document.createElement("button");
-  button.className = "control btn-settings";
-  button.textContent = "Settings";
-  button.addEventListener("click", () => {
-    window.location.href = "/settings";
-  });
-
-  row.appendChild(button);
-  grid.appendChild(row);
-}
-
-function createAutostartButton() {
-  const row = document.createElement("div");
-  row.className = "top-controls";
-
-  const button = document.createElement("button");
-  button.className = "control btn-settings";
-  button.textContent = "Reenable Autostart";
-  button.addEventListener("click", () => {
-    reenableAutoStart();
-  });
-
-  row.appendChild(button);
-  grid.appendChild(row);
-}
-
 
 async function updateCameraDisplay(item, d) {
 
@@ -277,16 +241,6 @@ async function updateCameraDisplay(item, d) {
       startStopButton.style.backgroundColor = '#2ecc40';
   }
   
-  // Display autostop button if autostart is enabled for any
-  const autostart = Boolean(d.autostart);
-  console.warn(d);
-  console.warn(autostart);
-  if (autostart) {
-    autostartBtn.style.display = "block";
-  }
-  else{
-    autostartBtn.style.display = "none";
-  }
 }
 
 function flashCountdown(action) {
@@ -398,6 +352,19 @@ document.addEventListener('cameraStateUpdated', evt => {
   }
 });
 
+// Called from sse when autostart changed
+document.addEventListener('autostartChanged', evt => {
+  autostartSet = evt.detail.state;
+  console.warn(`autodetect updated with state=${autostartSet}`);
+  // Display autostop button if autostart is enabled for any
+  if (autostartSet) {
+    autostartBtn.style.display = "block";
+  }
+  else{
+    autostartBtn.style.display = "none";
+  }
+});
+
 // =========================
 // Init
 // =========================
@@ -423,31 +390,33 @@ document.addEventListener('cameraStateUpdated', evt => {
   cancelBtn = topControls.querySelector(".btn-cancel");
   countdownTimer = topControls.querySelector(".countdown-timer");
 
-  	//create a row for each camera
+  // create a row for each camera
+  // and determine if autostart is set
 	Object.keys(cameras).forEach(camera_uuid => {
 			const camera = cameras[camera_uuid] || {};
-			//createDisplayItem(camera_uuid, camera.nickname, camera.autostart);
       createDisplayItem(camera_uuid, camera.nickname);
-		//addListenerToDisplayItem(item, camera_uuid);
+
+      if (camera.autostart){
+        autostartSet = true;
+      }
 		});
 
   
   createBottomRowButtons();
 
-  //bottomtopControls = document.querySelector(".bottom-controls");
-  //settingsBtn = bottomControls.querySelector(".btn-settings");
-  //autostartBtn = bottomControls.querySelector(".btn-autostart");
-
-  // add settings button after all camera cards
-  //createSettingsButton();
-
-  //createAutostartButton();
-
   //Get a list of all camera rows
-    cameraItems = document.querySelectorAll('.camera-card');
+  cameraItems = document.querySelectorAll('.camera-card');
 
-    update_cameras();
-    //setInterval(update_cameras, 5000);
+  update_cameras();
+
+  // Display autostop button if autostart is enabled for any
+  if (autostartSet) {
+    autostartBtn.style.display = "block";
+  }
+  else{
+    autostartBtn.style.display = "none";
+  }
+
 })();
 
 

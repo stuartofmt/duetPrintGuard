@@ -37,6 +37,16 @@ if (evtSource) {
         }
     });
 
+    evtSource.addEventListener('autostart_updated', (e) => {
+        try {
+            const autostart = JSON.parse(e.data);
+            console.warn('event listener Received autostart_updated event:', autostart);
+            UpdateAutostart(autostart);
+        } catch (error) {
+            console.error('Error parsing autostart_updated SSE event data:', error, e.data);
+        }
+    });
+
     evtSource.addEventListener('error', (err) => {
         console.error('SSE event error', err, 'readyState=', evtSource.readyState);
     });
@@ -137,6 +147,22 @@ function UpdateCameraState(data) {
         return;
 }
 
+function UpdateAutostart(data) {
+
+    //console.warn('updating autostart:', data);
+
+    const state = typeof data === 'object' ? data.state : null;
+
+    // Dispatch event
+    document.dispatchEvent(new CustomEvent('autostartChanged', {
+        detail: {
+            state: state
+        }
+    }));
+    return;
+}
+
+
 
 if (evtSource) {
     evtSource.onmessage = (e) => {
@@ -154,6 +180,10 @@ if (evtSource) {
                 else if (packet_data.event == "camera_updated") {
                     console.warn('onmessage camera_updated event:', packet_data);
                     UpdateCameraState(packet_data.data);
+                }
+                else if (packet_data.event == "autostart_updated") {
+                    console.warn('onmessage autostart updated event:', packet_data);
+                    UpdateAutostart(packet_data.data);
                 }
             } else {
                 console.warn('No data in SSE message');

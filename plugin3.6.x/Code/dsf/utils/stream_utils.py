@@ -424,8 +424,6 @@ def _passed_multi_camera_test(countdown_control, camera_uuid,num_cameras):
 	if countdown_control == 'any_camera':
 		if camera_uuid not in _CAMERA_AGREEMENT:
 				_CAMERA_AGREEMENT.append(camera_uuid)
-
-		print(f'Any {_CAMERA_AGREEMENT=}')
 		
 		if len(_CAMERA_AGREEMENT) >= 1: #Ok on first camera or more
 			return True
@@ -436,8 +434,6 @@ def _passed_multi_camera_test(countdown_control, camera_uuid,num_cameras):
 	if countdown_control == 'all_cameras':
 		if camera_uuid not in _CAMERA_AGREEMENT:
 			_CAMERA_AGREEMENT.append(camera_uuid)
-		
-		print(f'All {_CAMERA_AGREEMENT=}')
 
 		if len(_CAMERA_AGREEMENT) >= num_cameras: # First time we hit the required number of cameras
 				return True
