@@ -6,9 +6,9 @@ The main page is accessible via `http://localhost:<PORT>` or `http://<IP>:<PORT>
 IP and PORT are set in the [DUET] section of the configuration file.
 
 Broadly, there are three main states
--- Not Detecting\
--- Detecting - No Defect\
--- Detecting - Defect\
+- Not Detecting\
+- Detecting - No Defect\
+- Detecting - Defect\
 
 ### Not Detecting
 
