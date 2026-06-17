@@ -6,26 +6,26 @@ The main page is accessible via `http://localhost:<PORT>` or `http://<IP>:<PORT>
 IP and PORT are set in the [DUET] section of the configuration file.
 
 Broadly, there are three main states
-- Not Detecting\
-- Detecting - No Defect\
-- Detecting - Defect\
+- Not Detecting
+- Detecting - No Defect
+- Detecting - Defect
 
 ### Not Detecting
 
 This image shows the main UI of duetPrintGuard comprisiong three sections.
--- top control section\
--- middle camera section\
--- bottom cootrol section\
+- top control section
+- middle camera section
+- bottom control section
 
 The top control section provided printer control and displays countdown information
 
 In the middle section: configured camera is shown separately with the following details:
- -- The Camera nickname
- -- Current detection status [Inactive]
- -- Current print state [Blank]
- -- The time of the last update [Blank]
- -- A thumbnail image of the cameras view
- -- A button to toggle Detecting on and off [Start Detection]
+ - The Camera nickname
+ - Current detection status [Inactive]
+ - Current print state [Blank]
+ - The time of the last update [Blank]
+ - A thumbnail image of the cameras view
+ - A button to toggle Detecting on and off [Start Detection]
 
  Note that the clicking on a camera thumbnail will open a live view in a separate tab.
 
@@ -35,10 +35,10 @@ In the middle section: configured camera is shown separately with the following 
 
  Once a camera is detecting the display is updated regularly with
 
- -- Current detection status [Detecting]
- -- Current print state [success, failure]
- -- The time of the last update [time]
- -- A button to toggle Detecting on and off [Stop Detection]
+ - Current detection status [Detecting]
+ - Current print state [success, failure]
+ - The time of the last update [time]
+ - A button to toggle Detecting on and off [Stop Detection]
 
  <img src="https://github.com/stuartofmt/duetPrintGuard/blob/main/docs/media/images/Plugin2.png" style="width:50%; height:auto;">
  
@@ -49,12 +49,12 @@ On the top control section:
 A countdown timner starts and the `Countdown Action` button flashes
 
 The camera is updated
- -- Current detection status [Detecting]
- -- Current print state [DEFECT]
- -- The time of the last update [time]
- -- A button to toggle Detecting on and off [Stop Detection]
+ - Current detection status [Detecting]
+ - Current print state [DEFECT]
+ - The time of the last update [time]
+ - A button to toggle Detecting on and off [Stop Detection]
 
- If the user does nothing within the configured `Countdown time` -- the `Countdown Action` will be sent to the printer as follows:
+ If the user does nothing within the configured `Countdown time` - the `Countdown Action` will be sent to the printer as follows:
 
 Ignore - does nothing
 Pause - pauses the priter and changes the action to resume
