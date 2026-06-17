@@ -33,7 +33,7 @@ In the middle section: configured camera is shown separately with the following 
 
  ### Detecting - No Defect
 
- Once a camera is detecting the display is updated regularly with
+ Once a camera is detecting the display is updated regularly with:
 
  - Current detection status [Detecting]
  - Current print state [success, failure]
@@ -44,21 +44,21 @@ In the middle section: configured camera is shown separately with the following 
  
 ### Detecting - Defect
 
- If a failure occurs several things happen:
-On the top control section:
-A countdown timner starts and the `Countdown Action` button flashes
+If a failure occurs several things happen:
 
-The camera is updated
+On the top control section: A countdown timer starts and the `Countdown Action` button flashes
+
+The camera information is updated
  - Current detection status [Detecting]
  - Current print state [DEFECT]
  - The time of the last update [time]
  - A button to toggle Detecting on and off [Stop Detection]
 
- If the user does nothing within the configured `Countdown time` - the `Countdown Action` will be sent to the printer as follows:
+If the user does nothing within the configured `Countdown time` - the `Countdown Action` will be sent to the printer as follows:
 
-Ignore - does nothing
-Pause - pauses the priter and changes the action to resume
-Cancel - cancels the print job
+- Ignore - does nothing
+- Pause - pauses the priter and changes the action to resume
+- Cancel - cancels the print job
  
 
 <img src="https://github.com/stuartofmt/duetPrintGuard/blob/main/docs/media/images/Plugin4.png" style="width:50%; height:auto;">
