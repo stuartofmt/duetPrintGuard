@@ -61,7 +61,7 @@ Controls are provided to modify each camera output:
 - Contrast
 - Focus
 
-<img src="https://github.com/stuartofmt/duetPrintGuard/blob/main/docs/media/images/Setting2.png" style="width:50%; height:auto;">
+<img src="https://github.com/stuartofmt/duetPrintGuard/blob/main/docs/media/images/Settings2.png" style="width:50%; height:auto;">
 
 ## Defect Settings
 
@@ -82,7 +82,7 @@ When a defect is detected several things happen
 - At the end of the countdown `Countdown Action` is sent to the printer
 
 
-<img src="https://github.com/stuartofmt/duetPrintGuard/blob/main/docs/media/images/Setting3.png" style="width:50%; height:auto;">
+<img src="https://github.com/stuartofmt/duetPrintGuard/blob/main/docs/media/images/Settings3.png" style="width:50%; height:auto;">
 
 `Countdown Action` allows the selection of one of three actions that will occur when a Defect is detected.  These are Ignore, Pause and Cancel.
 
