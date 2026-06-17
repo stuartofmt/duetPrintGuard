@@ -17,6 +17,9 @@ This image shows the main UI of duetPrintGuard comprisiong three sections.
 - middle camera section
 - bottom control section
 
+
+ <img src="https://github.com/stuartofmt/duetPrintGuard/blob/main/docs/media/images/Plugin1.png" style="width:50%; height:auto;">
+
 The top control section provided printer control and displays countdown information
 
 In the middle section: configured camera is shown separately with the following details:
@@ -29,7 +32,7 @@ In the middle section: configured camera is shown separately with the following 
 
  Note that the clicking on a camera thumbnail will open a live view in a separate tab.
 
- <img src="https://github.com/stuartofmt/duetPrintGuard/blob/main/docs/media/images/Plugin1.png" style="width:50%; height:auto;">
+
 
  ### Detecting - No Defect
 
