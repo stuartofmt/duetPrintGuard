@@ -1,7 +1,7 @@
 # duetPrintGuard - Basic Operation
 
 
-The monitoring page is accessible via `http://localhost:<PORT>` or `http://<IP>:<PORT>`  This is the page displayed in DWC
+The main page is accessible via `http://localhost:<PORT>` or `http://<IP>:<PORT>`  This is the page displayed in DWC
 
 IP and PORT are set in the [DUET] section of the configuration file.
 
