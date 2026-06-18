@@ -200,6 +200,12 @@ def suspend_print_job(action):
 	else:
 		logger.critical(f'Unknown action {action}')
 
+def reset_notification_counters():
+	global MACRO_TIMES, NTFY_TIMES, PUSHOVER_TIMES
+	MACRO_TIMES = 0
+	NTFY_TIMES = 0
+	PUSHOVER_TIMES = 0
+
 
 def _send_macro(alert):
 	global MACRO_TIMES
@@ -218,6 +224,7 @@ def _send_macro(alert):
 
 def _send_ntfy(alert):
 	global NTFY_TIMES
+	print(f'{NTFY_TIMES=}')
 	try:
 		if NTFY.TOPIC != '': # OK to send
 			if NTFY_TIMES < NTFY.MAXTIMES:		

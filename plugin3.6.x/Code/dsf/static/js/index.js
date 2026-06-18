@@ -33,6 +33,7 @@ const noCameraSettingsBtn = document.getElementById("noCameraSettingsBtn");
   let flashButton;
 
   let settingsBtn;
+  let notificationBtn;
   let autostartBtn;
 
 // =========================
@@ -144,12 +145,18 @@ function createBottomRowButtons(){
   const btn = btnFrag.firstElementChild;
 
   settingsBtn = btn.querySelector(".btn-settings");
+  notificationBtn = btn.querySelector(".btn-notification");
   autostartBtn = btn.querySelector(".btn-autostart");
   //cancelBtn = btn.querySelector(".btn-cancel");
 
   // Event for setting button
   settingsBtn.addEventListener("click", () => {
     window.location.href = "/settings";
+  });
+
+  // Event for notification button
+  notificationBtn.addEventListener("click", () => {
+    resetNotifications();
   });
 
   // Event for autostart button
@@ -520,6 +527,21 @@ async function disableAutoStart() {
   }
 }
 
+async function resetNotifications() {
+  try {
+    const result = await fetch("/printer/resetnotifications");
+    if (!result.ok) {
+      throw new Error(`HTTP ${result.status}`);
+    }
+    //const data = await result.json();
+    //return data.status;
+    return;
+  } catch (err) {
+    console.warn('Error from /printer/resetnotifications', err);
+    //return null;
+    return;
+  }
+}
 
 async function getCountdownSettings() {
   try {

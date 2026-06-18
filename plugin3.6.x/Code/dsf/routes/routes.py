@@ -15,7 +15,7 @@ from sse_starlette.sse import EventSourceResponse
 
 from logger_module import logger
 
-from duet_printer import suspend_print_job, get_duet_printer_status
+from duet_printer import suspend_print_job, get_duet_printer_status, reset_notification_counters
 
 import cv2
 
@@ -595,3 +595,14 @@ async def send_autostartUpdated_state(state):
 		logger.debug(f"Broadcast autostart_updated to {state}")
 	except Exception as e:
 		logger.error("Failed to broadcast autostartUpdated SSE event =  %s: %s", state, e)
+
+@router.get("/printer/resetnotifications", include_in_schema=False)
+async def reset_notifications(request: Request):
+	"""Disable autostart"""
+	try:
+		reset_notification_counters()
+		logger.debug(f'Notifocation counters reset')
+		return {"success": True}
+	except Exception as e:
+		logger.error("Error disabling autostart: %s", e)
+		return {"success": False, "message": "Failed to reset notifications"}
