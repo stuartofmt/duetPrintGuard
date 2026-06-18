@@ -2,7 +2,13 @@
 
 
 ## Installation
-duetPrintGuard is packaged as a DWC plugin and installed in the normal manner from the zip file.
+duetPrintGuard is packaged as a DWC plugin and installed in the normal manner from the zip file found in the plugin directory here:
+
+
+[3.6.x](../plugin3.6.x)
+
+
+
 
 ## Configuration
 
