@@ -67,8 +67,17 @@ If the user does nothing within the configured `Countdown time` - the `Countdown
 <img src="https://github.com/stuartofmt/duetPrintGuard/blob/main/docs/media/images/Plugin4.png" style="width:50%; height:auto;">
 
 ### Bottom Control section
- The bottom control section allows the UI to be switched to the settings page.  If any cameras are set to allow autostart, the autostart button will be displayed.
+ The bottom control section comprises either two or three buttons.
+ - Settings
+ - Reset Notification
+ - Enable / Disable Autostart
 
- If auto start is enabled, detection will commence once a print job has started and will stop when the print job is complete.  This allows duetPrintGuard to run in the background but note: Once a print job has completed, autostart needs to be reenabled.  This was an implementationdecision to avoid constant use of cpu between print jobs.
+ The Settings button will switch to the settings page.
+
+ Reset Notification resets all the notification counters to zero. I.e Notifications will be sent up to `MAXTIMES` (per the configuration file settings)
+
+ Enable / Disable Autostart will display if one or more cameras is configured for auto start.
+
+ If autostart is enabled, detection will commence once a print job has started and will stop when the print job is complete.  This allows duetPrintGuard to run in the background but note: Once a print job has completed, autostart needs to be reenabled.  This was an implementationdecision to avoid constant use of cpu between print jobs.
 
  <img src="https://github.com/stuartofmt/duetPrintGuard/blob/main/docs/media/images/Plugin5.png" style="width:50%; height:auto;">
