@@ -22,7 +22,7 @@ Primary configuration is through a file accesable from DWC that facilitates:
 
 
 **Instructions for installation and configuration are here:**
-https://github.com/stuartofmt/duetPrintGuard/blob/main/docs/Getting-Started.md
+https://github.com/stuartofmt/duetPrintGuard/blob/main/docs/Installation-Configuration.md
 
 **Instructions for operation are here:**
 https://github.com/stuartofmt/duetPrintGuard/blob/main/docs/Basic-Operation.md
