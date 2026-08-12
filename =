@@ -1,0 +1,4 @@
+/home/stuart/DWC/Plugins/duetPrintGuard/plugin3.7.x/Code/venv/lib/python3.13/site-packages
+is now at the front of sys.path in venv
+Looking in indexes: https://pypi.org/simple, https://www.piwheels.org/simple
+Requirement already satisfied: dsf-python in ./plugin3.7.x/Code/venv/lib/python3.13/site-packages (3.6.0)

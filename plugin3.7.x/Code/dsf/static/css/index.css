@@ -1,0 +1,177 @@
+/* =========================
+   Base
+   ========================= */
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f4f6f8;
+}
+
+/* =========================
+   Grid container
+   ========================= */
+.grid {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+  width: 100%;
+  max-width: 900px;   /* Optional: limits grid width */
+  justify-items: start; /* Align grid items to the left */
+}
+
+/* =========================
+   ROW
+   ========================= */
+.camera-row {
+  display: grid;
+  grid-template-columns: 320px 220px;
+  gap: 16px;
+  align-items: stretch;
+}
+
+/* =========================
+   Control
+   ========================= */
+.top-controls , .bottom-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Shared styles for BOTH */
+.control {
+  padding: 10px 20px;
+  border-radius: 6px;
+  color: white;
+  font-weight: bold;
+  font-size: 14px;      /* 👈 force same font size */
+  line-height: 1;       /* 👈 removes extra vertical space */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 80px;
+  box-sizing: border-box; /* 👈 consistent sizing */
+}
+
+/* Remove button defaults */
+button.control {
+  border: none;
+  cursor: pointer;
+  font: inherit;        /* 👈 VERY IMPORTANT */
+}
+
+/* Timer styling */
+.countdown-timer {
+  background-color: #06b4f8;
+  text-align: center;
+  font-size: 24px; 
+}
+
+/* Example colors */
+.btn-pause { background-color: #f0ad4e; }
+.btn-cancel { background-color: #d9534f; }
+.btn-ignore { background-color: #04f810; }
+.btn-settings { background-color: #0078d4; }
+.btn-autostart { background-color: #09e3f3; }
+.btn-notification { background-color: #09e3f3; }
+
+
+
+/* =========================
+   Card
+   ========================= */
+.camera-card {
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+}
+
+.camera-header {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px;
+  background: #eee;
+  font-weight: bold;
+}
+
+.camera-body { padding: 10px; }
+
+.camera-footer {
+  padding: 10px;
+  text-align: center;
+}
+
+.start-stop-camera-btn {
+  padding: 8px 12px;
+  border: none;
+  background: #0078d4;
+  color: white;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* =========================
+   Video
+   ========================= */
+.camera-video-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+.camera-video-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+
+/* =========================
+   Animation
+   ========================= */
+
+/* Flash animation */
+@keyframes flash {
+  0%   { background-color: transparent; }
+  50%  { background-color: var(--current-color); }
+  100% { background-color: transparent; }
+}
+
+
+.flash {
+  animation: flash 2s ease-in-out infinite;
+}
+
+
+/* =========================
+   Modal
+   ========================= */
+.modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+}
+
+.modal-content {
+  background: white;
+  margin: 10% auto;
+  padding: 20px;
+  width: 300px;
+  border-radius: 10px;
+}
+
+/* =========================
+   Mobile
+   ========================= */
+@media (max-width: 700px) {
+  .camera-row {
+    grid-template-columns: 1fr;
+  }
+}

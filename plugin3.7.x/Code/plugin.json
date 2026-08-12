@@ -1,0 +1,17 @@
+{
+    "id": "duetPrintGuard",
+    "name": "duetPrintGuard",
+    "author": "Stuartofmt",
+    "version": "1.0.0",
+    "license": "GPL-2.0-or-later",
+    "homepage": "https://github.com/stuartofmt/duetPrintGuard",
+	"sbcRequired": true,
+	"dwcVersion": "3.7",
+    "sbcDsfVersion": "3.7",
+	"sbcExecutable": "/opt/dsf/plugins/duetPrintGuard/dsf/duetPrintGuard.py",
+	"sbcExecutableArguments": "/opt/dsf/sd/sys/duetPrintGuard",
+	"sbcOutputRedirected": false,
+	"sbcPermissions": ["commandExecution", "objectModelReadWrite", "networkAccess", "webcamAccess", "fileSystemAccess","launchProcesses", "manageUserSessions"],
+	"sbcPythonDependencies": ["requirements.txt"]
+ }
+ 

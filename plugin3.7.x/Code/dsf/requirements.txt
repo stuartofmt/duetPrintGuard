@@ -1,0 +1,33 @@
+# ----------------------------
+# Web framework (stable stack)
+# ----------------------------
+fastapi==0.116.1
+starlette==0.46.2
+uvicorn[standard]==0.35.0
+sse-starlette==2.4.1
+python-multipart==0.0.20
+
+# ----------------------------
+# ML / inference stack
+# ----------------------------
+torch==2.7.0
+torchvision==0.22.0
+onnxruntime==1.22.1
+
+# ----------------------------
+# Image / CV
+# ----------------------------
+numpy==2.2.6
+pillow==11.3.0
+opencv-python-headless==4.12.0.88
+
+# ----------------------------
+# utilities
+# ----------------------------
+platformdirs==4.3.8
+huggingface_hub==0.33.4
+
+# ----------------------------
+# Duet3d
+# ----------------------------
+dsf-python==3.7.0b1
