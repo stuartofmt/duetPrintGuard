@@ -6,7 +6,14 @@
     <title>duetPrintGuard Settings</title>
     <link rel="stylesheet" href="{{ url_for('static', path='css/settings.css') }}">
     <script type="module" src="{{ url_for('static', path='js/settings.js') }}" defer></script>
-
+    
+    <!-- Detect and expose mobile mode -->
+    <script>
+      window.isMobileMode = new URLSearchParams(window.location.search).get('mobile') === 'true';
+      if (window.isMobileMode) {
+        document.documentElement.classList.add('mobile-mode');
+      }
+    </script>
 </head>
 <body>
     <template id="camera-template">

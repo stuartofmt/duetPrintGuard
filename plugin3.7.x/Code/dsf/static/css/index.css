@@ -175,3 +175,10 @@ button.control {
     grid-template-columns: 1fr;
   }
 }
+
+/* =========================
+   Mobile Mode Override
+   ========================= */
+html.mobile-mode .camera-row {
+  grid-template-columns: 1fr;
+}

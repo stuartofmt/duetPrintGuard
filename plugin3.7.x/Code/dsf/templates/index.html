@@ -7,7 +7,14 @@
   <link rel="stylesheet" href="{{ url_for('static', path='css/index.css') }}" />
   <script src="{{ url_for('static', path='js/sse.js') }}" defer></script>
   <script type="module" src="{{ url_for('static', path='js/index.js') }}"></script>
-
+  
+  <!-- Detect and expose mobile mode -->
+  <script>
+    window.isMobileMode = new URLSearchParams(window.location.search).get('mobile') === 'true';
+    if (window.isMobileMode) {
+      document.documentElement.classList.add('mobile-mode');
+    }
+  </script>
 </head>
 
 <body>

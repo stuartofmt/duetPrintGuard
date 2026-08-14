@@ -1108,3 +1108,15 @@ input[type="range"]::-moz-range-thumb {
     padding: 0 !important;
     display: inline-block !important;
 }
+
+/* =========================
+   Mobile Mode Override
+   ========================= */
+html.mobile-mode .grid-container {
+    display: flex;
+    flex-direction: column;
+}
+
+html.mobile-mode .settings-grid {
+    grid-template-columns: 1fr;
+}

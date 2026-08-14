@@ -5,6 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{{ nickname }} - Camera Stream</title>
     <link rel="stylesheet" href="{{ url_for('static', path='css/settings.css') }}" />
+    
+    <!-- Detect and expose mobile mode -->
+    <script>
+      window.isMobileMode = new URLSearchParams(window.location.search).get('mobile') === 'true';
+      if (window.isMobileMode) {
+        document.documentElement.classList.add('mobile-mode');
+      }
+    </script>
+    
     <style>
         body {
             margin: 0;

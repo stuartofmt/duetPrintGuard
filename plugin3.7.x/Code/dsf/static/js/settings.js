@@ -5,6 +5,13 @@ const camTemplate = document.getElementById("camera-template");
 const grid = document.getElementById("grid");
 
 // =========================
+// Helper Functions
+// =========================
+function getIndexURL() {
+	return window.isMobileMode ? '/index?mobile=true' : '/index';
+}
+
+// =========================
 // Globals
 // =========================
 let cameraItems = [];
@@ -1217,7 +1224,7 @@ detectionButton?.addEventListener(
 	function(e) {
 
 		e.preventDefault();
-		window.location.href = '/index';
+		window.location.href = getIndexURL();
 	}
 );
 

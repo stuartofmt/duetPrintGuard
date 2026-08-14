@@ -13,6 +13,13 @@ const noCameraClose = document.getElementById("closeModal");
 const noCameraSettingsBtn = document.getElementById("noCameraSettingsBtn");
 
 // =========================
+// Helper Functions
+// =========================
+function getSettingsURL() {
+  return window.isMobileMode ? '/settings?mobile=true' : '/settings';
+}
+
+// =========================
 // Globals
 // =========================
  let cameraItems;
@@ -90,7 +97,7 @@ noCameraModal?.addEventListener("click", (e) => {
 });
 
 noCameraSettingsBtn?.addEventListener("click", () => {
-  window.location.href = "/settings";
+  window.location.href = getSettingsURL();
 });
 
 // =========================
@@ -151,7 +158,7 @@ function createBottomRowButtons(){
 
   // Event for setting button
   settingsBtn.addEventListener("click", () => {
-    window.location.href = "/settings";
+    window.location.href = getSettingsURL();
   });
 
   // Event for notification button

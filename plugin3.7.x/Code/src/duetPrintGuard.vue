@@ -1,6 +1,8 @@
 <!--
 Displays an iFrame that is linked to the duetPrintGuard html Display
-Polls the status of the sbcPlugin and terminates the DWC plugin if the sbcPlugin is terminated
+Polls the status of the sbcPlugin and displays a message if the sbcPlugin is terminated
+Stops polling once the plugin has been detected as stopped
+Adds ?mobile=true to the iframe URL when accessed from a mobile device
 Thanks to @MintyTrebor for all the help in getting this working
 -->
 <style scoped>
@@ -17,8 +19,23 @@ Thanks to @MintyTrebor for all the help in getting this working
  
 <template>
 		<div class="iframe_container">
-			<iframe id="myiframe" :src="myurl" width="100%" :height="tmpHeight" frameborder="0">
+			<iframe
+				v-if="!pluginStopped"
+				id="myiframe"
+				:src="myurl"
+				width="100%"
+				:height="tmpHeight"
+				frameborder="0">
 			</iframe>
+
+			<v-alert
+				v-else
+				type="warning"
+				variant="tonal"
+				class="ma-4"
+			>
+				The duetPrintGuard plugin has stopped.
+			</v-alert>
 		</div>
 </template>
  
@@ -30,7 +47,7 @@ import { useMachineStore } from 'DuetWebControl';
 // <!-- Do not change
 const pluginName = 'duetPrintGuard';
 const configFile = `${pluginName}/${pluginName}.config`;
-const backgroundTask = true; // Only set true is background task can be manually terminated
+const backgroundTask = true; // Only set true if background task can be manually terminated
 // -->
 
 export default defineComponent({
@@ -39,6 +56,7 @@ export default defineComponent({
 		const machineStore = useMachineStore();
 		const myurl = ref('');
 		const tmpHeight = ref('400px');
+		const pluginStopped = ref(false);
 		const instance = getCurrentInstance();
 		
 		// Access Vuetify's display object through injection
@@ -124,7 +142,12 @@ export default defineComponent({
 				const port = javascript_ini.UI?.PORT;
 
 				if (ip && port) {
-					myurl.value = `http://${ip}:${port}`;
+					const mobileParameter = display?.mobile?.value === true
+						? '?mobile=true'
+						: '';
+
+					myurl.value = `http://${ip}:${port}${mobileParameter}`;
+
 					console.log('duetPrintGuard url is ' + myurl.value);
 				}
 			} catch (e) {
@@ -134,17 +157,19 @@ export default defineComponent({
 
 		const getAvailScreenHeight = () => {
 			let height = window.innerHeight - 90;
+
 			if (window.document.getElementById('global-container')) {
 				height -= window.document.getElementById('global-container').offsetHeight;
 			}
+
 			if (showBottomNavigation.value) {
 				height -= 56;
 			}
+
 			tmpHeight.value = height + 'px';
 			return tmpHeight.value;
 		};
 		
-			
 		const checkExecutable = () => {
 			if (backgroundTask) {
 				intervalId = setInterval(() => {
@@ -157,11 +182,21 @@ export default defineComponent({
 			if (isrunning()) {
 				return;
 			}
-			console.warn('Stopping duetPrintGuard plugin because the background task is not running');
-			stopthePlugin();
+
+			console.warn('duetPrintGuard plugin is no longer running');
+
+			// Stop polling because the plugin has stopped
+			if (intervalId) {
+				clearInterval(intervalId);
+				intervalId = null;
+			}
+
+			// Replace the iframe with the stopped message
+			pluginStopped.value = true;
 		};
 
-		// Not sure if this is the right syntax
+		// Not used when the plugin stops.
+		// Kept here to avoid any other functional changes.
 		const stopthePlugin = async () => {
 			await machineStore.dispatch('machine/unloadDwcPlugin', pluginName);
 		};
@@ -169,15 +204,15 @@ export default defineComponent({
 		const isrunning = () => {
 			const allPlugins = machineStore.model.plugins;   // ObjectModel map, use .get(id) / .values()
 			const entries = allPlugins instanceof Map ? allPlugins.entries() : Object.entries(allPlugins);
+
 			for (const [key, value] of entries) {
 				if (key === pluginName) {
 					console.warn('duetPrintGuard is running, pid = ' + value?.pid);
 					return Number(value?.pid ?? 0) > 0;
-
 				}
 			}
+
 			return false;
-			
 		};
 
 		onMounted(() => {
@@ -190,6 +225,7 @@ export default defineComponent({
 			if (backgroundTask) {
 				if (intervalId) {
 					clearInterval(intervalId);
+					intervalId = null;
 				}
 			}
 		});
@@ -197,6 +233,7 @@ export default defineComponent({
 		return {
 			myurl,
 			tmpHeight,
+			pluginStopped,
 			systemDirectory,
 			showBottomNavigation,
 			loadSettingsFromFile,
@@ -209,4 +246,3 @@ export default defineComponent({
 	}
 });
 </script>
- 
