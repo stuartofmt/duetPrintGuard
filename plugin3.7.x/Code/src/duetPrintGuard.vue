@@ -23,13 +23,14 @@ Thanks to @MintyTrebor for all the help in getting this working
 </template>
  
 <script>
-import { computed, defineComponent, getCurrentInstance, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, defineComponent, getCurrentInstance, inject, onBeforeUnmount, onMounted, ref } from 'vue';
 import Path from '@/utils/path';
 import { useMachineStore } from 'DuetWebControl';
 
 // <!-- Do not change
 const pluginName = 'duetPrintGuard';
 const configFile = `${pluginName}/${pluginName}.config`;
+const backgroundTask = true; // Only set true is background task can be manually terminated
 // -->
 
 export default defineComponent({
@@ -39,7 +40,10 @@ export default defineComponent({
 		const myurl = ref('');
 		const tmpHeight = ref('400px');
 		const instance = getCurrentInstance();
-		const rootStore = instance?.proxy?.$store;
+		
+		// Access Vuetify's display object through injection
+		// This avoids bundling a second copy of Vuetify
+		const display = inject(Symbol.for('vuetify:display'), null);
 		let intervalId = null;
 
 		if (typeof window !== 'undefined') {
@@ -51,10 +55,11 @@ export default defineComponent({
 		}
 
 		const systemDirectory = computed(() => machineStore.model.directories.system);
+
 		const showBottomNavigation = computed(() => {
-			const vuetify = instance?.proxy?.$vuetify;
-			return vuetify?.breakpoint.mobile && !vuetify?.breakpoint.xsOnly && rootStore?.state?.settings?.bottomNavigation;
-		});
+			return display?.mobile?.value === true &&
+				display?.xs?.value !== true
+		})
 
 		const parseINIString = (data) => {
 			const regex = {
@@ -101,7 +106,6 @@ export default defineComponent({
 			try {
 				const setFileName = Path.combine(systemDirectory.value, configFile);
 				console.warn('Loading settings from ' + setFileName);
-				//const response = await machineStore.dispatch('machine/download', {
 				const response = await machineStore.download ({
 					filename: setFileName,
 					type: 'text',
@@ -139,44 +143,54 @@ export default defineComponent({
 			tmpHeight.value = height + 'px';
 			return tmpHeight.value;
 		};
-
+		
+			
 		const checkExecutable = () => {
-			intervalId = setInterval(() => {
-				checkRunning();
-			}, 5000);
+			if (backgroundTask) {
+				intervalId = setInterval(() => {
+					checkRunning();
+				}, 5000);
+			}
 		};
 
 		const checkRunning = () => {
 			if (isrunning()) {
 				return;
 			}
+			console.warn('Stopping duetPrintGuard plugin because the background task is not running');
 			stopthePlugin();
 		};
 
+		// Not sure if this is the right syntax
 		const stopthePlugin = async () => {
 			await machineStore.dispatch('machine/unloadDwcPlugin', pluginName);
 		};
 
 		const isrunning = () => {
-			const allplugins = machineStore.model?.plugins ?? [];
-			const entries = allplugins instanceof Map ? allplugins.entries() : Object.entries(allplugins);
+			const allPlugins = machineStore.model.plugins;   // ObjectModel map, use .get(id) / .values()
+			const entries = allPlugins instanceof Map ? allPlugins.entries() : Object.entries(allPlugins);
 			for (const [key, value] of entries) {
 				if (key === pluginName) {
+					console.warn('duetPrintGuard is running, pid = ' + value?.pid);
 					return Number(value?.pid ?? 0) > 0;
+
 				}
 			}
 			return false;
+			
 		};
 
 		onMounted(() => {
 			loadSettingsFromFile();
 			getAvailScreenHeight();
-			checkExecutable();
+			checkExecutable();  // Only runs if backgroundTask is true
 		});
 
 		onBeforeUnmount(() => {
-			if (intervalId) {
-				clearInterval(intervalId);
+			if (backgroundTask) {
+				if (intervalId) {
+					clearInterval(intervalId);
+				}
 			}
 		});
 
