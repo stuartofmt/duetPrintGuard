@@ -140,9 +140,9 @@ def init_routes_and_modules():
 				return RedirectResponse(url="/index", status_code=308)  #Permanent redirect
 
 			if request.url.path.startswith("/index"):
-				logger.debug(f'Index connection recieved from {request.client}')
+				logger.debug(f'Index connection recieved {request.url} from {request.client}')
 			elif request.url.path.startswith("/settings"):
-				logger.debug(f'Settings connection recieved from {request.client}')
+				logger.debug(f'Settings connection recieved {request.url} from {request.client}')
 
 		response = await call_next(request)
 		return response

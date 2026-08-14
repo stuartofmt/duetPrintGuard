@@ -740,7 +740,7 @@ input[type="range"]::-moz-range-thumb {
     }
 
     .grid-item:nth-child(1) {
-        order: 1;
+        order: 2;
         height: auto;
         max-height: 10vh;
         margin-bottom: var(--spacing-4xl);
@@ -758,8 +758,12 @@ input[type="range"]::-moz-range-thumb {
         flex-grow: 0;
     }
 
-    .grid-item:nth-child(4) {
+    .grid-item:nth-child(3) {
         order: 4;
+    }
+
+    .grid-item:nth-child(4) {
+        order: 1;
         flex-grow: 0;
         height: auto;
         max-height: 45vh;
@@ -1074,14 +1078,14 @@ input[type="range"]::-moz-range-thumb {
 
 #cameraPreviewImage {
     border-radius: 12px;
-    max-height: 300px;
+    max-height: 150px;
     object-fit: contain;
     background: #f8fafc;
 }
 
 #cameraPreviewLoading {
     border-radius: 12px;
-    min-height: 100px;
+    min-height: 50px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1092,7 +1096,7 @@ input[type="range"]::-moz-range-thumb {
 
 #cameraPreviewError {
     border-radius: 12px;
-    min-height: 100px;
+    min-height: 50px;
     display: flex;
     align-items: center;
     justify-content: center;

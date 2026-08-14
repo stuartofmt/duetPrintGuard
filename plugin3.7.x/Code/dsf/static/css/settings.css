@@ -14,7 +14,7 @@ body, html {
 .grid-container {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    grid-template-rows: 1fr;
+    grid-template-rows: 1fr auto;
     /*
     grid-template-columns: repeat(2, 1fr);
     grid-template-rows: repeat(2, 1fr);
@@ -51,6 +51,27 @@ body, html {
 
 .grid-item:nth-child(1) {
     justify-content: center;
+    /* Desktop: preview on right */
+    grid-column: 2;
+    grid-row: 2;
+}
+
+.grid-item:nth-child(2) {
+    /* Desktop: items on left */
+    grid-column: 1;
+    grid-row: 2;
+}
+
+.grid-item:nth-child(3) {
+    /* Desktop: controls span both columns below */
+    grid-column: 1 / -1;
+    grid-row: 3;
+}
+
+.grid-item:nth-child(4) {
+    /* Desktop: countdown section displayed first */
+    grid-column: 1 / -1;
+    grid-row: 1;
 }
 
 #videoPreview {
@@ -1074,14 +1095,14 @@ input[type="range"]::-moz-range-thumb {
 
 #cameraPreviewImage {
     border-radius: 12px;
-    max-height: 300px;
+    max-height: 150px;
     object-fit: contain;
     background: #f8fafc;
 }
 
 #cameraPreviewLoading {
     border-radius: 12px;
-    min-height: 100px;
+    min-height: 50px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1092,7 +1113,7 @@ input[type="range"]::-moz-range-thumb {
 
 #cameraPreviewError {
     border-radius: 12px;
-    min-height: 100px;
+    min-height: 50px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1115,6 +1136,30 @@ input[type="range"]::-moz-range-thumb {
 html.mobile-mode .grid-container {
     display: flex;
     flex-direction: column;
+    grid-template-columns: unset;
+    grid-template-rows: unset;
+}
+
+html.mobile-mode .grid-item {
+    width: 100%;
+    grid-column: unset;
+    grid-row: unset;
+}
+
+html.mobile-mode .grid-item:nth-child(1) {
+    order: 3;
+}
+
+html.mobile-mode .grid-item:nth-child(2) {
+    order: 2;
+}
+
+html.mobile-mode .grid-item:nth-child(3) {
+    order: 4;
+}
+
+html.mobile-mode .grid-item:nth-child(4) {
+    order: 1;
 }
 
 html.mobile-mode .settings-grid {
