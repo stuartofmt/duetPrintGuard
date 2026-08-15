@@ -136,11 +136,13 @@ def init_routes_and_modules():
 		"""
 		if request.url.scheme == "http":
 
-			if request.url.path == '/': #Calling at root
-				return RedirectResponse(url="/index", status_code=308)  #Permanent redirect
+			if request.url.path == '/':
+				query = f'?{request.url.query}' if request.url.query else ''
+				return RedirectResponse(url=f"/index{query}", status_code=308)
 
 			if request.url.path.startswith("/index"):
-				logger.debug(f'Index connection recieved {request.url} from {request.client}')
+				logger.debug(f'Index connection recieved {request.url}{request.url.query} from {request.client}')
+				logger.debug (f'Query parameters: {request.query_params}')
 			elif request.url.path.startswith("/settings"):
 				logger.debug(f'Settings connection recieved {request.url} from {request.client}')
 

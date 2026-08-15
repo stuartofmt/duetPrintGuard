@@ -119,6 +119,20 @@ export default defineComponent({
 			return value;
 		};
 
+		const isMobile = () => {
+			const userAgent = navigator.userAgent || navigator.vendor || window.opera || '';
+
+			// Detect iPhone, iPad, Android and other mobile devices
+			const isMobileUA = /android|iphone|ipod|ipad|mobile|phone/i.test(userAgent);
+
+			// iPadOS 13+ can identify itself as Macintosh, so also check touch capability
+			const isIPadOS = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+
+			const result = isMobileUA || isIPadOS;
+
+			return result;
+		};
+
 		const loadSettingsFromFile = async () => {
 			let content = '';
 			try {
@@ -142,10 +156,12 @@ export default defineComponent({
 				const port = javascript_ini.UI?.PORT;
 
 				if (ip && port) {
-					const mobileParameter = display?.mobile?.value === true
+					const mobileParameter = isMobile()
 						? '?mobile=true'
 						: '';
-
+				if (isMobile()) {
+					alert('Displaying in Mobile mode');
+				}
 					myurl.value = `http://${ip}:${port}${mobileParameter}`;
 
 					console.log('duetPrintGuard url is ' + myurl.value);
