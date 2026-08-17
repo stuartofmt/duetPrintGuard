@@ -30,4 +30,7 @@ huggingface_hub==0.33.4
 # ----------------------------
 # Duet3d
 # ----------------------------
+stdeb
+requests
+python-dateutil
 dsf-python==3.7.0b1

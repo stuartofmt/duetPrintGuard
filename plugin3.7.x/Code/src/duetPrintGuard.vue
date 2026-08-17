@@ -159,9 +159,9 @@ export default defineComponent({
 					const mobileParameter = isMobile()
 						? '?mobile=true'
 						: '';
-				if (isMobile()) {
-					alert('Displaying in Mobile mode');
-				}
+				//if (isMobile()) {
+				//	alert('Displaying in Mobile mode');
+				//}
 					myurl.value = `http://${ip}:${port}${mobileParameter}`;
 
 					console.log('duetPrintGuard url is ' + myurl.value);

@@ -10,6 +10,8 @@ from dsf.connections import CommandConnection
 
 from dsf.connections import SubscribeConnection, SubscriptionMode
 
+import time
+
 def send_simple_code(code):
 
    connection = CommandConnection()
@@ -23,23 +25,41 @@ def send_simple_code(code):
        connection.close()
 
 
-def subscribe():
-    subscribe_connection = SubscribeConnection(SubscriptionMode.PATCH)
-    subscribe_connection.connect()
+def get_complete_om():
+    try:
+        subscribe_connection = SubscribeConnection(SubscriptionMode.PATCH)
+        subscribe_connection.connect()
+        # Get the complete model once
+        om = subscribe_connection.get_object_model()
+    except Exception as e:
+        print(f'Error: {e}')
+        om = False
+    finally:
+        #subscribe_connection.close()
+        return om , subscribe_connection
 
-    # Get the complete model once
-    object_model = subscribe_connection.get_object_model()
-    print(object_model)
-
-    # Get multiple incremental updates, due to SubscriptionMode.PATCH, only a
+def update_om(om, subscribe_connection):
+    # Get incremental update, due to SubscriptionMode.PATCH, only a
     # subset of the object model will be updated
-    for _ in range(0, 3):
+    try:
+        #subscribe_connection = SubscribeConnection(SubscriptionMode.PATCH)
+        #subscribe_connection.connect()
         update = subscribe_connection.get_object_model_patch()
-        object_model.update_from_json(update)
+        print('Update -------------------')
         print(update)
-    subscribe_connection.close()
-
+        print('---------------------------')
+        om.update_from_json(update)
+    except Exception as e:
+        print(f'Error: {e}')
+        update = False
+    finally:
+        #subscribe_connection.close()
+        return om
 
 if __name__ == "__main__":
-    send_simple_code("M122 DSF")
-    # subscribe()
+    #send_simple_code("M122 DSF")
+    object_model, connection = get_complete_om()
+    time.sleep(10)
+    object_model = update_om(object_model, connection)
+    print(object_model)
+    connection.close()
