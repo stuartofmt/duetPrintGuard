@@ -137,6 +137,13 @@ body, html {
     margin: 0 0 12px;
 }
 
+.port-in-use {
+    margin: 4px 0 0;
+    font-size: 13px;
+    font-weight: 500;
+    color: #1e3a8a;
+}
+
 .field-error {
     margin: 4px 0 0;
     font-size: 13px;

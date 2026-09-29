@@ -38,6 +38,51 @@ pythonMinor = 9
 
 LOGFILENAME = 'duetPrintGuard.log'
 
+
+def port_in_use(ip_address, port):
+	#  A successful connection means something is already listening there
+	with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+		sock.settimeout(1)
+		return sock.connect_ex((ip_address, port)) == 0
+
+
+def validate_port(port=0, start_port=17800, max_tries=100):
+	#  Get the local ip address
+	this_ip_address = ''
+	s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+	try:
+		s.connect(('10.255.255.255', 1))  # doesn't even have to be reachable
+		this_ip_address = s.getsockname()[0]
+	except Exception as e:
+		logger.critical(f'''Unknown error trying to get the local IP address''')
+		logger.critical(f'''{e}''')
+		force_quit(1)
+	finally:
+		s.close()
+
+	if port:
+		#  A port was provided - check that it is available
+		if port_in_use(this_ip_address, port):
+			logger.warning(f'''Port {port} is already in use - falling back to searching from {start_port}''')
+			port = 0
+	else:
+		logger.info(f'''No port number was provided - searching for a free port starting at {start_port}''')
+
+	if not port:
+		#  No usable port yet - search for one starting at start_port
+		for candidate in range(start_port, start_port + max_tries):
+			if not port_in_use(this_ip_address, candidate):
+				port = candidate
+				break
+		else:
+			logger.critical(f'''No free port found between {start_port} and {start_port + max_tries - 1}''')
+			force_quit(1)
+
+	logger.info(f'''IP address {this_ip_address} with port {port} is available''')
+	return this_ip_address, port
+
+
+
 def checkIP(ip_address, port):
 	#  Check to see if the requested IP and Port are available for use
 	this_ip_address = ''
@@ -112,7 +157,8 @@ def start(file_path):
 
 	# Exit if valid Port is not provided for UI
 	# On this SBC
-	checkIP(DUET.IP, UI.PORT)
+	#checkIP(DUET.IP, UI.PORT)
+	DUET.IP, UI.PORT = validate_port(UI.PORT)
  
 	from app import appstartup
 	appstartup()

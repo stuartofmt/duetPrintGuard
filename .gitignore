@@ -14,6 +14,7 @@ not-in-use/
 *.sh
 duetPrintGuard.config
 duetPrintGuard.log
+duetPrintGuard.json
 *.log
 callgraph
 callgraph.png

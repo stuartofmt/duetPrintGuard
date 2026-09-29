@@ -1,17 +1,14 @@
 """
 Application configuration for duetPrintGuard
 
-Settings are held in duetPrintGuard.json (in the plugin's sys directory)
+Settings are held in duetPrintGuard.json (in the plugin's dsf directory)
 and are edited through the /config web page.
-No config file is required - defaults are used for anything not set.
-
-If a legacy duetPrintGuard.config (ini format) exists and there is no
-json file yet, its values are imported once on startup.
+No config file is required - if there is no json file, one is created
+from the defaults on startup.
 
 The section objects (DUET, UI, etc.) are created on import and are only
 ever updated in place, so modules that import them see live changes.
 """
-import configparser
 import json
 import os
 import socket
@@ -19,7 +16,6 @@ import socket
 global DUET, UI, LOGGING, ACTION, MACRO, NTFY, PUSHOVER
 
 CONFIGFILENAME = 'duetPrintGuard.json'
-LEGACYCONFIGFILENAME = 'duetPrintGuard.config'
 
 # section -> key -> (type, default, restart_required)
 CONFIG_SCHEMA = {
@@ -30,7 +26,7 @@ CONFIG_SCHEMA = {
 		'POWERCHECK': (bool, True, True),
 	},
 	'UI': {
-		'PORT': (int, 8002, True),
+		'PORT': (int, 0, True),
 	},
 	'LOGGING': {
 		'LEVEL': (str, 'INFO', False),
@@ -94,7 +90,11 @@ def _convert(value, value_type):
 
 def _validate(section, key, value):
 	"""Raise ValueError if a (converted) value is not acceptable."""
-	if key == 'PORT' and not 1 <= value <= 65535:
+	if section == 'UI' and key == 'PORT':
+		# 0 = find a free port automatically at startup
+		if not 0 <= value <= 65535:
+			raise ValueError('must be between 0 and 65535')
+	elif key == 'PORT' and not 1 <= value <= 65535:
 		raise ValueError('must be between 1 and 65535')
 	if key == 'MAXTIMES' and value < 0:
 		raise ValueError('must be 0 or more')
@@ -124,14 +124,6 @@ def _merge(target, source):
 				target[section][key] = value
 			except ValueError as e:
 				_logger.warning(f'Ignoring invalid config value {section}.{key} = {values[key]!r}: {e}')
-
-
-def _read_legacy_config(file_path):
-	"""Read a legacy ini style config file. Commented out (;) or blank values are skipped."""
-	parser = configparser.ConfigParser()
-	parser.read(file_path)
-	return {section.upper(): {k: v for k, v in parser.items(section) if v.strip() != ''}
-			for section in parser.sections()}
 
 
 def _save(config):
@@ -172,22 +164,16 @@ def _load():
 
 
 def get_DWC_config(file_path, logger):
-	"""Load the configuration, creating it (from defaults or a legacy config file) if needed."""
+	"""Load the configuration, creating it from the defaults if needed."""
 	global _config_file, _logger
 	_logger = logger
-	_config_file = os.path.join(file_path, CONFIGFILENAME)
+	_config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), CONFIGFILENAME)
 	logger.debug(f'Looking for config file at {_config_file}')
 
 	if not os.path.exists(_config_file):
-		config = _defaults()
-		legacy_file = os.path.join(file_path, LEGACYCONFIGFILENAME)
-		if os.path.exists(legacy_file):
-			logger.info(f'Importing settings from {legacy_file}')
-			_merge(config, _read_legacy_config(legacy_file))
-		else:
-			logger.info('No configuration found - using defaults')
+		logger.info('No configuration found - using defaults')
 		try:
-			_save(config)
+			_save(_defaults())
 			logger.info(f'Configuration saved to {_config_file}')
 		except OSError as e:
 			logger.error(f'Could not save {_config_file}: {e}')
@@ -220,7 +206,9 @@ def get_config_for_ui():
 				'secret': secret,
 				'is_set': config[section][key] != default if secret else None,
 			}
-	return {'settings': settings, 'detected_ip': get_local_ip(), 'log_levels': LOG_LEVELS}
+	# UI.PORT is only applied at startup, so the in-memory value is the port in use
+	return {'settings': settings, 'detected_ip': get_local_ip(), 'log_levels': LOG_LEVELS,
+			'ui_port_in_use': getattr(UI, 'PORT', None)}
 
 
 def update_config(updates):

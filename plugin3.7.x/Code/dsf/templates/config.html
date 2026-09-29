@@ -59,8 +59,9 @@
                 <legend>Web Interface</legend>
                 <div class="form-group">
                     <label for="UI.PORT">Port <span class="restart-tag">restart</span></label>
-                    <input type="number" id="UI.PORT" name="UI.PORT" min="1" max="65535" required />
-                    <p class="help">Port for the Detection, Settings and Configuration pages. Must not conflict with DWC or other plugins.</p>
+                    <input type="number" id="UI.PORT" name="UI.PORT" min="0" max="65535" required />
+                    <p class="port-in-use" id="uiPortInUse"></p>
+                    <p class="help">Port for the Detection, Settings and Configuration pages. Must not conflict with DWC or other plugins. Use 0 to pick a free port automatically at startup. If the chosen port is in use, a free port is picked instead.</p>
                 </div>
                 <div class="form-group">
                     <label for="LOGGING.LEVEL">Logging Level</label>

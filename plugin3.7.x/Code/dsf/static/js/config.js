@@ -13,6 +13,7 @@ const saveBtn = document.getElementById('saveBtn');
 const statusMessage = document.getElementById('statusMessage');
 const passwordHelp = document.getElementById('passwordHelp');
 const logLevelSelect = document.getElementById('LOGGING.LEVEL');
+const uiPortInUse = document.getElementById('uiPortInUse');
 
 // =========================
 // Status Message
@@ -83,6 +84,15 @@ async function loadConfig() {
 
 		const ipInput = configForm.elements['DUET.IP'];
 		ipInput.placeholder = `Auto-detect (${data.detected_ip})`;
+
+		const savedPort = data.settings.UI.PORT.value;
+		const portInUse = data.ui_port_in_use;
+		uiPortInUse.textContent = `Currently in use: ${portInUse}`;
+		if (savedPort === 0) {
+			uiPortInUse.textContent += ' (picked automatically)';
+		} else if (portInUse !== savedPort) {
+			uiPortInUse.textContent += ` - ${savedPort} will be used after restart, if it is free`;
+		}
 
 		const password = data.settings.DUET.PASSWORD;
 		passwordHelp.textContent = password.is_set
