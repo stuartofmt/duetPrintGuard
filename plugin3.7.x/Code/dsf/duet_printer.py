@@ -6,7 +6,11 @@ import time
 import requests
 import json
 import time
-import sys
+import threading
+import asyncio
+
+from logger_module import logger
+from duet_config import ACTION, MACRO, NTFY, PUSHOVER
 
 global MACRO_TIMES, NTFY_TIMES, PUSHOVER_TIMES
 MACRO_TIMES = 0
@@ -16,8 +20,74 @@ PUSHOVER_TIMES = 0
 global PRINTER_STATUS
 PRINTER_STATUS = 'idle' # Default state is idle
 
+from dsf.connections import SubscribeConnection, SubscriptionMode, CommandConnection
+from dsf.object_model.inputs import inputs as _inputs
+from dsf.object_model.job.gcode_fileinfo import GCodeFileInfo
+
+
+
+# Workaround: dsf-python 3.7.0b1 rejects null entries in the inputs collection,
+# but DSF reports unused input channels as null
+_orig_inputs_init = _inputs.Inputs.__init__
+def _inputs_init(self):
+	_orig_inputs_init(self)
+	self._allow_none = True
+_inputs.Inputs.__init__ = _inputs_init
+
+# Workaround: dsf-python 3.7.0b1 declares job.file.customInfo as non-nullable,
+# but DSF patches it to null when there is no job file. Treat null as "clear"
+_custom_info_prop = GCodeFileInfo.custom_info
+def _set_custom_info(self, value):
+	if value is None:
+		self.custom_info.clear()
+	else:
+		_custom_info_prop.fset(self, value)
+GCodeFileInfo.custom_info = _custom_info_prop.setter(_set_custom_info)
+
+def handle_change(*, key, data, indices):
+	global PRINTER_STATUS
+	logger.debug(f' dsf-python object model change: {key} , {data} , {indices}')
+
+	if key == 'state.status':
+		PRINTER_STATUS = data
+
+# ------------------------------------------------------------
+# Poll object model
+# ------------------------------------------------------------
+
+subscription = SubscribeConnection(SubscriptionMode.PATCH)
+subscription.connect()
+object_model = subscription.get_object_model()
+
+
+unsubscribe = subscription.subscribe_to_keys(
+	["state.status"],
+	handle_change,
+)
+
+async def duetStatus():
+	while True:
+		logger.debug('Checking object model')
+		object_model = subscription.get_object_model()
+		await asyncio.sleep(5)
+
+# ------------------------------------------------------------
+# Send Gcode command
+# ------------------------------------------------------------
+
+def _send_duet_code(command):
+    command_connection = CommandConnection(debug=True)
+    command_connection.connect()
+
+    try:
+        # res = command_connection.set_plugin_data("ExecOnMcode", "test", "1")
+        # Perform a simple command and wait for its output
+        res = command_connection.perform_simple_code("command")
+        print(f'Response from {command} was: {res}')
+    finally:
+        command_connection.close()
+
 def _urlCall(url, cmd, post):
-	# Makes all the calls to the printer
 	# If post is True then make a http post call
 	# Get commands need a leading /
 	# Set defaults for return codes
@@ -33,12 +103,8 @@ def _urlCall(url, cmd, post):
 	while loop < limit:
 		try:
 			if post is False: # get includes the http command type in the url
-				# msg = f'''Connection attempt: {loop} url: {url} post:{post}'''
-				# logger.debug(msg)
 				r = requests.get(url, timeout=timelimit) # if using rr_ API
 			else: #post 
-				# msg = f'''Connection attempt {loop} url: {url} cmd: {cmd} post:{post}'''
-				# logger.debug(msg)
 				r = requests.post(url, timeout=timelimit, data=cmd)
 
 		except requests.exceptions.RequestException as e:
@@ -68,42 +134,16 @@ def _urlCall(url, cmd, post):
 		logger.info(msg)
 		return 0, ''
 
-def _send_duet_code(command):
-	global printerUrl
-	# send a gcode command to Duet
-	command = f'''/rr_gcode?gcode={command}'''  #Post includes command type in url
-	code, _ = _urlCall(printerUrl, command, False) # Post form - sent blindly
-	if code in [200,204]: #Ignore 204 as some commands do not return content
-		pass
-	else:
-		logger.warning(f'Duet send failed with code {code}')
-		logger.debug(f'{command}')
-		
-	return code
-		
-def _loginPrinter(thisprinter,duetPassword): #logon and get key parameters
-	global PRINTER_STATUS,  printerUrl
-	printerUrl = thisprinter
-	# cmd = (f'''/rr_connect?sessionKey=yes&password={duetPassword}''') # using rr_ API
-	# cmd = (f'''/rr_connect?password={duetPassword}''') # using rr_ API
-	cmd = (f'''/machine/connect?password={duetPassword}''') # using new API
-	code, _ = _urlCall(printerUrl, cmd, False)
-	if code in [200,204]:
-		PRINTER_STATUS = get_duet_printer_status() or 'idle' # Get current printer status or default to idle
-		return True
-	elif code == 403:
-		msg = 'Password is invalid'
-	elif code == 503:
-		msg = 'No more connections available'
-	elif code == 502:
-		msg = 'Incorrect DCS version'
-	else:
-		msg = f'''Is the Printer turned on?.'''
-	
-	msg = f'''Login issue: {msg} code = {code} cmd = {cmd}'''
-	logger.debug(msg)
-	return False
 
+def _loginPrinter():
+    logger.info('Logging in')
+    object_model = subscription.get_object_model()
+    if object_model.state.status.value == 'disconnected':
+        return False
+    threading.Thread(target=lambda: asyncio.run(duetStatus()), daemon=True).start()
+    return True
+
+		
 def _duet_pause():
 	pause_command = 'M25'
 
@@ -143,27 +183,7 @@ def duet_send_notification(alert):
 	return True
 
 def get_duet_printer_status():
-	'''
-	Polled by UI and updates PRINTER_STATUS which is used
-	by the suspend_print_job
-	returns false if cannot get status from printer
-	'''
-	global PRINTER_STATUS, printerUrl
-	cmd = f'''/rr_model?key=state'''
-	code , state = _urlCall(printerUrl, cmd, False)
-	if code == 200:
-		j = json.loads(state)
-		status = j['result']['status']
-		if status != PRINTER_STATUS:
-			logger.info(f'Printer status changed from {PRINTER_STATUS} to {status}')
-			PRINTER_STATUS = status
-		return status
-	elif code == 204:
-		logger.warning('No content returned when getting printer status')
-		return False
-	else:
-		logger.critical(f'Failed to get printer status with code {code}')
-		return False # Default to idle if cannot get status
+	return PRINTER_STATUS
 
 
 def suspend_print_job(action):
@@ -306,46 +326,6 @@ def _send_pushover(alert):
 		logger.info(f'Error sending PUSHOVER:  {e}')
 	return True
 
-if __name__ == "__main__":    # Test setup
-	import os
-	sys.path.append(os.path.dirname(__file__))
-	from logger_module import (setup_logfile, set_log_level)
-	from duet_config import get_DWC_config
-	
-	global logger
-	file_path = sys.argv[1]
-	LOGFILENAME = 'test.log'
-	progName = 'test'
-
-	# Create a logfile 
-	logger = setup_logfile(file_path,LOGFILENAME,progName)
-	# from logger_module import logger # Need to import after setup_logging is called
-	logger.info(f'''{progName}''')
-
-	if not get_DWC_config(file_path, logger):
-		print(f"Failed to load configuration from {file_path}.")
-		sys.exit(1)
-
-	# Can now get config parameters
-	from duet_config import DUET,LOGGING, ACTION,MACRO,NTFY,PUSHOVER
-
-	# Set logging level
-	logger = set_log_level(LOGGING.LEVEL,logger)
-
-	printerUrl = f'http://{DUET.IP}:{DUET.PORT}'
-
-	_loginPrinter(printerUrl,DUET.PASSWORD)
-
-	class test:
-		title = 'test'
-		body = 'test body'
-
-	duet_send_notification(test)
-
-
-else: # At the least we need the logger module
-	from logger_module import logger
-	from duet_config import ACTION, MACRO, NTFY, PUSHOVER
 
 
 

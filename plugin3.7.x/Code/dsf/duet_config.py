@@ -11,7 +11,6 @@ ever updated in place, so modules that import them see live changes.
 """
 import json
 import os
-import socket
 
 global DUET, UI, LOGGING, ACTION, MACRO, NTFY, PUSHOVER
 
@@ -19,12 +18,6 @@ CONFIGFILENAME = 'duetPrintGuard.json'
 
 # section -> key -> (type, default, restart_required)
 CONFIG_SCHEMA = {
-	'DUET': {
-		'IP': (str, '', True),        # Blank = auto-detect this machine's ip address
-		'PORT': (int, 80, True),
-		'PASSWORD': (str, 'reprap', True),
-		'POWERCHECK': (bool, True, True),
-	},
 	'UI': {
 		'PORT': (int, 0, True),
 	},
@@ -56,9 +49,6 @@ CONFIG_SCHEMA = {
 	},
 }
 
-# Values that are never sent to the browser
-SECRET_SETTINGS = {('DUET', 'PASSWORD')}
-
 LOG_LEVELS = ['WARNING', 'INFO', 'DEBUG']
 
 
@@ -67,7 +57,7 @@ class ConfigSection:
 
 
 DUET, UI, LOGGING, ACTION, MACRO, NTFY, PUSHOVER = (ConfigSection() for _ in range(7))
-_SECTIONS = {'DUET': DUET, 'UI': UI, 'LOGGING': LOGGING, 'ACTION': ACTION,
+_SECTIONS = {'UI': UI, 'LOGGING': LOGGING, 'ACTION': ACTION,
 			 'MACRO': MACRO, 'NTFY': NTFY, 'PUSHOVER': PUSHOVER}
 
 _config_file = None
@@ -140,18 +130,6 @@ def _apply(config):
 			setattr(_SECTIONS[section], key, value)
 
 
-def get_local_ip():
-	"""Get the ip address of this machine."""
-	s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-	try:
-		s.connect(('10.255.255.255', 1))  # doesn't even have to be reachable
-		return s.getsockname()[0]
-	except Exception:
-		return '127.0.0.1'
-	finally:
-		s.close()
-
-
 def _load():
 	config = _defaults()
 	if os.path.exists(_config_file):
@@ -181,9 +159,6 @@ def get_DWC_config(file_path, logger):
 	config = _load()
 	_apply(config)
 
-	if not DUET.IP:
-		DUET.IP = get_local_ip()
-		logger.info(f'Using detected ip address {DUET.IP}')
 	UI.HOST = '0.0.0.0'
 	DUET.DWC = True
 	DUET.FILE_PATH = file_path
@@ -191,30 +166,26 @@ def get_DWC_config(file_path, logger):
 
 
 def get_config_for_ui():
-	"""Return the current saved settings, with secrets removed, plus field metadata."""
+	"""Return the current saved settings plus field metadata."""
 	config = _load()
 	settings = {}
 	for section, keys in CONFIG_SCHEMA.items():
 		settings[section] = {}
 		for key, (value_type, default, restart) in keys.items():
-			secret = (section, key) in SECRET_SETTINGS
 			settings[section][key] = {
-				'value': '' if secret else config[section][key],
+				'value': config[section][key],
 				'type': value_type.__name__,
-				'default': '' if secret else default,
+				'default': default,
 				'restart': restart,
-				'secret': secret,
-				'is_set': config[section][key] != default if secret else None,
 			}
 	# UI.PORT is only applied at startup, so the in-memory value is the port in use
-	return {'settings': settings, 'detected_ip': get_local_ip(), 'log_levels': LOG_LEVELS,
+	return {'settings': settings, 'log_levels': LOG_LEVELS,
 			'ui_port_in_use': getattr(UI, 'PORT', None)}
 
 
 def update_config(updates):
 	"""Validate and save settings from the config page.
 
-	Blank secret values leave the stored value unchanged.
 	Returns (errors, restart_keys). Nothing is saved if there are errors.
 	"""
 	config = _load()
@@ -226,8 +197,6 @@ def update_config(updates):
 		values = updates.get(section) or {}
 		for key, (value_type, _, restart) in keys.items():
 			if key not in values:
-				continue
-			if (section, key) in SECRET_SETTINGS and str(values[key]) == '':
 				continue
 			try:
 				value = _convert(values[key], value_type)

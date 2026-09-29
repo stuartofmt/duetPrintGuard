@@ -11,7 +11,6 @@ function getPageURL(page) {
 const configForm = document.getElementById('configForm');
 const saveBtn = document.getElementById('saveBtn');
 const statusMessage = document.getElementById('statusMessage');
-const passwordHelp = document.getElementById('passwordHelp');
 const logLevelSelect = document.getElementById('LOGGING.LEVEL');
 const uiPortInUse = document.getElementById('uiPortInUse');
 
@@ -82,9 +81,6 @@ async function loadConfig() {
 			}
 		}
 
-		const ipInput = configForm.elements['DUET.IP'];
-		ipInput.placeholder = `Auto-detect (${data.detected_ip})`;
-
 		const savedPort = data.settings.UI.PORT.value;
 		const portInUse = data.ui_port_in_use;
 		uiPortInUse.textContent = `Currently connected to port: ${portInUse}`;
@@ -93,11 +89,6 @@ async function loadConfig() {
 		} else if (portInUse !== savedPort) {
 			uiPortInUse.textContent += ` - ${savedPort} will be used after restart, if it is free`;
 		}
-
-		const password = data.settings.DUET.PASSWORD;
-		passwordHelp.textContent = password.is_set
-			? 'A password is set. Leave blank to keep it.'
-			: 'Only needed if a password has been set in the DWC configuration. Leave blank to use the default.';
 
 	} catch (err) {
 		console.error('Failed to load configuration:', err);
@@ -144,8 +135,6 @@ configForm.addEventListener('submit', async function(e) {
 		if (!response.ok) {
 			throw new Error(result.detail || response.statusText);
 		}
-
-		configForm.elements['DUET.PASSWORD'].value = '';
 
 		if (result.restart_required.length) {
 			showStatus(

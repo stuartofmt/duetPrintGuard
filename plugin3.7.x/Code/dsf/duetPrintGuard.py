@@ -82,43 +82,6 @@ def validate_port(port=0, start_port=17800, max_tries=100):
 	return this_ip_address, port
 
 
-
-def checkIP(ip_address, port):
-	#  Check to see if the requested IP and Port are available for use
-	this_ip_address = ''
-	if port != 0:
-		#  Get the local ip address
-		s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-		try:
-			s.connect(('10.255.255.255', 1))  # doesn't even have to be reachable
-			this_ip_address = s.getsockname()[0]
-		except Exception as e:
-			logger.warning(f'''Make sure IP address {ip_address} is reachable and unique''')
-			logger.warning(f'''{e}''')
-		finally:
-			s.close()
-			if ip_address != this_ip_address:
-				logger.critical(f'''The ip address in the configuration file {ip_address}\ndoes not match the ip address of this machine {this_ip_address}''')
-				force_quit(1)
-
-		# Check that the port is available
-		try:
-			sock = socket.socket()
-		except Exception as e:
-			logger.critical(f'''Unknown error trying to open a socket''')
-			logger.critical(f'''{e}''')
-			force_quit(1)  
-		finally:
-			if sock.connect_ex((ip_address, port)) == 0:
-				logger.critical(f'''Port {port} is already in use.''')
-				force_quit(1)
-	else:
-		logger.critical('No port number was provided - terminating the program')
-		force_quit(1)
-	
-	logger.info(f'''IP address {ip_address} with port {port} is available''')
-	return ip_address
-
 def force_quit(code):
 	logger.critical(f'''Terminating the program with exit code {code}''')
 	sys.exit(code)
@@ -142,22 +105,16 @@ def start(file_path):
 	# Set logging level
 	logger = set_log_level(LOGGING.LEVEL,logger)
 
-	# Exit if printer is not connected and should be
 	from duet_printer import _loginPrinter
 
-	printerUrl = f'http://{DUET.IP}:{DUET.PORT}'
-	
-	if _loginPrinter(printerUrl,DUET.PASSWORD):
-		logger.info(f'Successful login to printer at {printerUrl}')
-	elif DUET.POWERCHECK:
-		logger.critical(f'Failed to login to printer at {printerUrl} - check printer is turned on')
-		force_quit(1)
+	if _loginPrinter():
+		logger.info(f'Successful login to printer')
 	else:
-		logger.warning(f'Failed to login to printer at {printerUrl} - continuing as POWERCHECK is off')
+		logger.critical(f'Failed to login to printer - check printer is turned on')
+		force_quit(1)
 
-	# Exit if valid Port is not provided for UI
-	# On this SBC
-	#checkIP(DUET.IP, UI.PORT)
+	# Allocate a port on this SBC
+
 	DUET.IP, UI.PORT = validate_port(UI.PORT)
  
 	from app import appstartup

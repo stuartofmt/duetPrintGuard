@@ -30,32 +30,6 @@
         <form id="configForm" novalidate>
 
             <fieldset class="config-section">
-                <legend>Printer</legend>
-                <div class="form-group">
-                    <label for="DUET.IP">IP Address <span class="restart-tag">restart</span></label>
-                    <input type="text" id="DUET.IP" name="DUET.IP" />
-                    <p class="help">IP address of this machine / printer. Leave blank to detect it automatically.</p>
-                </div>
-                <div class="form-group">
-                    <label for="DUET.PORT">Port <span class="restart-tag">restart</span></label>
-                    <input type="number" id="DUET.PORT" name="DUET.PORT" min="1" max="65535" />
-                    <p class="help">Only change if the DWC port has been changed in /opt/dsf/conf/http.json. This is NOT the port for these pages.</p>
-                </div>
-                <div class="form-group">
-                    <label for="DUET.PASSWORD">Password <span class="restart-tag">restart</span></label>
-                    <input type="password" id="DUET.PASSWORD" name="DUET.PASSWORD" autocomplete="new-password" />
-                    <p class="help" id="passwordHelp">Only needed if a password has been set in the DWC configuration. Leave blank to keep the current password.</p>
-                </div>
-                <div class="form-group checkbox-group">
-                    <label>
-                        <input type="checkbox" id="DUET.POWERCHECK" name="DUET.POWERCHECK" />
-                        Power check <span class="restart-tag">restart</span>
-                    </label>
-                    <p class="help">Stop the plugin at startup if the printer cannot be reached. Normally on - turn off for testing.</p>
-                </div>
-            </fieldset>
-
-            <fieldset class="config-section">
                 <legend>Web Interface</legend>
                 <div class="form-group">
                     <label for="UI.PORT">Port <span class="restart-tag">restart</span></label>
