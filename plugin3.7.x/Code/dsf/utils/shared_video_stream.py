@@ -8,8 +8,18 @@ import numpy as np
 from .config import (CAMERA_SETTINGS,CAMERA_STATES,COUNTDOWN_SETTINGS)
 
 
+# Stop capturing if nothing has asked for a frame for this long - restarted on demand
+IDLE_TIMEOUT_SECONDS = 30
+OPEN_TIMEOUT_MSEC = 5000
+READ_TIMEOUT_MSEC = 5000
+
+
 class SharedVideoStream:
-    """A shared video stream that allows multiple consumers to access the same camera source."""
+    """A shared video stream that allows multiple consumers to access the same camera source.
+
+    Only needed for RTSP cameras - HTTP cameras use utils/mjpeg_source.py
+    (snapshot URL for detection and snapshots, JPEG pass-through for live view).
+    """
 
     def __init__(self, camera_uuid: str, source: str):
         # pylint: disable=E1101
@@ -23,6 +33,7 @@ class SharedVideoStream:
         self.thread: Optional[threading.Thread] = None
         self.last_frame_time = 0
         self.frame_count = 0
+        self.last_access_time = time.time()
 
     def start(self):
         """Start the video stream capture thread."""
@@ -48,27 +59,32 @@ class SharedVideoStream:
         try:
             source = self.source
             # Build a list of candidate source representations to try opening.
-            attempts = []
-            if isinstance(source, str):
-                if source.isdigit():
-                    attempts.append(int(source))
-                # handle Linux device path like /dev/video0 -> try index 0 as fallback
-                if source.startswith('/dev/video'):
-                    try:
-                        idx = int(source.rsplit('video', 1)[1])
-                        attempts.append(idx)
-                    except Exception:
-                        pass
-                attempts.append(source)
-            else:
-                attempts.append(source)
+            attempts = [source]
+            # V4L (/dev/videoN) and device index cameras disabled
+            # attempts = []
+            # if isinstance(source, str):
+            #     if source.isdigit():
+            #         attempts.append(int(source))
+            #     # handle Linux device path like /dev/video0 -> try index 0 as fallback
+            #     if source.startswith('/dev/video'):
+            #         try:
+            #             idx = int(source.rsplit('video', 1)[1])
+            #             attempts.append(idx)
+            #         except Exception:
+            #             pass
+            #     attempts.append(source)
+            # else:
+            #     attempts.append(source)
 
             # Try each candidate until one opens successfully
             self.cap = None
             opened_source = None
             for cand in attempts:
                 try:
-                    cap = cv2.VideoCapture(cand, cv2.CAP_ANY)
+                    # Timeouts only take effect when passed at open time
+                    cap = cv2.VideoCapture(cand, cv2.CAP_FFMPEG,
+                                           [cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, OPEN_TIMEOUT_MSEC,
+                                            cv2.CAP_PROP_READ_TIMEOUT_MSEC, READ_TIMEOUT_MSEC])
                     if cap is not None and cap.isOpened():
                         self.cap = cap
                         opened_source = cand
@@ -89,11 +105,15 @@ class SharedVideoStream:
             else:
                 logger.debug("Opened camera source %s for shared stream (used: %s)", source, opened_source)
             self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-            if isinstance(source, str) and source.startswith('rtp://'):
-                self.cap.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 5000)
+            # Open timeout is now passed to VideoCapture above
+            # if isinstance(source, str) and source.startswith('rtp://'):
+            #     self.cap.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 5000)
             consecutive_failures = 0
             max_consecutive_failures = 10
             while self.is_running:
+                if time.time() - self.last_access_time > IDLE_TIMEOUT_SECONDS:
+                    logger.debug("No readers for camera %s - stopping shared stream", self.camera_uuid)
+                    break
                 ret, frame = self.cap.read()
                 if not ret:
                     consecutive_failures += 1
@@ -109,18 +129,20 @@ class SharedVideoStream:
                 else:
                     consecutive_failures = 0
                 with self.frame_lock:
-                    self.latest_frame = frame.copy()
+                    self.latest_frame = frame  # get_frame() returns a copy
                     self.last_frame_time = time.time()
                     self.frame_count += 1
                 time.sleep(0.001)
         except (cv2.error, OSError, ValueError) as e:
             logger.error("Error in shared video stream for camera %s: %s", self.camera_uuid, e)
         finally:
+            self.is_running = False  # Lets the manager restart it on the next request
             if self.cap and self.cap.isOpened():
                 self.cap.release()
 
     def get_frame(self) -> Optional[np.ndarray]:
         """Get the latest frame from the shared stream."""
+        self.last_access_time = time.time()
         with self.frame_lock:
             if self.latest_frame is not None:
                 return self.latest_frame.copy()
@@ -128,6 +150,7 @@ class SharedVideoStream:
 
     def is_frame_available(self) -> bool:
         """Check if a frame is available."""
+        self.last_access_time = time.time()
         with self.frame_lock:
             return self.latest_frame is not None
 

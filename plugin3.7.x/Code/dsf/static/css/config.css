@@ -6,7 +6,7 @@ body, html {
 }
 
 .config-container {
-    max-width: 800px;
+    max-width: 1400px;
     margin: 24px auto;
     padding: 0 16px 24px;
     box-sizing: border-box;
@@ -63,8 +63,17 @@ body, html {
     cursor: wait;
 }
 
+/* Sections sit side by side when there is room and stack vertically when there is not */
+#configForm {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(360px, 100%), 1fr));
+    gap: 16px;
+    align-items: start;
+}
+
 .config-section {
-    margin: 0 0 16px;
+    margin: 0;
+    min-width: 0; /* fieldsets default to min-content width, which stops them shrinking */
     padding: 16px 20px;
     background: #ffffff;
     border: 1px solid #e5e7eb;
@@ -163,6 +172,7 @@ body, html {
 }
 
 .form-actions {
+    grid-column: 1 / -1;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -194,6 +204,10 @@ body, html {
 
 .mobile-mode .config-container {
     margin: 8px auto;
+}
+
+.mobile-mode #configForm {
+    grid-template-columns: 1fr;
 }
 
 .mobile-mode .nav-buttons,

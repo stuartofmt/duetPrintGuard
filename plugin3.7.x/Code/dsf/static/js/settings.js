@@ -1126,12 +1126,23 @@ addRtspCameraButton?.addEventListener(
 				true;
 		}
 
-		if (snapshotUrlInput) {
-			snapshotUrlInput.required =
-				true;
-		}
+		updateSnapshotRequired();
 	}
 );
+
+// HTTP cameras need a snapshot URL - RTSP cameras do not
+function updateSnapshotRequired() {
+
+	if (!snapshotUrlInput) {
+		return;
+	}
+
+	const source =
+		(rtspUrlInput?.value || '').trim().toLowerCase();
+
+	snapshotUrlInput.required =
+		!source.startsWith('rtsp://');
+}
 
 // =========================
 // Preview Events
@@ -1149,6 +1160,11 @@ serialDeviceSelect?.addEventListener(
 rtspUrlInput?.addEventListener(
 	'input',
 	schedulePreviewUpdate
+);
+
+rtspUrlInput?.addEventListener(
+	'input',
+	updateSnapshotRequired
 );
 
 // =========================

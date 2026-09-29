@@ -22,6 +22,7 @@ import numpy as np
 import requests
 
 from utils.config import (
+	STREAM_MAX_FPS,
 	CAMERA_SETTINGS,
 	CAMERA_STATES,
 	DEFAULT_CAMERA_SETTINGS,
@@ -31,43 +32,45 @@ from utils.config import (
 )
 from duet_config import get_config_for_ui, update_config
 from utils.shared_video_stream import get_shared_stream_manager
+from utils.mjpeg_source import is_http_source, fetch_snapshot_bytes, stream_mjpeg
 from utils.stream_utils import UI_countdown, start_live_detection, stop_live_detection, save_app_state_request, create_optimized_frame_generator
 
 router = APIRouter()
 
 
-def find_available_serial_cameras() -> list[str]:
-	"""Find all available serial camera devices.
-
-	Returns:
-		list[str]: device paths or index strings for available cameras.
-	"""
-	logger.debug("INFO: Running on platform: %s", sys.platform)
-	if sys.platform.startswith('linux'):
-		logger.debug("INFO: Detected Linux platform. Searching for /dev/video* devices.")
-		device_paths = glob.glob('/dev/video*')
-		if device_paths:
-			logger.debug("INFO: Found device paths: %s", device_paths)
-			return sorted(device_paths)
-		else:
-			logger.warning("WARN: No /dev/video* devices found. Falling back to index probing.")
-	api_preference = cv2.CAP_ANY
-	if sys.platform == "win32":
-		api_preference = cv2.CAP_DSHOW
-	available_indices = []
-	index = 0
-	while len(available_indices) < 10:
-		cap = cv2.VideoCapture(index, api_preference)
-		if cap.isOpened():
-			logger.debug("INFO: Camera found at index: %s", index)
-			available_indices.append(str(index))
-			cap.release()
-		else:
-			logger.debug("INFO: No camera found at index: %s", index)
-			cap.release()
-			break
-		index += 1
-	return available_indices
+# V4L (/dev/videoN) cameras disabled
+# def find_available_serial_cameras() -> list[str]:
+# 	"""Find all available serial camera devices.
+#
+# 	Returns:
+# 		list[str]: device paths or index strings for available cameras.
+# 	"""
+# 	logger.debug("INFO: Running on platform: %s", sys.platform)
+# 	if sys.platform.startswith('linux'):
+# 		logger.debug("INFO: Detected Linux platform. Searching for /dev/video* devices.")
+# 		device_paths = glob.glob('/dev/video*')
+# 		if device_paths:
+# 			logger.debug("INFO: Found device paths: %s", device_paths)
+# 			return sorted(device_paths)
+# 		else:
+# 			logger.warning("WARN: No /dev/video* devices found. Falling back to index probing.")
+# 	api_preference = cv2.CAP_ANY
+# 	if sys.platform == "win32":
+# 		api_preference = cv2.CAP_DSHOW
+# 	available_indices = []
+# 	index = 0
+# 	while len(available_indices) < 10:
+# 		cap = cv2.VideoCapture(index, api_preference)
+# 		if cap.isOpened():
+# 			logger.debug("INFO: Camera found at index: %s", index)
+# 			available_indices.append(str(index))
+# 			cap.release()
+# 		else:
+# 			logger.debug("INFO: No camera found at index: %s", index)
+# 			cap.release()
+# 			break
+# 		index += 1
+# 	return available_indices
 
 # alert_routes.py
 @router.post("/countdown/action")
@@ -256,43 +259,47 @@ async def update_settings_countdown(request: Request,
 	return RedirectResponse("/settings", status_code=303)
 
 
-def fetch_snapshot_frame(snapshot_url: str):
-	"""Fetch a single frame from a camera's HTTP snapshot URL. Returns None on failure."""
-	try:
-		r = requests.get(snapshot_url, timeout=5)
-		r.raise_for_status()
-		frame = cv2.imdecode(np.frombuffer(r.content, dtype=np.uint8), cv2.IMREAD_COLOR)
-		if frame is None:
-			logger.warning("Snapshot URL %s did not return a decodable image", snapshot_url)
-		return frame
-	except requests.exceptions.RequestException as e:
-		logger.warning("Failed to fetch snapshot from %s: %s", snapshot_url, e)
-		return None
+# Replaced by mjpeg_source.fetch_snapshot_bytes - the JPEG is passed through without decoding
+# def fetch_snapshot_frame(snapshot_url: str):
+# 	"""Fetch a single frame from a camera's HTTP snapshot URL. Returns None on failure."""
+# 	try:
+# 		r = requests.get(snapshot_url, timeout=5)
+# 		r.raise_for_status()
+# 		frame = cv2.imdecode(np.frombuffer(r.content, dtype=np.uint8), cv2.IMREAD_COLOR)
+# 		if frame is None:
+# 			logger.warning("Snapshot URL %s did not return a decodable image", snapshot_url)
+# 		return frame
+# 	except requests.exceptions.RequestException as e:
+# 		logger.warning("Failed to fetch snapshot from %s: %s", snapshot_url, e)
+# 		return None
 
 
 @router.get('/camera/snapshot/{camera_uuid}', include_in_schema=False)
 async def camera_snapshot(camera_uuid: str):
-	manager = get_shared_stream_manager()
 	try:
-		frame = None
+		# HTTP cameras: return the snapshot URL's JPEG as-is
 		snapshot_url = CAMERA_SETTINGS.get(camera_uuid, {}).get('snapshot')
 		if snapshot_url:
-			frame = await asyncio.to_thread(fetch_snapshot_frame, snapshot_url)
+			data = await asyncio.to_thread(fetch_snapshot_bytes, snapshot_url)
+			if data is None:
+				raise HTTPException(status_code=502, detail="Camera snapshot failed")
+			return Response(content=data, media_type="image/jpeg")
 
-		if frame is None: # No snapshot URL or fetch failed - fall back to the video stream
-			source = CAMERA_SETTINGS.get(camera_uuid, {}).get('source')
-			stream = manager.get_stream(camera_uuid, source)
-			max_wait_time = 10
-			sleep_time = 0.5
-			elapsed_time = 0
-			while not stream.is_frame_available() and elapsed_time < max_wait_time:
-				time.sleep(sleep_time)
-				elapsed_time += sleep_time
-			if not stream.is_frame_available():
-				raise HTTPException(status_code=404, detail="No frame available")
-			frame = stream.get_frame()
-			if frame is None:
-				raise HTTPException(status_code=500, detail="Failed to read frame")
+		# RTSP cameras: encode the latest frame from the shared video stream
+		manager = get_shared_stream_manager()
+		source = CAMERA_SETTINGS.get(camera_uuid, {}).get('source')
+		stream = manager.get_stream(camera_uuid, source)
+		max_wait_time = 10
+		sleep_time = 0.5
+		elapsed_time = 0
+		while not stream.is_frame_available() and elapsed_time < max_wait_time:
+			await asyncio.sleep(sleep_time) # was time.sleep - blocked the whole server
+			elapsed_time += sleep_time
+		if not stream.is_frame_available():
+			raise HTTPException(status_code=404, detail="No frame available")
+		frame = stream.get_frame()
+		if frame is None:
+			raise HTTPException(status_code=500, detail="Failed to read frame")
 
 		# Brightness, contrast and focus settings disabled
 		# # Apply camera settings (brightness/contrast/focus) so snapshot matches live feed
@@ -311,27 +318,36 @@ async def camera_snapshot(camera_uuid: str):
 
 		_, buffer = cv2.imencode('.jpg', frame)
 		return Response(content=buffer.tobytes(), media_type="image/jpeg")
+	except HTTPException:
+		raise
 	except Exception as e:
 		logger.error("Snapshot error for %s: %s", camera_uuid, e)
 		raise
+
+
+def camera_live_stream(camera_uuid: str) -> StreamingResponse:
+	"""Live view: HTTP MJPEG is passed through as-is, RTSP is decoded and re-encoded."""
+	source = CAMERA_SETTINGS[camera_uuid].get('source')
+	if is_http_source(source):
+		frames = stream_mjpeg(source, STREAM_MAX_FPS)
+	else:
+		frames = create_optimized_frame_generator(camera_uuid, lambda: None)
+	return StreamingResponse(frames, media_type='multipart/x-mixed-replace; boundary=frame')
 
 
 @router.get('/camera/stream/{camera_uuid}', include_in_schema=False)
 async def camera_stream(camera_uuid: str):
 	if camera_uuid not in CAMERA_SETTINGS:
 		raise HTTPException(status_code=404, detail="Camera not found")
-	return StreamingResponse(
-		create_optimized_frame_generator(camera_uuid, lambda: None),
-		media_type='multipart/x-mixed-replace; boundary=frame'
-	)
+	return camera_live_stream(camera_uuid)
 
 
-@router.get("/camera/serial_devices")
-async def get_serial_devices_ep():
-	"""Get a list of available serial devices."""
-	devices = find_available_serial_cameras()
-	return devices
-
+# V4L (/dev/videoN) cameras disabled
+# @router.get("/camera/serial_devices")
+# async def get_serial_devices_ep():
+# 	"""Get a list of available serial devices."""
+# 	devices = find_available_serial_cameras()
+# 	return devices
 
 def generate_preview_frames(source: str, preview_uuid: str):
 	"""Generate frames for camera preview using shared video stream."""
@@ -366,13 +382,16 @@ async def camera_preview(source: str):
 	"""Stream live camera preview for a specific source without registration."""
 	if not source or not source.strip():
 		raise HTTPException(status_code=400, detail="Missing preview source")
+	if is_http_source(source): # MJPEG passed through as-is
+		return StreamingResponse(stream_mjpeg(source, 5),
+								 media_type='multipart/x-mixed-replace; boundary=frame')
 	preview_uuid = f"preview_{uuid.uuid4()}"
 	manager = get_shared_stream_manager()
 	stream = manager.get_stream(preview_uuid, source)
 	max_wait = 50
 	wait_count = 0
 	while not stream.is_frame_available() and wait_count < max_wait:
-		time.sleep(0.1)
+		await asyncio.sleep(0.1) # was time.sleep - blocked the whole server
 		wait_count += 1
 	if not stream.is_frame_available():
 		manager.release_stream(preview_uuid)
@@ -388,10 +407,7 @@ async def stream_by_nickname(nickname: str):
 	camera_uuid = get_camera_uuid_by_nickname(nickname)
 	if not camera_uuid:
 		raise HTTPException(status_code=404, detail="Camera not found")
-	return StreamingResponse(
-		create_optimized_frame_generator(camera_uuid, lambda: None),
-		media_type='multipart/x-mixed-replace; boundary=frame'
-	)
+	return camera_live_stream(camera_uuid)
 
 
 # config_routes.py
@@ -404,8 +420,8 @@ async def add_camera_config(request: Request):
 	if not nickname or not source:
 		raise HTTPException(status_code=400, detail="Missing camera nickname or source.")
 	snapshot = data.get('snapshot')
-	is_local_device = source.isdigit() or source.startswith('/dev/video')
-	if not is_local_device and not snapshot:
+	# HTTP cameras need a snapshot URL (used for detection and snapshots) - RTSP cameras do not
+	if is_http_source(source) and not snapshot:
 		raise HTTPException(status_code=400, detail="Missing camera snapshot URL.")
 	camera_uuid = str(uuid.uuid4())
 	default_camera_settings = deepcopy(DEFAULT_CAMERA_SETTINGS) # Precaution vs shallow copy

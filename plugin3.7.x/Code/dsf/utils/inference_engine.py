@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Tuple
 from enum import Enum
 
-import cv2
+# import cv2 # only used by draw_label
 
 class InferenceBackend(Enum):
     """Supported inference backends."""
@@ -150,40 +150,41 @@ class UniversalInferenceEngine:
         """Clear the prototype cache for a support directory."""
         self._engine.clear_prototype_cache(support_dir)
 
-    def draw_label(self, frame: Any, label: str, color: Tuple[int, int, int],
-                   success_label: str = "success") -> Any:
-        """Draw a detection label on an image frame.
-        
-        This is a common utility function that doesn't depend on the backend.
-        
-        Args:
-            frame: The image frame to draw on
-            label: The prediction label to display
-            color: RGB color tuple for the label background
-            success_label: Label considered as "success" (non-defective)
-            
-        Returns:
-            The frame with the label drawn on it
-        """
-        # pylint: disable=E1101
-        text = "non-defective" if label == success_label else "defect"
-        font = cv2.FONT_HERSHEY_SIMPLEX
-        font_scale = 2
-        thickness = 3
-        try:
-            text_size, _ = cv2.getTextSize(text, font, font_scale, thickness)
-            text_w, text_h = text_size
-            h, w, _ = frame.shape
-            rect_start = (w - text_w - 40, h - text_h - 40)
-            rect_end = (w - 20, h - 20)
-            text_pos = (w - text_w - 30, h - 30)
-            cv2.rectangle(frame, rect_start, rect_end, color, -1)
-            cv2.putText(frame, text, text_pos, font, font_scale,
-                        (255, 255, 255), thickness, cv2.LINE_AA)
-        except Exception as e:
-            logger.error("Error drawing label: %s. Frame shape: %s, Label: %s",
-                         e, frame.shape, label)
-        return frame
+    # Not used - nothing draws labels onto frames
+    # def draw_label(self, frame: Any, label: str, color: Tuple[int, int, int],
+    #                success_label: str = "success") -> Any:
+    #     """Draw a detection label on an image frame.
+    #
+    #     This is a common utility function that doesn't depend on the backend.
+    #
+    #     Args:
+    #         frame: The image frame to draw on
+    #         label: The prediction label to display
+    #         color: RGB color tuple for the label background
+    #         success_label: Label considered as "success" (non-defective)
+    #
+    #     Returns:
+    #         The frame with the label drawn on it
+    #     """
+    #     # pylint: disable=E1101
+    #     text = "non-defective" if label == success_label else "defect"
+    #     font = cv2.FONT_HERSHEY_SIMPLEX
+    #     font_scale = 2
+    #     thickness = 3
+    #     try:
+    #         text_size, _ = cv2.getTextSize(text, font, font_scale, thickness)
+    #         text_w, text_h = text_size
+    #         h, w, _ = frame.shape
+    #         rect_start = (w - text_w - 40, h - text_h - 40)
+    #         rect_end = (w - 20, h - 20)
+    #         text_pos = (w - text_w - 30, h - 30)
+    #         cv2.rectangle(frame, rect_start, rect_end, color, -1)
+    #         cv2.putText(frame, text, text_pos, font, font_scale,
+    #                     (255, 255, 255), thickness, cv2.LINE_AA)
+    #     except Exception as e:
+    #         logger.error("Error drawing label: %s. Frame shape: %s, Label: %s",
+    #                      e, frame.shape, label)
+    #     return frame
 
     def get_backend_info(self) -> Dict[str, Any]:
         """Get information about the current backend.

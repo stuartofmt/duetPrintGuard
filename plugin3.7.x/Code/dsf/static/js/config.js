@@ -87,7 +87,7 @@ async function loadConfig() {
 
 		const savedPort = data.settings.UI.PORT.value;
 		const portInUse = data.ui_port_in_use;
-		uiPortInUse.textContent = `Currently in use: ${portInUse}`;
+		uiPortInUse.textContent = `Currently connected to port: ${portInUse}`;
 		if (savedPort === 0) {
 			uiPortInUse.textContent += ' (picked automatically)';
 		} else if (portInUse !== savedPort) {

@@ -12,6 +12,7 @@ from copy import deepcopy
 from .model_utils import _run_inference
 
 from .shared_video_stream import get_shared_camera_frame
+from .mjpeg_source import fetch_snapshot_image
 
 from .config import (STREAM_MAX_FPS,
 					 STREAM_JPEG_QUALITY,
@@ -203,13 +204,25 @@ async def create_optimized_detection_loop(app_state, camera_uuid):
 				break
 
 			if COUNTDOWN_SETTINGS['alert_status'] == 'inactive': # No point in burning CPU
+				# HTTP cameras: one snapshot per detection - no continuous stream decoding
+				# RTSP cameras: latest frame from the shared video stream
+				snapshot_url = CAMERA_SETTINGS[camera_uuid].get('snapshot')
 				try:
-					frame = get_shared_camera_frame(camera_uuid)
+					if snapshot_url:
+						image = await asyncio.to_thread(fetch_snapshot_image, snapshot_url)
+					else:
+						frame = await asyncio.to_thread(get_shared_camera_frame, camera_uuid)
+						image = None if frame is None else Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
 				except Exception as e:
 					logger.warning("Failed to get frame from shared camera stream %s", camera_uuid)
 					CAMERA_STATES[camera_uuid]['live_detection_running'] = 'no'
 					CAMERA_STATES[camera_uuid]['last_result'] = 'Failed to get frame'
 					break
+
+				if image is None: # Camera did not respond - try again next interval
+					logger.warning("No image from camera %s - skipping this detection", camera_uuid)
+					await asyncio.sleep(stream_optimizer.get_detection_interval())
+					continue
 
 				# SRS possibly remove and instead get once from above loop
 				# Leaving here may allow settings changes on-the-fly
@@ -223,8 +236,9 @@ async def create_optimized_detection_loop(app_state, camera_uuid):
 				# if focus and focus != 1.0:
 					# blurred = cv2.GaussianBlur(frame, (0, 0), sigmaX=focus)
 					# frame = cv2.addWeighted(frame, 1.0 + focus, blurred, -focus, 0)
-				detection_frame, _ = stream_optimizer.optimize_frame(frame)
-				image = Image.fromarray(cv2.cvtColor(detection_frame, cv2.COLOR_BGR2RGB))
+				# Not needed - the model transform resizes to 256 and converts to grayscale
+				# detection_frame, _ = stream_optimizer.optimize_frame(frame)
+				# image = Image.fromarray(cv2.cvtColor(detection_frame, cv2.COLOR_BGR2RGB))
 				tensor = app_state.transform(image).unsqueeze(0).to(app_state.device)
 				
 				"""
@@ -339,46 +353,48 @@ async def create_optimized_detection_loop(app_state, camera_uuid):
 	finally:
 		pass
 
-def generate_frames(camera_uuid: str):
-	"""Fallback frame generator if optimized generator fails, using shared video stream.
+# Not used - live view uses create_optimized_frame_generator (RTSP) or mjpeg_source (HTTP)
+# def generate_frames(camera_uuid: str):
+# 	"""Fallback frame generator if optimized generator fails, using shared video stream.
+#
+# 	Args:
+# 		camera_uuid (str): The UUID of the camera.
+#
+# 	Yields:
+# 		bytes: Multipart JPEG frame data.
+# 	"""
+# 	try:
+# 		for frame_data in create_optimized_frame_generator(camera_uuid, CAMERA_SETTINGS[camera_uuid]):
+# 			yield frame_data
+# 	# pylint: disable=E1101
+# 	except Exception as e:
+# 		logger.error("Generate Frames - Error in optimized frame generation for camera %s: %s", camera_uuid, e)
+# 		try:
+# 			while True:
+# 				# Brightness, contrast and focus settings disabled
+# 				# contrast = CAMERA_SETTINGS[camera_uuid].get('contrast')
+# 				# brightness = CAMERA_SETTINGS[camera_uuid].get('brightness')
+# 				# focus = CAMERA_SETTINGS[camera_uuid].get('focus')
+# 				frame = get_shared_camera_frame(camera_uuid)
+# 				if frame is None:
+# 					logger.warning("Failed to get frame from shared camera stream %s", camera_uuid)
+# 					time.sleep(0.1)
+# 					continue
+# 				# frame = cv2.convertScaleAbs(frame,
+# 								# alpha=contrast,
+# 								# beta=int((brightness - 1.0) * 255))
+# 				# if focus and focus != 1.0:
+# 					# blurred = cv2.GaussianBlur(frame, (0, 0), sigmaX=focus)
+# 					# frame = cv2.addWeighted(frame, 1.0 + focus, blurred, -focus, 0)
+# 				_, buffer = cv2.imencode('.jpg', frame)
+# 				frame_bytes = buffer.tobytes()
+# 				yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+# 		except Exception as fallback_e:
+# 			logger.error("Error in fallback frame generation for camera %s: %s",
+# 						  camera_uuid,
+# 						  fallback_e)
+#
 
-	Args:
-		camera_uuid (str): The UUID of the camera.
-
-	Yields:
-		bytes: Multipart JPEG frame data.
-	"""
-	try:
-		for frame_data in create_optimized_frame_generator(camera_uuid, CAMERA_SETTINGS[camera_uuid]):
-			yield frame_data
-	# pylint: disable=E1101
-	except Exception as e:
-		logger.error("Generate Frames - Error in optimized frame generation for camera %s: %s", camera_uuid, e)
-		try:
-			while True:
-				# Brightness, contrast and focus settings disabled
-				# contrast = CAMERA_SETTINGS[camera_uuid].get('contrast')
-				# brightness = CAMERA_SETTINGS[camera_uuid].get('brightness')
-				# focus = CAMERA_SETTINGS[camera_uuid].get('focus')
-				frame = get_shared_camera_frame(camera_uuid)
-				if frame is None:
-					logger.warning("Failed to get frame from shared camera stream %s", camera_uuid)
-					time.sleep(0.1)
-					continue
-				# frame = cv2.convertScaleAbs(frame,
-								# alpha=contrast,
-								# beta=int((brightness - 1.0) * 255))
-				# if focus and focus != 1.0:
-					# blurred = cv2.GaussianBlur(frame, (0, 0), sigmaX=focus)
-					# frame = cv2.addWeighted(frame, 1.0 + focus, blurred, -focus, 0)
-				_, buffer = cv2.imencode('.jpg', frame)
-				frame_bytes = buffer.tobytes()
-				yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
-		except Exception as fallback_e:
-			logger.error("Error in fallback frame generation for camera %s: %s",
-						  camera_uuid,
-						  fallback_e)
-			
 
 def _camera_failure_threshold(cam_uuid,window,threshold,latest_failure):
 	'''
