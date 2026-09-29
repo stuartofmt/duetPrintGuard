@@ -326,6 +326,19 @@ async def camera_preview(source: str):
 							 media_type='multipart/x-mixed-replace; boundary=frame')
 
 
+# Get direct video feed
+@router.get("/video/{nickname}/stream", include_in_schema=False)
+async def stream_by_nickname(nickname: str):
+	"""Direct video stream by camera nickname."""
+	camera_uuid = get_camera_uuid_by_nickname(nickname)
+	if not camera_uuid:
+		raise HTTPException(status_code=404, detail="Camera not found")
+	return StreamingResponse(
+		create_optimized_frame_generator(camera_uuid, lambda: None),
+		media_type='multipart/x-mixed-replace; boundary=frame'
+	)
+
+
 # config_routes.py
 @router.post("/config/add-camera")
 async def add_camera_config(request: Request):

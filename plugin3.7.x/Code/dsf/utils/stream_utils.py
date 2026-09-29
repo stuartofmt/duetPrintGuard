@@ -110,10 +110,6 @@ class StreamOptimizer:
 			cv2.IMWRITE_JPEG_QUALITY, jpeg_quality,
 			cv2.IMWRITE_JPEG_OPTIMIZE, 1,
 		]
-		'''
-		if settings['is_tunnel_mode']:
-			encode_params.extend([cv2.IMWRITE_JPEG_PROGRESSIVE, 1])
-		'''
 		success, buffer = cv2.imencode('.jpg', frame, encode_params)
 		if not success:
 			_, buffer = cv2.imencode('.jpg', frame)
@@ -168,7 +164,7 @@ def create_optimized_frame_generator(camera_uuid: str, camera_state_getter):
 				settings = stream_optimizer.get_stream_settings()
 				logger.debug("Camera %s: Streamed %d frames, mode: %s",
 							camera_uuid, frame_count,
-							"tunnel" if settings['is_tunnel_mode'] else "local")
+							"optimized")
 	except Exception as e:
 		logger.error("Error in optimized frame generation for camera %s: %s", camera_uuid, e)
 
