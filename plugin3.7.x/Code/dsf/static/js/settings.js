@@ -11,6 +11,10 @@ function getIndexURL() {
 	return window.isMobileMode ? '/index?mobile=true' : '/index';
 }
 
+function getConfigURL() {
+	return window.isMobileMode ? '/config?mobile=true' : '/config';
+}
+
 // =========================
 // Globals
 // =========================
@@ -24,6 +28,7 @@ const loadingOverlay = document.getElementById('loadingOverlay');
 // Settings
 const settingsCameraUUID = document.getElementById('camera_uuid');
 
+/* Sensitivity, brightness, contrast and focus settings disabled
 const settingsSensitivity =
 	document.getElementById('sensitivity');
 
@@ -47,18 +52,7 @@ const settingsFocus =
 
 const settingsFocusLabel =
 	document.getElementById('focus_val');
-
-const settingsMajorityVoteThreshold =
-	document.getElementById('majority_vote_threshold');
-
-const settingsMajorityVoteThresholdLabel =
-	document.getElementById('majority_vote_threshold_val');
-
-const settingsMajorityVoteWindow =
-	document.getElementById('majority_vote_window');
-
-const settingsMajorityVoteWindowLabel =
-	document.getElementById('majority_vote_window_val');
+*/
 
 // Countdown
 const settingsCountdownAction =
@@ -113,6 +107,8 @@ const serialDeviceSelect =
 
 const rtspUrlInput =
 	document.getElementById('rtspUrl');
+const snapshotUrlInput =
+	document.getElementById('snapshotUrl');
 
 const serialLoading =
 	document.getElementById('serialLoading');
@@ -175,7 +171,9 @@ function createDisplayItem(
 	camId,
 	nickname,
 	source,
-	autostart = false
+	autostart = false,
+	majorityVoteThreshold,
+	majorityVoteWindow
 ) {
 
 	if (!camTemplate || !grid) {
@@ -233,6 +231,13 @@ function createDisplayItem(
 	}
 
 	row.autostart = Boolean(autostart);
+
+	setupCameraSettings(
+		camFrag,
+		camId,
+		majorityVoteThreshold,
+		majorityVoteWindow
+	);
 
 	row.appendChild(card);
 
@@ -320,11 +325,79 @@ function updateCameraSnapshot(cameraUUID) {
 }
 
 // =========================
+// Camera Card Settings
+// =========================
+function setupCameraSettings(
+	camFrag,
+	camId,
+	majorityVoteThreshold,
+	majorityVoteWindow
+) {
+
+	const settingsForm =
+		camFrag.querySelector('.camera-settings');
+
+	if (!settingsForm) {
+		return;
+	}
+
+	settingsForm.querySelector('.camera-uuid').value =
+		camId;
+
+	// Clicking a card's settings should not re-select the card
+	settingsForm.addEventListener('click', event => {
+		event.stopPropagation();
+	});
+
+	const sliders = [
+		['majority-vote-threshold', 'majority_vote_threshold', majorityVoteThreshold],
+		['majority-vote-window', 'majority_vote_window', majorityVoteWindow]
+	];
+
+	sliders.forEach(([cls, name, value]) => {
+
+		const slider =
+			settingsForm.querySelector(`input.${cls}`);
+
+		if (!slider) return;
+
+		// Unique ids so updateSliderFill can find the value label
+		slider.id = `${name}_${camId}`;
+
+		settingsForm.querySelector(`.${cls}-label`).htmlFor =
+			slider.id;
+
+		settingsForm.querySelector(`.${cls}-val`).id =
+			`${slider.id}_val`;
+
+		if (value !== undefined && value !== null) {
+			slider.value = value;
+		}
+
+		slider.addEventListener('input', () => {
+			updateSliderFill(slider);
+		});
+
+		slider.addEventListener('change', function(e) {
+			e.preventDefault();
+			saveSetting(slider);
+		});
+	});
+}
+
+function updateSliderFillsIn(element) {
+	element
+		.querySelectorAll('.camera-settings input[type="range"]')
+		.forEach(updateSliderFill);
+}
+
+// =========================
 // Camera Settings
 // =========================
 function updateSelectedCameraSettings(d) {
 
 	const settingsMap = [
+		/* Sensitivity, brightness, contrast and focus settings disabled
 		[
 			settingsSensitivity,
 			settingsSensitivityLabel,
@@ -345,16 +418,7 @@ function updateSelectedCameraSettings(d) {
 			settingsFocusLabel,
 			d.focus
 		],
-		[
-			settingsMajorityVoteThreshold,
-			settingsMajorityVoteThresholdLabel,
-			d.majority_vote_threshold
-		],
-		[
-			settingsMajorityVoteWindow,
-			settingsMajorityVoteWindowLabel,
-			d.majority_vote_window
-		]
+		*/
 	];
 
 	if (settingsCameraUUID) {
@@ -420,12 +484,10 @@ function fetchAndUpdateCameraSettings(
 
 		updateSelectedCameraSettings({
 			camera_uuid: cameraUUID,
-			brightness: setting.brightness,
-			contrast: setting.contrast,
-			focus: setting.focus,
-			sensitivity: setting.sensitivity,
-			majority_vote_threshold: setting.majority_vote_threshold,
-			majority_vote_window: setting.majority_vote_window,
+			// brightness: setting.brightness,
+			// contrast: setting.contrast,
+			// focus: setting.focus,
+			// sensitivity: setting.sensitivity,
 			autostart: setting.autostart
 		});
 
@@ -923,6 +985,11 @@ addSerialCameraButton?.addEventListener(
 				false;
 		}
 
+		if (snapshotUrlInput) {
+			snapshotUrlInput.required =
+				false;
+		}
+
 		if (serialDeviceSelect) {
 			serialDeviceSelect.required =
 				true;
@@ -1056,6 +1123,11 @@ addRtspCameraButton?.addEventListener(
 
 		if (rtspUrlInput) {
 			rtspUrlInput.required =
+				true;
+		}
+
+		if (snapshotUrlInput) {
+			snapshotUrlInput.required =
 				true;
 		}
 	}
@@ -1228,6 +1300,15 @@ detectionButton?.addEventListener(
 	}
 );
 
+document.getElementById('configBtn')?.addEventListener(
+	'click',
+	function(e) {
+
+		e.preventDefault();
+		window.location.href = getConfigURL();
+	}
+);
+
 addFirstCameraBtn?.addEventListener(
 	'click',
 	function(e) {
@@ -1298,6 +1379,11 @@ function closeAddCameraModal() {
 
 	if (rtspUrlInput) {
 		rtspUrlInput.required =
+			false;
+	}
+
+	if (snapshotUrlInput) {
+		snapshotUrlInput.required =
 			false;
 	}
 
@@ -1443,10 +1529,17 @@ document
 						cameras[camera_uuid]
 							.source,
 						cameras[camera_uuid]
-							.autostart
+							.autostart,
+						cameras[camera_uuid]
+							.majority_vote_threshold,
+						cameras[camera_uuid]
+							.majority_vote_window
 					);
 
 				if (item) {
+
+					// Value labels need the card to be in the document
+					updateSliderFillsIn(item);
 
 					addListenerToDisplayItem(
 						item,

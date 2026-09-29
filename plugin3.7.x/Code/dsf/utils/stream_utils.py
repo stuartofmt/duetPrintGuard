@@ -142,19 +142,20 @@ def create_optimized_frame_generator(camera_uuid: str, camera_state_getter):
 				continue
 
 			camera_state = CAMERA_SETTINGS[camera_uuid] 
-			contrast = CAMERA_SETTINGS.get(camera_uuid).get('contrast')
-			brightness = CAMERA_SETTINGS.get(camera_uuid).get('brightness')
-			focus = CAMERA_SETTINGS.get(camera_uuid).get('focus')
+			# Brightness, contrast and focus settings disabled
+			# contrast = CAMERA_SETTINGS.get(camera_uuid).get('contrast')
+			# brightness = CAMERA_SETTINGS.get(camera_uuid).get('brightness')
+			# focus = CAMERA_SETTINGS.get(camera_uuid).get('focus')
 
 			frame = get_shared_camera_frame(camera_uuid)
 			if frame is None:
 				logger.warning("Failed to get frame from shared camera stream %s", camera_uuid)
 				time.sleep(0.1)
 				continue
-			frame = cv2.convertScaleAbs(frame, alpha=contrast, beta=int((brightness - 1.0) * 255))
-			if focus and focus != 1.0:
-				blurred = cv2.GaussianBlur(frame, (0, 0), sigmaX=focus)
-				frame = cv2.addWeighted(frame, 1.0 + focus, blurred, -focus, 0)
+			# frame = cv2.convertScaleAbs(frame, alpha=contrast, beta=int((brightness - 1.0) * 255))
+			# if focus and focus != 1.0:
+				# blurred = cv2.GaussianBlur(frame, (0, 0), sigmaX=focus)
+				# frame = cv2.addWeighted(frame, 1.0 + focus, blurred, -focus, 0)
 			frame, settings = stream_optimizer.optimize_frame(frame)
 			frame_bytes = stream_optimizer.encode_frame(frame)
 			last_frame_time = time.time()
@@ -212,15 +213,16 @@ async def create_optimized_detection_loop(app_state, camera_uuid):
 
 				# SRS possibly remove and instead get once from above loop
 				# Leaving here may allow settings changes on-the-fly
-				camera_setting = CAMERA_SETTINGS[camera_uuid]
-				contrast = camera_setting['contrast']
-				brightness = camera_setting['brightness']
-				focus = camera_setting['focus']
+				# Brightness, contrast and focus settings disabled
+				# camera_setting = CAMERA_SETTINGS[camera_uuid]
+				# contrast = camera_setting['contrast']
+				# brightness = camera_setting['brightness']
+				# focus = camera_setting['focus']
 
-				frame = cv2.convertScaleAbs(frame, alpha=contrast, beta=int((brightness - 1.0) * 255))
-				if focus and focus != 1.0:
-					blurred = cv2.GaussianBlur(frame, (0, 0), sigmaX=focus)
-					frame = cv2.addWeighted(frame, 1.0 + focus, blurred, -focus, 0)
+				# frame = cv2.convertScaleAbs(frame, alpha=contrast, beta=int((brightness - 1.0) * 255))
+				# if focus and focus != 1.0:
+					# blurred = cv2.GaussianBlur(frame, (0, 0), sigmaX=focus)
+					# frame = cv2.addWeighted(frame, 1.0 + focus, blurred, -focus, 0)
 				detection_frame, _ = stream_optimizer.optimize_frame(frame)
 				image = Image.fromarray(cv2.cvtColor(detection_frame, cv2.COLOR_BGR2RGB))
 				tensor = app_state.transform(image).unsqueeze(0).to(app_state.device)
@@ -354,20 +356,21 @@ def generate_frames(camera_uuid: str):
 		logger.error("Generate Frames - Error in optimized frame generation for camera %s: %s", camera_uuid, e)
 		try:
 			while True:
-				contrast = CAMERA_SETTINGS[camera_uuid].get('contrast')
-				brightness = CAMERA_SETTINGS[camera_uuid].get('brightness')
-				focus = CAMERA_SETTINGS[camera_uuid].get('focus')
+				# Brightness, contrast and focus settings disabled
+				# contrast = CAMERA_SETTINGS[camera_uuid].get('contrast')
+				# brightness = CAMERA_SETTINGS[camera_uuid].get('brightness')
+				# focus = CAMERA_SETTINGS[camera_uuid].get('focus')
 				frame = get_shared_camera_frame(camera_uuid)
 				if frame is None:
 					logger.warning("Failed to get frame from shared camera stream %s", camera_uuid)
 					time.sleep(0.1)
 					continue
-				frame = cv2.convertScaleAbs(frame,
-								alpha=contrast,
-								beta=int((brightness - 1.0) * 255))
-				if focus and focus != 1.0:
-					blurred = cv2.GaussianBlur(frame, (0, 0), sigmaX=focus)
-					frame = cv2.addWeighted(frame, 1.0 + focus, blurred, -focus, 0)
+				# frame = cv2.convertScaleAbs(frame,
+								# alpha=contrast,
+								# beta=int((brightness - 1.0) * 255))
+				# if focus and focus != 1.0:
+					# blurred = cv2.GaussianBlur(frame, (0, 0), sigmaX=focus)
+					# frame = cv2.addWeighted(frame, 1.0 + focus, blurred, -focus, 0)
 				_, buffer = cv2.imencode('.jpg', frame)
 				frame_bytes = buffer.tobytes()
 				yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')

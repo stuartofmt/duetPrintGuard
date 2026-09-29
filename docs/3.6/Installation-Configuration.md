@@ -31,7 +31,7 @@ When the plugin is run, a log file `duetPrintGuard.log`  is created in the `syst
 ## Setup
 When the plugin is first accessed - the Detection page will display with a message stating that there are no cameras defined.  Press the "Settings" button to configure one or more cameras.
 
-<img src="https://github.com/stuartofmt/duetPrintGuard/blob/main/docs/media/images/Plugin0.png" style="width:50%; height:auto;">
+<img src="media/images/Plugin0.png" style="width:50%; height:auto;">
 
 ## Camera Setup
 
@@ -41,7 +41,7 @@ Where IP is set in the [DUET] section of the configuration file and PORT is set 
 
 This page allows you to configure the action to be taken on failure, camera settings and detection settings.
 
-<img src="https://github.com/stuartofmt/duetPrintGuard/blob/main/docs/media/images/Settings1.png" style="width:50%; height:auto;">
+<img src="media/images/Settings1.png" style="width:50%; height:auto;">
   
 ### Adding Cameras
 
@@ -51,12 +51,12 @@ Each camera must have unique nickname and unique source.
 
 The `Serial Device` box provides a dropdown of POSSIBLE serial cameras on your system. Most will not have a camera attached - so some trial and error is needed to find those that work.  The `Show Camera Preview` checkbox can be helful in this.
 
-<img src="https://github.com/stuartofmt/duetPrintGuard/blob/main/docs/media/images/AddCamera1.png" style="width:50%; height:auto;">
+<img src="media/images/AddCamera1.png" style="width:50%; height:auto;">
 
 The network camera UI suports both HTTP and RTSP feeds.
 
 
-<img src="https://github.com/stuartofmt/duetPrintGuard/blob/main/docs/media/images/AddCamera2.png" style="width:50%; height:auto;">
+<img src="media/images/AddCamera2.png" style="width:50%; height:auto;">
 
 
 ### Camera Image Settings
@@ -67,7 +67,7 @@ Controls are provided to modify each camera output:
 - Contrast
 - Focus
 
-<img src="https://github.com/stuartofmt/duetPrintGuard/blob/main/docs/media/images/Settings2.png" style="width:50%; height:auto;">
+<img src="media/images/Settings2.png" style="width:50%; height:auto;">
 
 ## Defect Settings
 
@@ -88,7 +88,7 @@ When a defect is detected several things happen
 - At the end of the countdown `Countdown Action` is sent to the printer
 
 
-<img src="https://github.com/stuartofmt/duetPrintGuard/blob/main/docs/media/images/Settings3.png" style="width:50%; height:auto;">
+<img src="media/images/Settings3.png" style="width:50%; height:auto;">
 
 `Countdown Action` allows the selection of one of three actions that will occur when a Defect is detected.  These are Ignore, Pause and Cancel.
 

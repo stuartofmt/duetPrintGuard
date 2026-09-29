@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>duetPrintGuard Configuration</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='css/config.css') }}">
+    <script type="module" src="{{ url_for('static', path='js/config.js') }}" defer></script>
+
+    <!-- Detect and expose mobile mode -->
+    <script>
+      window.isMobileMode = new URLSearchParams(window.location.search).get('mobile') === 'true';
+      if (window.isMobileMode) {
+        document.documentElement.classList.add('mobile-mode');
+      }
+    </script>
+</head>
+<body>
+    <div class="config-container">
+        <div class="config-header">
+            <h1>Configuration</h1>
+            <div class="nav-buttons">
+                <button type="button" class="nav-btn" id="settingsBtn">Settings</button>
+                <button type="button" class="nav-btn" id="detectionBtn">Detection</button>
+            </div>
+        </div>
+
+        <div id="statusMessage" class="status-message" style="display: none;"></div>
+
+        <form id="configForm" novalidate>
+
+            <fieldset class="config-section">
+                <legend>Printer</legend>
+                <div class="form-group">
+                    <label for="DUET.IP">IP Address <span class="restart-tag">restart</span></label>
+                    <input type="text" id="DUET.IP" name="DUET.IP" />
+                    <p class="help">IP address of this machine / printer. Leave blank to detect it automatically.</p>
+                </div>
+                <div class="form-group">
+                    <label for="DUET.PORT">Port <span class="restart-tag">restart</span></label>
+                    <input type="number" id="DUET.PORT" name="DUET.PORT" min="1" max="65535" />
+                    <p class="help">Only change if the DWC port has been changed in /opt/dsf/conf/http.json. This is NOT the port for these pages.</p>
+                </div>
+                <div class="form-group">
+                    <label for="DUET.PASSWORD">Password <span class="restart-tag">restart</span></label>
+                    <input type="password" id="DUET.PASSWORD" name="DUET.PASSWORD" autocomplete="new-password" />
+                    <p class="help" id="passwordHelp">Only needed if a password has been set in the DWC configuration. Leave blank to keep the current password.</p>
+                </div>
+                <div class="form-group checkbox-group">
+                    <label>
+                        <input type="checkbox" id="DUET.POWERCHECK" name="DUET.POWERCHECK" />
+                        Power check <span class="restart-tag">restart</span>
+                    </label>
+                    <p class="help">Stop the plugin at startup if the printer cannot be reached. Normally on - turn off for testing.</p>
+                </div>
+            </fieldset>
+
+            <fieldset class="config-section">
+                <legend>Web Interface</legend>
+                <div class="form-group">
+                    <label for="UI.PORT">Port <span class="restart-tag">restart</span></label>
+                    <input type="number" id="UI.PORT" name="UI.PORT" min="1" max="65535" required />
+                    <p class="help">Port for the Detection, Settings and Configuration pages. Must not conflict with DWC or other plugins.</p>
+                </div>
+                <div class="form-group">
+                    <label for="LOGGING.LEVEL">Logging Level</label>
+                    <select id="LOGGING.LEVEL" name="LOGGING.LEVEL"></select>
+                </div>
+            </fieldset>
+
+            <fieldset class="config-section">
+                <legend>Printer Actions</legend>
+                <p class="section-help">Commands sent to the printer when a defect is detected and nobody intervenes. Leave blank to use the default.</p>
+                <div class="form-group">
+                    <label for="ACTION.PAUSE">Pause Command</label>
+                    <input type="text" id="ACTION.PAUSE" name="ACTION.PAUSE" placeholder="M25" />
+                </div>
+                <div class="form-group">
+                    <label for="ACTION.RESUME">Resume Command</label>
+                    <input type="text" id="ACTION.RESUME" name="ACTION.RESUME" placeholder="M24" />
+                </div>
+                <div class="form-group">
+                    <label for="ACTION.CANCEL">Cancel Command</label>
+                    <input type="text" id="ACTION.CANCEL" name="ACTION.CANCEL" placeholder="M2" />
+                </div>
+            </fieldset>
+
+            <fieldset class="config-section">
+                <legend>Macro Alert</legend>
+                <div class="form-group">
+                    <label for="MACRO.MACRO">Macro</label>
+                    <input type="text" id="MACRO.MACRO" name="MACRO.MACRO" placeholder="e.g. 0:/sys/duetPrintGuard/Notify.g" />
+                    <p class="help">Macro called on failure e.g. to send MQTT. Enter just the path used in M98 P"&lt;path&gt;".</p>
+                </div>
+                <div class="form-group">
+                    <label for="MACRO.MAXTIMES">Maximum Times</label>
+                    <input type="number" id="MACRO.MAXTIMES" name="MACRO.MAXTIMES" min="0" />
+                </div>
+            </fieldset>
+
+            <fieldset class="config-section">
+                <legend>ntfy Alert</legend>
+                <div class="form-group">
+                    <label for="NTFY.TOPIC">Topic</label>
+                    <input type="text" id="NTFY.TOPIC" name="NTFY.TOPIC" />
+                    <p class="help">The ntfy topic you subscribe to. Required to send ntfy alerts.</p>
+                </div>
+                <div class="form-group">
+                    <label for="NTFY.TITLE">Title</label>
+                    <input type="text" id="NTFY.TITLE" name="NTFY.TITLE" placeholder="System title" />
+                </div>
+                <div class="form-group">
+                    <label for="NTFY.MESSAGE">Message</label>
+                    <input type="text" id="NTFY.MESSAGE" name="NTFY.MESSAGE" placeholder="System message" />
+                </div>
+                <div class="form-group">
+                    <label for="NTFY.PRIORITY">Priority</label>
+                    <input type="number" id="NTFY.PRIORITY" name="NTFY.PRIORITY" min="1" max="5" />
+                    <p class="help">1 to 5 - see <a href="https://docs.ntfy.sh/publish/#message-priority" target="_blank" rel="noopener">ntfy message priority</a>.</p>
+                </div>
+                <div class="form-group">
+                    <label for="NTFY.MAXTIMES">Maximum Times</label>
+                    <input type="number" id="NTFY.MAXTIMES" name="NTFY.MAXTIMES" min="0" />
+                </div>
+            </fieldset>
+
+            <fieldset class="config-section">
+                <legend>Pushover Alert</legend>
+                <p class="section-help">Both the API token and user key are required to send Pushover alerts.</p>
+                <div class="form-group">
+                    <label for="PUSHOVER.API">API Token</label>
+                    <input type="text" id="PUSHOVER.API" name="PUSHOVER.API" />
+                </div>
+                <div class="form-group">
+                    <label for="PUSHOVER.USER">User / Group Key</label>
+                    <input type="text" id="PUSHOVER.USER" name="PUSHOVER.USER" />
+                </div>
+                <div class="form-group">
+                    <label for="PUSHOVER.TITLE">Title</label>
+                    <input type="text" id="PUSHOVER.TITLE" name="PUSHOVER.TITLE" placeholder="System title" />
+                </div>
+                <div class="form-group">
+                    <label for="PUSHOVER.MESSAGE">Message</label>
+                    <input type="text" id="PUSHOVER.MESSAGE" name="PUSHOVER.MESSAGE" placeholder="System message" />
+                </div>
+                <div class="form-group">
+                    <label for="PUSHOVER.MAXTIMES">Maximum Times</label>
+                    <input type="number" id="PUSHOVER.MAXTIMES" name="PUSHOVER.MAXTIMES" min="0" />
+                </div>
+            </fieldset>
+
+            <div class="form-actions">
+                <p class="help">Settings marked <span class="restart-tag">restart</span> take effect after the plugin is restarted. Other settings apply immediately.</p>
+                <button type="submit" class="save-btn" id="saveBtn">Save</button>
+            </div>
+        </form>
+    </div>
+</body>
+</html>

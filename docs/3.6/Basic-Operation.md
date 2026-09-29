@@ -18,7 +18,7 @@ This image shows the main UI of duetPrintGuard comprisiong three sections.
 - bottom control section
 
 
- <img src="https://github.com/stuartofmt/duetPrintGuard/blob/main/docs/media/images/Plugin1.png" style="width:50%; height:auto;">
+ <img src="media/images/Plugin1.png" style="width:50%; height:auto;">
 
 The top control section provided printer control and displays countdown information
 
@@ -43,7 +43,7 @@ In the middle section: configured camera is shown separately with the following 
  - The time of the last update [time]
  - A button to toggle Detecting on and off [Stop Detection]
 
- <img src="https://github.com/stuartofmt/duetPrintGuard/blob/main/docs/media/images/Plugin2.png" style="width:50%; height:auto;">
+ <img src="media/images/Plugin2.png" style="width:50%; height:auto;">
  
 ### Detecting - Defect
 
@@ -64,7 +64,7 @@ If the user does nothing within the configured `Countdown time` - the `Countdown
 - Cancel - cancels the print job
  
 
-<img src="https://github.com/stuartofmt/duetPrintGuard/blob/main/docs/media/images/Plugin4.png" style="width:50%; height:auto;">
+<img src="media/images/Plugin4.png" style="width:50%; height:auto;">
 
 ### Bottom Control section
  The bottom control section comprises either two or three buttons.
@@ -80,4 +80,4 @@ If the user does nothing within the configured `Countdown time` - the `Countdown
 
  If autostart is enabled, detection will commence once a print job has started and will stop when the print job is complete.  This allows duetPrintGuard to run in the background but note: Once a print job has completed, autostart needs to be reenabled.  This was an implementationdecision to avoid constant use of cpu between print jobs.
 
- <img src="https://github.com/stuartofmt/duetPrintGuard/blob/main/docs/media/images/Plugin5.png" style="width:50%; height:auto;">
+ <img src="media/images/Plugin5.png" style="width:50%; height:auto;">

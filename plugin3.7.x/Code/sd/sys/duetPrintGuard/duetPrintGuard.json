@@ -1,0 +1,37 @@
+{
+  "DUET": {
+    "IP": "192.168.30.41",
+    "PORT": 80,
+    "PASSWORD": "reprap",
+    "POWERCHECK": false
+  },
+  "UI": {
+    "PORT": 8002
+  },
+  "LOGGING": {
+    "LEVEL": "DEBUG"
+  },
+  "ACTION": {
+    "PAUSE": "",
+    "RESUME": "",
+    "CANCEL": ""
+  },
+  "MACRO": {
+    "MACRO": "0:/sys/duetPrintGuard/Notify.g",
+    "MAXTIMES": 3
+  },
+  "NTFY": {
+    "TOPIC": "MonksAtTheGate",
+    "TITLE": "",
+    "MESSAGE": "",
+    "PRIORITY": 5,
+    "MAXTIMES": 3
+  },
+  "PUSHOVER": {
+    "API": "",
+    "USER": "",
+    "TITLE": "",
+    "MESSAGE": "",
+    "MAXTIMES": 3
+  }
+}

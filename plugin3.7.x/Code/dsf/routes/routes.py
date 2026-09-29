@@ -10,7 +10,7 @@ import json
 from copy import deepcopy
 
 from fastapi import APIRouter, Body, Form, HTTPException, Request
-from fastapi.responses import StreamingResponse, Response, RedirectResponse
+from fastapi.responses import StreamingResponse, Response, RedirectResponse, JSONResponse
 from sse_starlette.sse import EventSourceResponse
 
 from logger_module import logger
@@ -18,6 +18,8 @@ from logger_module import logger
 from duet_printer import suspend_print_job, get_duet_printer_status, reset_notification_counters
 
 import cv2
+import numpy as np
+import requests
 
 from utils.config import (
 	CAMERA_SETTINGS,
@@ -27,6 +29,7 @@ from utils.config import (
 	add_to_config,
 	delete_from_config
 )
+from duet_config import get_config_for_ui, update_config
 from utils.shared_video_stream import get_shared_stream_manager
 from utils.stream_utils import UI_countdown, start_live_detection, stop_live_detection, save_app_state_request, create_optimized_frame_generator
 
@@ -123,6 +126,37 @@ async def serve_settings(request: Request):
 	})
 
 
+# config_page_routes.py
+@router.get("/config", include_in_schema=False)
+async def serve_config(request: Request):
+	"""Serve the application configuration page."""
+	from app import templates
+	return templates.TemplateResponse("config.html", {
+		"request": request
+	})
+
+
+@router.get("/config/get-app-config", include_in_schema=False)
+async def get_app_config():
+	"""Get the application configuration (secrets are not returned)."""
+	return get_config_for_ui()
+
+
+@router.post("/config/save-app-config", include_in_schema=False)
+async def save_app_config(request: Request):
+	"""Validate and save the application configuration."""
+	data = await request.json()
+	try:
+		errors, restart_keys = update_config(data)
+	except OSError as e:
+		logger.error("Failed to save configuration: %s", e)
+		raise HTTPException(status_code=500, detail=f"Failed to save configuration: {e}")
+	if errors:
+		return JSONResponse(status_code=400, content={"success": False, "errors": errors})
+	logger.info("Configuration updated from config page")
+	return {"success": True, "restart_required": restart_keys}
+
+
 def get_camera_uuid_by_nickname(nickname: str):
 	"""Resolve a configured camera UUID from its nickname."""
 	if not nickname:
@@ -153,19 +187,19 @@ async def serve_camera_stream(request: Request, nickname: str):
 @router.post("/settings/save-settings", include_in_schema=False)
 async def update_settings(request: Request,
 						  camera_uuid: str = Form(...),
-						  sensitivity: float = Form(...),
-						  brightness: float = Form(...),
-						  contrast: float = Form(...),
-						  focus: float = Form(...),
+						  # sensitivity: float = Form(...),
+						  # brightness: float = Form(...),
+						  # contrast: float = Form(...),
+						  # focus: float = Form(...),
 						  majority_vote_threshold: int = Form(...),
 						  majority_vote_window: int = Form(...)
 						  ):
 	"""Update camera settings from the settings page."""
 	add_to_config({'camera_settings': {camera_uuid: {
-		"sensitivity": sensitivity,
-		"brightness": brightness,
-		"contrast": contrast,
-		"focus": focus,
+		# "sensitivity": sensitivity,
+		# "brightness": brightness,
+		# "contrast": contrast,
+		# "focus": focus,
 		"majority_vote_threshold": majority_vote_threshold,
 		"majority_vote_window": majority_vote_window
 	}}})
@@ -222,37 +256,58 @@ async def update_settings_countdown(request: Request,
 	return RedirectResponse("/settings", status_code=303)
 
 
+def fetch_snapshot_frame(snapshot_url: str):
+	"""Fetch a single frame from a camera's HTTP snapshot URL. Returns None on failure."""
+	try:
+		r = requests.get(snapshot_url, timeout=5)
+		r.raise_for_status()
+		frame = cv2.imdecode(np.frombuffer(r.content, dtype=np.uint8), cv2.IMREAD_COLOR)
+		if frame is None:
+			logger.warning("Snapshot URL %s did not return a decodable image", snapshot_url)
+		return frame
+	except requests.exceptions.RequestException as e:
+		logger.warning("Failed to fetch snapshot from %s: %s", snapshot_url, e)
+		return None
+
+
 @router.get('/camera/snapshot/{camera_uuid}', include_in_schema=False)
 async def camera_snapshot(camera_uuid: str):
 	manager = get_shared_stream_manager()
 	try:
-		source = CAMERA_SETTINGS.get(camera_uuid, {}).get('source')
-		stream = manager.get_stream(camera_uuid, source)
-		max_wait_time = 10
-		sleep_time = 0.5
-		elapsed_time = 0
-		while not stream.is_frame_available() and elapsed_time < max_wait_time:
-			time.sleep(sleep_time)
-			elapsed_time += sleep_time
-		if not stream.is_frame_available():
-			raise HTTPException(status_code=404, detail="No frame available")
-		frame = stream.get_frame()
-		if frame is None:
-			raise HTTPException(status_code=500, detail="Failed to read frame")
+		frame = None
+		snapshot_url = CAMERA_SETTINGS.get(camera_uuid, {}).get('snapshot')
+		if snapshot_url:
+			frame = await asyncio.to_thread(fetch_snapshot_frame, snapshot_url)
 
-		# Apply camera settings (brightness/contrast/focus) so snapshot matches live feed
-		try:
-			cam_settings = CAMERA_SETTINGS.get(camera_uuid, {})
-			contrast = cam_settings.get('contrast', 1.0)
-			brightness = cam_settings.get('brightness', 1.0)
-			focus = cam_settings.get('focus', 1.0)
-			frame = cv2.convertScaleAbs(frame, alpha=contrast, beta=int((brightness - 1.0) * 255))
-			if focus and focus != 1.0:
-				blurred = cv2.GaussianBlur(frame, (0, 0), sigmaX=focus)
-				frame = cv2.addWeighted(frame, 1.0 + focus, blurred, -focus, 0)
-		except Exception:
-			# If processing fails, fallback to raw frame
-			pass
+		if frame is None: # No snapshot URL or fetch failed - fall back to the video stream
+			source = CAMERA_SETTINGS.get(camera_uuid, {}).get('source')
+			stream = manager.get_stream(camera_uuid, source)
+			max_wait_time = 10
+			sleep_time = 0.5
+			elapsed_time = 0
+			while not stream.is_frame_available() and elapsed_time < max_wait_time:
+				time.sleep(sleep_time)
+				elapsed_time += sleep_time
+			if not stream.is_frame_available():
+				raise HTTPException(status_code=404, detail="No frame available")
+			frame = stream.get_frame()
+			if frame is None:
+				raise HTTPException(status_code=500, detail="Failed to read frame")
+
+		# Brightness, contrast and focus settings disabled
+		# # Apply camera settings (brightness/contrast/focus) so snapshot matches live feed
+		# try:
+			# cam_settings = CAMERA_SETTINGS.get(camera_uuid, {})
+			# contrast = cam_settings.get('contrast', 1.0)
+			# brightness = cam_settings.get('brightness', 1.0)
+			# focus = cam_settings.get('focus', 1.0)
+			# frame = cv2.convertScaleAbs(frame, alpha=contrast, beta=int((brightness - 1.0) * 255))
+			# if focus and focus != 1.0:
+				# blurred = cv2.GaussianBlur(frame, (0, 0), sigmaX=focus)
+				# frame = cv2.addWeighted(frame, 1.0 + focus, blurred, -focus, 0)
+		# except Exception:
+			# # If processing fails, fallback to raw frame
+			# pass
 
 		_, buffer = cv2.imencode('.jpg', frame)
 		return Response(content=buffer.tobytes(), media_type="image/jpeg")
@@ -348,14 +403,19 @@ async def add_camera_config(request: Request):
 	source = data.get('source')
 	if not nickname or not source:
 		raise HTTPException(status_code=400, detail="Missing camera nickname or source.")
+	snapshot = data.get('snapshot')
+	is_local_device = source.isdigit() or source.startswith('/dev/video')
+	if not is_local_device and not snapshot:
+		raise HTTPException(status_code=400, detail="Missing camera snapshot URL.")
 	camera_uuid = str(uuid.uuid4())
 	default_camera_settings = deepcopy(DEFAULT_CAMERA_SETTINGS) # Precaution vs shallow copy
 	add_to_config({'camera_settings': {camera_uuid: {
 		"nickname": nickname,
 		"source": source,
+		**({"snapshot": snapshot} if snapshot else {}),
 		**default_camera_settings
 	}}})
-	return {"camera_uuid": camera_uuid, "nickname": nickname, "source": source}
+	return {"camera_uuid": camera_uuid, "nickname": nickname, "source": source, "snapshot": snapshot}
 
 
 @router.post("/config/remove-camera")
@@ -381,14 +441,16 @@ async def remove_camera_config(request: Request):
 
 @router.get("/config/get-camera-list", include_in_schema=False)
 async def config_camera_list(request: Request):
-	"""Get a list of current camera id's, nickname and source."""
+	"""Get a list of current camera id's, nickname, source and card settings."""
 	try:
 		camera_uuid_list = {}
 		for camera_uuid in CAMERA_SETTINGS:
 			camera_uuid_list[camera_uuid] = {
 				"nickname": CAMERA_SETTINGS[camera_uuid].get("nickname", ""),
 				"source": CAMERA_SETTINGS[camera_uuid].get("source", ""),
-				"autostart": CAMERA_SETTINGS[camera_uuid].get("autostart", False)
+				"autostart": CAMERA_SETTINGS[camera_uuid].get("autostart", False),
+				"majority_vote_threshold": CAMERA_SETTINGS[camera_uuid].get("majority_vote_threshold"),
+				"majority_vote_window": CAMERA_SETTINGS[camera_uuid].get("majority_vote_window")
 			}
 
 		return {"success": True, "list": camera_uuid_list}

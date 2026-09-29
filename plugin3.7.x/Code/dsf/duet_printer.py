@@ -316,15 +316,14 @@ if __name__ == "__main__":    # Test setup
 	file_path = sys.argv[1]
 	LOGFILENAME = 'test.log'
 	progName = 'test'
-	CONFIGFILENAME = 'duetPrintGuard.config'
 
 	# Create a logfile 
 	logger = setup_logfile(file_path,LOGFILENAME,progName)
 	# from logger_module import logger # Need to import after setup_logging is called
 	logger.info(f'''{progName}''')
 
-	if not get_DWC_config(file_path, CONFIGFILENAME,logger):
-		print(f"Failed to load configuration from {file_path}. Please ensure the file exists and is properly formatted.")
+	if not get_DWC_config(file_path, logger):
+		print(f"Failed to load configuration from {file_path}.")
 		sys.exit(1)
 
 	# Can now get config parameters
@@ -346,6 +345,7 @@ if __name__ == "__main__":    # Test setup
 
 else: # At the least we need the logger module
 	from logger_module import logger
+	from duet_config import ACTION, MACRO, NTFY, PUSHOVER
 
 
 

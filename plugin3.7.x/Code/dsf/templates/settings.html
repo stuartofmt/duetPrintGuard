@@ -35,6 +35,17 @@
                             Remove Camera
                         </button>
                     </div>
+                    <form action="/settings/save-settings" method="post" class="settings-form camera-settings">
+                        <input type="hidden" class="camera-uuid" name="camera_uuid" value="">
+                        <div class="camera-setting">
+                            <label class="majority-vote-threshold-label">Majority Vote Threshold: <span class="majority-vote-threshold-val"></span></label>
+                            <input type="range" class="majority-vote-threshold" name="majority_vote_threshold" min="1" max="20" />
+                        </div>
+                        <div class="camera-setting">
+                            <label class="majority-vote-window-label">Majority Vote Window (frames): <span class="majority-vote-window-val"></span></label>
+                            <input type="range" class="majority-vote-window" name="majority_vote_window" min="1" max="100" />
+                        </div>
+                    </form>
                 </li>
             </ul>                             
         </div>
@@ -58,42 +69,30 @@
             <div class="add-new-camera">
                 <button type="button" class="add-camera" id="addCameraBtn">Add a Camera</button>
                 <button type="button" class="add-camera" id="detectionBtn">Detection</button>
+                <button type="button" class="add-camera" id="configBtn">Configuration</button>
             </div>
         </div>
         
-        <div class="grid-item">
-            <div class="settings-section">
-                <form action="/settings/save-settings" method="post" class="settings-form settings-grid">
-                    <input type="hidden" id="camera_uuid" name="camera_uuid"  value="">
-
-                    <div class="settings-item">
-                        <label for="sensitivity">Sensitivity: <span id="sensitivity_val"></span></label>
-                        <input type="range" id="sensitivity" name="sensitivity" min="0" max="2" step="0.05"  value="-" />
-                    </div>
-                    <div class="settings-item">
-                        <label for="brightness">Brightness: <span id="brightness_val"></span></label>
-                        <input type="range" id="brightness" name="brightness" min="0" max="2" step="0.05"  value="-" />
-                    </div>
-                    <div class="settings-item">
-                        <label for="contrast">Contrast: <span id="contrast_val"></span></label>
-                        <input type="range" id="contrast" name="contrast" min="0" max="2" step="0.05"  value="-" />
-                    </div>
-                    <div class="settings-item">
-                        <label for="focus">Focus: <span id="focus_val"></span></label>
-                        <input type="range" id="focus" name="focus" min="0" max="2" step="0.05"  value="-" />
-                    </div>
-
-                    <div class="settings-item">
-                        <label for="majority_vote_threshold">Majority Vote Threshold: <span id="majority_vote_threshold_val"></span></label>
-                        <input type="range" id="majority_vote_threshold" name="majority_vote_threshold" min="1" max="20"  value="-" />
-                    </div>
-                    <div class="settings-item">
-                        <label for="majority_vote_window">Majority Vote Window (frames): <span id="majority_vote_window_val"></span></label>
-                        <input type="range" id="majority_vote_window" name="majority_vote_window" min="1" max="100"  value="-" />
-                    </div>
-                </form>
-            </div>
+        <!-- Majority vote settings are now in each camera card (camera-template) -->
+        <!-- Sensitivity, brightness, contrast and focus settings disabled
+        <div class="settings-item">
+            <label for="sensitivity">Sensitivity: <span id="sensitivity_val"></span></label>
+            <input type="range" id="sensitivity" name="sensitivity" min="0" max="2" step="0.05"  value="-" />
         </div>
+        <div class="settings-item">
+            <label for="brightness">Brightness: <span id="brightness_val"></span></label>
+            <input type="range" id="brightness" name="brightness" min="0" max="2" step="0.05"  value="-" />
+        </div>
+        <div class="settings-item">
+            <label for="contrast">Contrast: <span id="contrast_val"></span></label>
+            <input type="range" id="contrast" name="contrast" min="0" max="2" step="0.05"  value="-" />
+        </div>
+        <div class="settings-item">
+            <label for="focus">Focus: <span id="focus_val"></span></label>
+            <input type="range" id="focus" name="focus" min="0" max="2" step="0.05"  value="-" />
+        </div>
+        -->
+
         <div class = grid-item>            
             <div class="countdown-section">
                 <form action="/config/update-countdown" method="post" class="control-form settings-grid">
@@ -131,7 +130,9 @@
             </div>
             <div class="setup-modal-content">
                 <div id="cameraTypeSelection" class="button-group">
+                    <!-- V4L (/dev/videoN) cameras disabled
                     <button id="addSerialCameraButton" class="add-camera">Setup Serial (USB) Camera</button>
+                    -->
                     <button id="addRtspCameraButton" class="add-camera">Setup HTTP or RTSP Camera</button>
                 </div>
                 <form id="addCameraForm" style="display: none;">
@@ -155,6 +156,10 @@
                         <div class="form-group">
                             <label for="rtspUrl">HTTP or RTSP Stream URL</label>
                             <input type="url" id="rtspUrl" name="source" placeholder="e.g. http://IP_ADDRESS:PORT/stream" required />
+                        </div>
+                        <div class="form-group">
+                            <label for="snapshotUrl">HTTP Snapshot URL</label>
+                            <input type="url" id="snapshotUrl" name="snapshot" placeholder="e.g. http://IP_ADDRESS:PORT/snapshot" required />
                         </div>
                     </div>
                     <div class="form-group">

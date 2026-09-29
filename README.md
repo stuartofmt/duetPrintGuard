@@ -15,17 +15,15 @@ At the end the countdown period, if the user does not intervene, the countdown a
 
 
 
-Primary configuration is through a file accesable from DWC that facilitates:
+Primary configuration in 3.6 is through a file accesable from DWC that facilitates:
 -- IP and port setting
 -- Configurable actions when a defect is detected
 -- several notofcation types ( Duet Macro, NTFY, Pusher)
 
+In 3.7 configuration is through a UI.
 
-**Instructions for installation and configuration are here:**
-https://github.com/stuartofmt/duetPrintGuard/blob/main/docs/Installation-Configuration.md
 
-**Instructions for operation are here:**
-https://github.com/stuartofmt/duetPrintGuard/blob/main/docs/Basic-Operation.md
+**Instructions for installation and configuration as well as operation are in the /docs folder under the applicable release**
 
 
 > _The origial project can be found here [here](https://github.com/oliverbravery/PrintGuard)._

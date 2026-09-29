@@ -269,6 +269,9 @@ def appstartup():
 	logger.info(f"Settings")
 	logger.info(f'http://localhost:{UI.PORT}/settings')
 	logger.info(f'http://{DUET.IP}:{UI.PORT}/settings')
+	logger.info(f"Configuration")
+	logger.info(f'http://localhost:{UI.PORT}/config')
+	logger.info(f'http://{DUET.IP}:{UI.PORT}/config')
 
 	port = str(UI.PORT)  #unicorn looks for strings	
 

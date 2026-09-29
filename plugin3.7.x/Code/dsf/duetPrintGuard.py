@@ -36,7 +36,6 @@ progVersion = '1.0.0'
 pythonMajor = 3
 pythonMinor = 9
 
-CONFIGFILENAME = 'duetPrintGuard.config'
 LOGFILENAME = 'duetPrintGuard.log'
 
 def checkIP(ip_address, port):
@@ -88,8 +87,8 @@ def start(file_path):
 	# from logger_module import logger # Need to import after setup_logging is called
 	logger.info(f'''{progName} -- {progVersion}''')
 
-	if not get_DWC_config(file_path, CONFIGFILENAME,logger):
-		print(f"Failed to load configuration from {file_path}. Please ensure the file exists and is properly formatted.")
+	if not get_DWC_config(file_path, logger):
+		print(f"Failed to load configuration from {file_path}.")
 		force_quit(1)
 
 	# Can now get config parameters
@@ -105,11 +104,11 @@ def start(file_path):
 	
 	if _loginPrinter(printerUrl,DUET.PASSWORD):
 		logger.info(f'Successful login to printer at {printerUrl}')
-	else:
+	elif DUET.POWERCHECK:
+		logger.critical(f'Failed to login to printer at {printerUrl} - check printer is turned on')
 		force_quit(1)
-		if DUET.POWERCHECK:
-			logger.critical(f'Failed to login to printer at {printerUrl} - check printer is turned on')
-			force_quit(1)
+	else:
+		logger.warning(f'Failed to login to printer at {printerUrl} - continuing as POWERCHECK is off')
 
 	# Exit if valid Port is not provided for UI
 	# On this SBC
