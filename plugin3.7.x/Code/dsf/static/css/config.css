@@ -119,6 +119,12 @@ body, html {
     border-color: #3b82f6;
 }
 
+.form-group input[readonly] {
+    background: #f3f4f6;
+    color: #6b7280;
+    cursor: default;
+}
+
 .form-group input.invalid {
     border-color: #dc2626;
 }

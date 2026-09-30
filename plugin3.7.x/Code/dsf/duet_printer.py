@@ -135,6 +135,20 @@ def _urlCall(url, cmd, post):
 		return 0, ''
 
 
+def publish_ui_address(ip, port):
+	# The DWC page reads these from the object model to build its iframe url
+	command_connection = CommandConnection()
+	try:
+		command_connection.connect()
+		command_connection.set_plugin_data('duetPrintGuard', 'ip', ip)
+		command_connection.set_plugin_data('duetPrintGuard', 'port', port)
+		logger.info(f'Published UI address {ip}:{port} to plugin data')
+	except Exception as e:
+		logger.warning(f'Could not publish UI address to plugin data: {e}')
+	finally:
+		command_connection.close()
+
+
 def _loginPrinter():
     logger.info('Logging in')
     object_model = subscription.get_object_model()

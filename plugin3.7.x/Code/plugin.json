@@ -12,6 +12,7 @@
 	"sbcExecutableArguments": "/opt/dsf/sd/sys/duetPrintGuard",
 	"sbcOutputRedirected": false,
 	"sbcPermissions": ["commandExecution", "objectModelReadWrite", "networkAccess", "webcamAccess", "fileSystemAccess","launchProcesses", "manageUserSessions"],
-	"sbcPythonDependencies": ["requirements.txt"]
+	"sbcPythonDependencies": ["requirements.txt"],
+	"data": {"ip": "", "port": 0}
  }
  

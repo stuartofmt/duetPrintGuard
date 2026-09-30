@@ -100,12 +100,12 @@ def start(file_path):
 		force_quit(1)
 
 	# Can now get config parameters
-	from duet_config import (DUET, LOGGING, UI)
+	from duet_config import (LOGGING, UI, save_ui_address)
 
 	# Set logging level
 	logger = set_log_level(LOGGING.LEVEL,logger)
 
-	from duet_printer import _loginPrinter
+	from duet_printer import _loginPrinter, publish_ui_address
 
 	if _loginPrinter():
 		logger.info(f'Successful login to printer')
@@ -115,7 +115,8 @@ def start(file_path):
 
 	# Allocate a port on this SBC
 
-	DUET.IP, UI.PORT = validate_port(UI.PORT)
+	save_ui_address(*validate_port(UI.PORT))
+	publish_ui_address(UI.IP, UI.PORT)
  
 	from app import appstartup
 	appstartup()

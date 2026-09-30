@@ -3,7 +3,6 @@ Displays an iFrame that is linked to the duetPrintGuard html Display
 Polls the status of the sbcPlugin and displays a message if the sbcPlugin is terminated
 Stops polling once the plugin has been detected as stopped
 Adds ?mobile=true to the iframe URL when accessed from a mobile device
-Thanks to @MintyTrebor for all the help in getting this working
 -->
 <style scoped>
 	.iframe_container {
@@ -34,24 +33,22 @@ Thanks to @MintyTrebor for all the help in getting this working
 				variant="tonal"
 				class="ma-4"
 			>
-				The duetPrintGuard plugin has stopped.
+				The {{ pluginName }} plugin has stopped.
 			</v-alert>
 		</div>
 </template>
  
 <script>
 import { computed, defineComponent, getCurrentInstance, inject, onBeforeUnmount, onMounted, ref } from 'vue';
-import Path from '@/utils/path';
 import { useMachineStore } from 'DuetWebControl';
 
 // <!-- Do not change
 const pluginName = 'duetPrintGuard';
-const configFile = `${pluginName}/${pluginName}.config`;
 const backgroundTask = true; // Only set true if background task can be manually terminated
 // -->
 
 export default defineComponent({
-	name: 'DuetPrintGuard',
+	name: pluginName,
 	setup() {
 		const machineStore = useMachineStore();
 		const myurl = ref('');
@@ -72,52 +69,10 @@ export default defineComponent({
 			};
 		}
 
-		const systemDirectory = computed(() => machineStore.model.directories.system);
-
 		const showBottomNavigation = computed(() => {
 			return display?.mobile?.value === true &&
 				display?.xs?.value !== true
 		})
-
-		const parseINIString = (data) => {
-			const regex = {
-				section: /^\s*\[\s*([^\]]*)\s*\]\s*$/,
-				param: /^\s*([^=]+?)\s*=\s*(.*?)\s*$/,
-				comment: /^\s*;.*$/
-			};
-			const value = {};
-			const lines = data.split(/[\r\n]+/);
-			let section = null;
-
-			lines.forEach((line) => {
-				if (regex.comment.test(line)) {
-					return;
-				}
-
-				if (regex.param.test(line)) {
-					const match = line.match(regex.param);
-					if (section) {
-						value[section][match[1]] = match[2];
-					} else {
-						value[match[1]] = match[2];
-					}
-					return;
-				}
-
-				if (regex.section.test(line)) {
-					const match = line.match(regex.section);
-					value[match[1]] = {};
-					section = match[1];
-					return;
-				}
-
-				if (line.length === 0 && section) {
-					section = null;
-				}
-			});
-
-			return value;
-		};
 
 		const isMobile = () => {
 			const userAgent = navigator.userAgent || navigator.vendor || window.opera || '';
@@ -133,41 +88,34 @@ export default defineComponent({
 			return result;
 		};
 
-		const loadSettingsFromFile = async () => {
-			let content = '';
-			try {
-				const setFileName = Path.combine(systemDirectory.value, configFile);
-				console.warn('Loading settings from ' + setFileName);
-				const response = await machineStore.download ({
-					filename: setFileName,
-					type: 'text',
-					showSuccess: false,
-					showError: false
+		const pluginData = () => {
+			const plugins = machineStore.model.plugins;
+			const plugin = plugins instanceof Map ? plugins.get(pluginName) : plugins?.[pluginName];
+			return plugin?.data;
+		};
+
+		const getDataValue = (data, key) => (data instanceof Map ? data.get(key) : data?.[key]);
+
+		// The plugin publishes its address a few seconds after it starts, so this is polled
+		const updateUrl = () => {
+			const data = pluginData();
+			const ip = getDataValue(data, 'ip');
+			const port = getDataValue(data, 'port');
+			if (!ip || !port) {
+				const plugins = machineStore.model.plugins;
+				console.log('ip and or port not found', {
+					pluginsType: plugins?.constructor?.name,
+					pluginKeys: plugins instanceof Map ? [...plugins.keys()] : Object.keys(plugins ?? {}),
+					dataType: data?.constructor?.name,
+					data: data instanceof Map ? Object.fromEntries(data) : data
 				});
-				content = await response;
-			} catch (e) {
-				console.warn(e);
-				console.warn('File Does Not Exist or Network error');
+				return;
 			}
-
-			try {
-				const javascript_ini = parseINIString(content);
-				const ip = javascript_ini.DUET?.IP;
-				const port = javascript_ini.UI?.PORT;
-
-				if (ip && port) {
-					const mobileParameter = isMobile()
-						? '?mobile=true'
-						: '';
-				//if (isMobile()) {
-				//	alert('Displaying in Mobile mode');
-				//}
-					myurl.value = `http://${ip}:${port}${mobileParameter}`;
-
-					console.log('duetPrintGuard url is ' + myurl.value);
-				}
-			} catch (e) {
-				console.log(e);
+			const mobileParameter = isMobile() ? '?mobile=true' : '';
+			const url = `http://${ip}:${port}${mobileParameter}`;
+			if (url !== myurl.value) {
+				console.log(`ip = ${ip} and port = ${port}`);
+				myurl.value = url;
 			}
 		};
 
@@ -196,10 +144,11 @@ export default defineComponent({
 
 		const checkRunning = () => {
 			if (isrunning()) {
+				updateUrl();
 				return;
 			}
 
-			console.warn('duetPrintGuard plugin is no longer running');
+			console.warn(`${pluginName} plugin is no longer running`);
 
 			// Stop polling because the plugin has stopped
 			if (intervalId) {
@@ -223,7 +172,7 @@ export default defineComponent({
 
 			for (const [key, value] of entries) {
 				if (key === pluginName) {
-					console.warn('duetPrintGuard is running, pid = ' + value?.pid);
+					console.warn(`${pluginName} is running, pid = ${value?.pid}`);
 					return Number(value?.pid ?? 0) > 0;
 				}
 			}
@@ -232,7 +181,7 @@ export default defineComponent({
 		};
 
 		onMounted(() => {
-			loadSettingsFromFile();
+			updateUrl();
 			getAvailScreenHeight();
 			checkExecutable();  // Only runs if backgroundTask is true
 		});
@@ -247,12 +196,11 @@ export default defineComponent({
 		});
 
 		return {
+			pluginName,
 			myurl,
 			tmpHeight,
 			pluginStopped,
-			systemDirectory,
 			showBottomNavigation,
-			loadSettingsFromFile,
 			getAvailScreenHeight,
 			checkExecutable,
 			checkRunning,

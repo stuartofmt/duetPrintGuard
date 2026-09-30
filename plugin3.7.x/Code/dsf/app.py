@@ -15,7 +15,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from duet_config import (DUET, UI)
+from duet_config import UI
 
 from utils.config import (get_prototypes_dir,
 						   get_model_path, get_model_options_path,
@@ -265,13 +265,13 @@ def appstartup():
 	logger.info(f'duetPrintGuard can be accessed using one of the following:')
 	logger.info(f'Control')
 	logger.info(f'http://localhost:{UI.PORT}')
-	logger.info(f'http://{DUET.IP}:{UI.PORT}')
+	logger.info(f'http://{UI.IP}:{UI.PORT}')
 	logger.info(f"Settings")
 	logger.info(f'http://localhost:{UI.PORT}/settings')
-	logger.info(f'http://{DUET.IP}:{UI.PORT}/settings')
+	logger.info(f'http://{UI.IP}:{UI.PORT}/settings')
 	logger.info(f"Configuration")
 	logger.info(f'http://localhost:{UI.PORT}/config')
-	logger.info(f'http://{DUET.IP}:{UI.PORT}/config')
+	logger.info(f'http://{UI.IP}:{UI.PORT}/config')
 
 	port = str(UI.PORT)  #unicorn looks for strings	
 

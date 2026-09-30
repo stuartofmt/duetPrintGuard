@@ -20,6 +20,7 @@ CONFIGFILENAME = 'duetPrintGuard.json'
 CONFIG_SCHEMA = {
 	'UI': {
 		'PORT': (int, 0, True),
+		'IP' : (str,'',False)
 	},
 	'LOGGING': {
 		'LEVEL': (str, 'INFO', False),
@@ -48,6 +49,9 @@ CONFIG_SCHEMA = {
 		'MAXTIMES': (int, 3, False),
 	},
 }
+
+# Set by the program at startup - not shown on, or editable from, the config page
+HIDDEN_SETTINGS = {('UI', 'IP')}
 
 LOG_LEVELS = ['WARNING', 'INFO', 'DEBUG']
 
@@ -165,6 +169,20 @@ def get_DWC_config(file_path, logger):
 	return True
 
 
+def save_ui_address(ip, port):
+	"""Record the ip and port actually in use, saving them if they differ from the config file."""
+	UI.IP, UI.PORT = ip, port
+	config = _load()
+	if config['UI']['IP'] == ip and config['UI']['PORT'] == port:
+		return
+	config['UI']['IP'], config['UI']['PORT'] = ip, port
+	try:
+		_save(config)
+		_logger.info(f'Saved UI address {ip}:{port} to {_config_file}')
+	except OSError as e:
+		_logger.error(f'Could not save {_config_file}: {e}')
+
+
 def get_config_for_ui():
 	"""Return the current saved settings plus field metadata."""
 	config = _load()
@@ -172,6 +190,8 @@ def get_config_for_ui():
 	for section, keys in CONFIG_SCHEMA.items():
 		settings[section] = {}
 		for key, (value_type, default, restart) in keys.items():
+			if (section, key) in HIDDEN_SETTINGS:
+				continue
 			settings[section][key] = {
 				'value': config[section][key],
 				'type': value_type.__name__,
@@ -180,7 +200,7 @@ def get_config_for_ui():
 			}
 	# UI.PORT is only applied at startup, so the in-memory value is the port in use
 	return {'settings': settings, 'log_levels': LOG_LEVELS,
-			'ui_port_in_use': getattr(UI, 'PORT', None)}
+			'ui_port_in_use': getattr(UI, 'PORT', None), 'ui_ip_in_use': getattr(UI, 'IP', '')}
 
 
 def update_config(updates):
@@ -196,7 +216,7 @@ def update_config(updates):
 	for section, keys in CONFIG_SCHEMA.items():
 		values = updates.get(section) or {}
 		for key, (value_type, _, restart) in keys.items():
-			if key not in values:
+			if key not in values or (section, key) in HIDDEN_SETTINGS:
 				continue
 			try:
 				value = _convert(values[key], value_type)

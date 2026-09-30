@@ -32,6 +32,11 @@
             <fieldset class="config-section">
                 <legend>Web Interface</legend>
                 <div class="form-group">
+                    <label for="uiIpInUse">IP Address</label>
+                    <input type="text" id="uiIpInUse" readonly />
+                    <p class="help">IP address of this machine, detected automatically at startup.</p>
+                </div>
+                <div class="form-group">
                     <label for="UI.PORT">Port <span class="restart-tag">restart</span></label>
                     <input type="number" id="UI.PORT" name="UI.PORT" min="0" max="65535" required />
                     <p class="port-in-use" id="uiPortInUse"></p>
@@ -64,7 +69,7 @@
                 <legend>Macro Alert</legend>
                 <div class="form-group">
                     <label for="MACRO.MACRO">Macro</label>
-                    <input type="text" id="MACRO.MACRO" name="MACRO.MACRO" placeholder="e.g. 0:/sys/duetPrintGuard/Notify.g" />
+                    <input type="text" id="MACRO.MACRO" name="MACRO.MACRO" placeholder="e.g. 0:/sys/duetPrintGuard/macros/Notify.g" />
                     <p class="help">Macro called on failure e.g. to send MQTT. Enter just the path used in M98 P"&lt;path&gt;".</p>
                 </div>
                 <div class="form-group">

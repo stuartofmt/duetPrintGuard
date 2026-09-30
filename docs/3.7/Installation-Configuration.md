@@ -12,17 +12,11 @@ duetPrintGuard is packaged as a DWC plugin and installed in the normal manner fr
 
 ## Configuration
 
-During installation of the plugin, a template configuration file `duetPrintGuard.config.example` is placed in the `system/duetPrintGuard directory`.
+No configuration file needs to be created. On first start the plugin creates `duetPrintGuard.json` in its own plugin directory with default settings.
 
-The example should be copied or renamed to `duetPrintGuard.config` and configured to your system / needs.  The two main settings are:
+Settings are changed from the Configuration page, accessible from the Settings page or via `http://<IP>:<PORT>/config`.
 
-In the [DUET] section:
--- IP ==> the IP address of the printer
-
-In the [UI] section:
--- PORT ==> the port number for UI elements to access the settings and monitoring pages
-
-[duetPrintGuard.config.example](../plugin3.6.x/Code/sd/sys/duetPrintGuard/duetPrintGuard.config.example)
+The IP address is detected automatically. If `Port` is 0 or already in use, a free port is chosen at startup. The IP address and port actually in use are saved back to `duetPrintGuard.json` and passed to DWC, so the plugin page always connects to the right address.
 
 ## Logging
 
@@ -37,7 +31,7 @@ When the plugin is first accessed - the Detection page will display with a messa
 
 The camera settings page is accessible from the Detection page or via `http://localhost:<PORT>/settings` or `http://<IP>:<PORT>/settings`
 
-Where IP is set in the [DUET] section of the configuration file and PORT is set in the [UI] section
+Where IP and PORT are the address shown in the log file at startup.
 
 This page allows you to configure the action to be taken on failure, camera settings and detection settings.
 

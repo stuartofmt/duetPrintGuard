@@ -13,6 +13,7 @@ const saveBtn = document.getElementById('saveBtn');
 const statusMessage = document.getElementById('statusMessage');
 const logLevelSelect = document.getElementById('LOGGING.LEVEL');
 const uiPortInUse = document.getElementById('uiPortInUse');
+const uiIpInUse = document.getElementById('uiIpInUse');
 
 // =========================
 // Status Message
@@ -83,6 +84,7 @@ async function loadConfig() {
 
 		const savedPort = data.settings.UI.PORT.value;
 		const portInUse = data.ui_port_in_use;
+		uiIpInUse.value = data.ui_ip_in_use;
 		uiPortInUse.textContent = `Currently connected to port: ${portInUse}`;
 		if (savedPort === 0) {
 			uiPortInUse.textContent += ' (picked automatically)';
