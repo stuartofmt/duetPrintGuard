@@ -15,15 +15,18 @@ At the end the countdown period, if the user does not intervene, the countdown a
 
 
 
-Primary configuration in 3.6 is through a file accesable from DWC that facilitates:
--- IP and port setting
--- Configurable actions when a defect is detected
--- several notofcation types ( Duet Macro, NTFY, Pusher)
+## Choosing a release
 
-In 3.7 configuration is through a UI.
+Each release is kept on its own branch. Use the one that matches your DWC / DSF version:
 
+| DWC / DSF version | Release | Configuration |
+| --- | --- | --- |
+| 3.7.x | [3.7.x branch](../../tree/3.7.x) | Through a Configuration page in the plugin UI |
+| 3.6.x | [3.6.x branch](../../tree/3.6.x) | Through a `duetPrintGuard.config` file accessible from DWC |
 
-**Instructions for installation and configuration as well as operation are in the /docs folder under the applicable release**
+Both releases provide configurable actions when a defect is detected and several notification types (Duet Macro, ntfy, Pushover).
+
+**The plugin zip file and the instructions for installation, configuration and operation (in the `docs` folder) are on the branch for your release.**
 
 
 > _The origial project can be found here [here](https://github.com/oliverbravery/PrintGuard)._
