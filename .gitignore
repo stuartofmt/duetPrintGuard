@@ -21,3 +21,6 @@ callgraph.png
 call_graph_pyan.py
 x*.py
 *.copy
+# Each release lives on its own branch; locally each folder is a worktree of its branch
+/3.6.x/
+/3.7.x/
