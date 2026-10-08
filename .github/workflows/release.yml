@@ -1,16 +1,103 @@
 name: Release
 
-# Builds the installable plugin ZIP against DuetWebControl's source and creates a GitHub Release for
-# it - no local build needed. Just push a version tag:
+# WHAT THIS WORKFLOW DOES
+#   It builds the installable plugin ZIP file on GitHub's servers, compiling the plugin against the
+#   DuetWebControl (DWC) source code. You do not need to build anything on your own computer.
 #
-#   (bump the plugin manifest + package.json, commit) then:
-#   git tag v1.2.3 && git push origin v1.2.3
+#   The workflow can be started in two different ways, and they produce different results:
 #
-# This runs automatically, builds duetPrintGuard-<version>.zip against DWC, and publishes a Release
-# for the tag with the ZIP attached. Title (from scripts/release-titles.txt) and notes
-# (Conventional-Commit changelog) are both generated - no manual step.
+#   AUTOMATIC - starts by itself when you push a version tag (a tag whose name begins with "v",
+#               e.g. v1.2.3) to GitHub. It creates a public GitHub Release with the ZIP attached.
+#               Use this when you want to release a new version of the plugin.
 #
-# You can also run it manually (Actions -> Release -> Run workflow) to build a ZIP as an artifact.
+#   MANUAL    - started by you from the GitHub website. It only builds the ZIP so you can download
+#               and test it. Nothing is published and no Release is created.
+#               Use this to check that the plugin builds, or to get a test ZIP.
+#
+# ---------------------------------------------------------------------------------------------------
+# AUTOMATIC: how to publish a new release
+# ---------------------------------------------------------------------------------------------------
+#   Background: a git tag is a label attached to one particular commit. This workflow does NOT
+#   create the tag for you - YOU create the tag, and pushing it to GitHub is what starts the
+#   workflow. The workflow then reads plugin.json and checks that the tag name matches the version
+#   number in it. If they do not match, the run stops with an error and nothing is released.
+#   (package.json's version is not checked.)
+#
+#   1. Open plugin.json and change the "version" value to the new version number, e.g. "1.2.3".
+#      Commit this change and push it to the repository on GitHub.
+#
+#   2. Create a tag on that commit, named "v" followed by exactly the same version number, then push
+#      the tag to GitHub. From the repository folder on your computer run:
+#
+#        git tag v1.2.3
+#        git push origin v1.2.3
+#
+#      Make sure the commit from step 1 is the one checked out when you run "git tag", because the
+#      tag is attached to whatever commit you are currently on.
+#
+#      IMPORTANT: Do NOT create the tag or the Release using the "Releases" page on the GitHub
+#      website ("Draft a new release" / "Create a new release"). Doing that publishes a Release
+#      before this workflow runs, so the workflow will find an existing Release and ask you to
+#      approve overwriting it. Always create the tag with git as shown above and let this workflow
+#      create the Release.
+#
+#   3. Pushing the tag starts the workflow. It first checks the version and chooses which DWC version
+#      to build against, then PAUSES and waits for approval:
+#        - Go to the repository's Actions tab on GitHub and open the "Release" run for your tag.
+#        - Read the "Release preflight" summary. It shows the plugin version, the DWC version that
+#          will be used, and whether a Release already exists for this tag.
+#        - Click "Review deployments", then "Approve and deploy" to continue, or "Reject" to stop.
+#      If a Release for this tag does not exist yet, approving creates it.
+#      If a Release for this tag ALREADY exists, approving OVERWRITES its ZIP files, title and notes.
+#      Reject if you do not want that.
+#
+#   4. After approval the workflow builds the ZIP and publishes the GitHub Release automatically:
+#        - Title: the next unused line from scripts/release-titles.txt.
+#        - Notes: a list of changes generated from the commit messages since the previous tag
+#          (see CONTRIBUTING.md for the commit message format), plus install instructions.
+#        - Files: the plugin ZIP, plus any ZIP files in the standalone-zip/ folder (renamed with a
+#          "standalone-" prefix).
+#      No further action is needed - the Release is public as soon as the run finishes.
+#
+# ---------------------------------------------------------------------------------------------------
+# MANUAL: how to make a test build without releasing anything
+# ---------------------------------------------------------------------------------------------------
+#   1. On GitHub, go to the Actions tab, select "Release" in the left-hand list, and click the
+#      "Run workflow" button.
+#   2. In the "Use workflow from" drop-down, choose the BRANCH you want to build (e.g. 3.7.x).
+#      Do not choose a tag here - see the note below.
+#   3. Optionally type a DWC version into the dwc-ref box (e.g. v3.7.1) to build against that exact
+#      DWC release. Leave it blank to use the default choice (see "Which DWC version is used" below).
+#      The version you type must still be compatible with plugin.json, or the run stops with an error.
+#   4. Click "Run workflow". The run pauses for approval just like the automatic one - open the run,
+#      click "Review deployments", then "Approve and deploy".
+#   5. When the run finishes, scroll to the "Artifacts" section at the bottom of the run's page and
+#      download the ZIP. No Release is created, no tag is needed and the version is not checked.
+#
+#   Note: if you choose a TAG instead of a branch in step 2, the run is treated like an automatic
+#   one: it checks the tag against plugin.json and publishes (or overwrites) the GitHub Release for
+#   that tag, in addition to providing the downloadable ZIP.
+#
+# ---------------------------------------------------------------------------------------------------
+# Which DWC version is used (applies to both automatic and manual runs)
+# ---------------------------------------------------------------------------------------------------
+#   The "dwcVersion" value in plugin.json decides which DWC releases are compatible:
+#     - The first two numbers fix the series. "3.7" means any DWC 3.7.x release is allowed.
+#     - If a third number is given, only that exact x.y.z series is allowed. "3.7.2" allows the
+#       3.7.2 release and its pre-releases (e.g. 3.7.2-beta.1, 3.7.2-rc.1), but NOT 3.7.3 or later.
+#     - If a pre-release is also given, it is the minimum within that series. "3.7.2-rc.2" allows
+#       3.7.2-rc.2, 3.7.2-rc.3, ... and 3.7.2, but not 3.7.2-rc.1 or 3.7.3.
+#   Unless you type a dwc-ref in a manual run, the newest compatible DWC release is used
+#   (pre-releases such as betas and release candidates are included).
+#
+# ---------------------------------------------------------------------------------------------------
+# Order the jobs run in
+# ---------------------------------------------------------------------------------------------------
+#   1. resolve-dwc - read plugin.json, check the tag matches its version, see if a Release already
+#                    exists, and choose the DWC version.
+#   2. approval    - pause until someone approves at the dwc-release-approval environment.
+#   3. build       - download DWC, type-check the plugin and build the ZIP.
+#   4. output      - automatic: publish the GitHub Release. Manual: provide the ZIP as an artifact.
 
 on:
   push:
@@ -38,6 +125,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       manifest: ${{ steps.resolve.outputs.manifest }}
+      plugin-name: ${{ steps.resolve.outputs.plugin-name }}
       dwc-ref: ${{ steps.resolve.outputs.dwc-ref }}
       plugin-version: ${{ steps.resolve.outputs.plugin-version }}
       release-exists: ${{ steps.resolve.outputs.release-exists }}
@@ -84,6 +172,9 @@ jobs:
           if (typeof manifest.version !== "string" || !manifest.version) {
             throw new Error(`${manifestPath} must contain a non-empty string version.`);
           }
+          if (typeof manifest.id !== "string" || !/^[A-Za-z0-9._-]+$/.test(manifest.id)) {
+            throw new Error(`${manifestPath} must contain an id made of letters, numbers, dots, underscores, or hyphens.`);
+          }
           if (typeof manifest.dwcVersion !== "string" || !manifest.dwcVersion) {
             throw new Error(`${manifestPath} must contain a non-empty string dwcVersion.`);
           }
@@ -91,10 +182,14 @@ jobs:
           const tag = process.env.GITHUB_REF.startsWith("refs/tags/")
             ? process.env.GITHUB_REF.slice("refs/tags/".length)
             : "";
+          // A pushed tag is taken verbatim from GITHUB_REF; allow the conventional leading "v" when
+          // comparing it to plugin.json's version. Manual runs on branches have no release tag.
           if (tag && tag.replace(/^v/, "") !== manifest.version) {
             throw new Error(`Release tag "${tag}" does not match ${manifestPath} version "${manifest.version}".`);
           }
 
+          // Look up the release associated with this exact tag before building. A match is not an
+          // automatic failure: the approval gate below allows an authorized update of that release.
           let existingRelease = null;
           if (tag) {
             const response = await fetch(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/releases/tags/${encodeURIComponent(tag)}`, {
@@ -168,39 +263,51 @@ jobs:
 
           const candidates = releases
             .map((release) => ({ release, version: parseVersion(release.tag_name.replace(/^v/, "")) }))
+            // Stay in the required major.minor series. If the manifest gives a patch, stay in that exact
+            // major.minor.patch series instead: its prereleases (e.g. 3.7.2-rc.1) qualify, later patches
+            // (e.g. 3.7.3) do not. A prerelease in the manifest (e.g. 3.7.2-rc.2) is a floor within it.
             .filter(({ version }) => version
               && version.major === minimum.major
               && version.minor === minimum.minor
-              && (!minimum.patchSpecified || compareVersions(version, minimum) >= 0))
+              && (!minimum.patchSpecified || (version.patch === minimum.patch
+                && (minimum.prerelease.length === 0 || compareVersions(version, minimum) >= 0))))
             .sort((a, b) => compareVersions(a.version, b.version));
+          const series = minimum.patchSpecified
+            ? `${minimum.major}.${minimum.minor}.${minimum.patch}`
+            : `${minimum.major}.${minimum.minor}.x`;
           if (candidates.length === 0) {
-            throw new Error(`No DuetWebControl release (including prereleases) found at or above ${manifest.dwcVersion} in the ${minimum.major}.${minimum.minor}.x series.`);
+            throw new Error(`No DuetWebControl release (including prereleases) compatible with ${manifest.dwcVersion} found in the ${series} series.`);
           }
 
           const requestedRef = process.env.DWC_REF_OVERRIDE.trim().replace(/^v/, "");
+          // An explicit override selects only a compatible candidate; otherwise use the highest one.
           const override = requestedRef
             ? candidates.find(({ release }) => release.tag_name.replace(/^v/, "") === requestedRef)
             : null;
           if (requestedRef && !override) {
-            throw new Error(`Requested DWC release "${process.env.DWC_REF_OVERRIDE}" is not available or is below the compatible ${manifest.dwcVersion} minimum in the ${minimum.major}.${minimum.minor}.x series.`);
+            throw new Error(`Requested DWC release "${process.env.DWC_REF_OVERRIDE}" is not available or is not compatible with ${manifest.dwcVersion} (${series} series).`);
           }
           const selected = (override ?? candidates.at(-1)).release.tag_name;
-          console.log(`Manifest: ${manifestPath} (plugin ${manifest.version}, minimum DWC ${manifest.dwcVersion})`);
+          console.log(`Manifest: ${manifestPath} (plugin ${manifest.version}, required DWC ${manifest.dwcVersion})`);
           console.log(`Selected DuetWebControl release: ${selected}`);
           const releaseSummary = existingRelease
             ? `\n\n### Existing plugin release requires confirmation\n\nA published release already exists for tag \`${tag}\`: [${existingRelease.name || tag}](${existingRelease.html_url}). Approve the \`dwc-release-approval\` environment to continue and update that release's assets and notes, or reject the deployment to stop this run.`
             : tag
               ? `\n\nNo published release currently exists for \`${tag}\`. Approve the \`dwc-release-approval\` environment to continue, or reject the deployment to stop this run.`
               : "";
-          appendFileSync(process.env.GITHUB_OUTPUT, `manifest=${manifestPath}\nplugin-version=${manifest.version}\ndwc-ref=${selected}\nrelease-exists=${existingRelease ? "true" : "false"}\nrelease-url=${existingRelease?.html_url ?? ""}\n`);
-          appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### Release preflight\n\n- Plugin manifest: \`${manifestPath}\`\n- Plugin version: \`${manifest.version}\`\n- Minimum DWC version: \`${manifest.dwcVersion}\`\n- Selected DWC release: \`${selected}\`\n${releaseSummary}\n`);
+          appendFileSync(process.env.GITHUB_OUTPUT, `manifest=${manifestPath}\nplugin-name=${manifest.id}\nplugin-version=${manifest.version}\ndwc-ref=${selected}\nrelease-exists=${existingRelease ? "true" : "false"}\nrelease-url=${existingRelease?.html_url ?? ""}\n`);
+          appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### Release preflight\n\n- Plugin manifest: \`${manifestPath}\`\n- Plugin version: \`${manifest.version}\`\n- Required DWC version: \`${manifest.dwcVersion}\`\n- Selected DWC release: \`${selected}\`\n${releaseSummary}\n`);
           NODE
 
   build:
     needs: resolve-dwc
     runs-on: ubuntu-latest
+    env:
+      PLUGIN_NAME: ${{ needs.resolve-dwc.outputs.plugin-name }}
     environment:
-      # Configure this environment with required reviewers in repository Settings to pause before build.
+      # Configure required reviewers in repository Settings to pause builds here. If the tag
+      # already has a GitHub Release, approval allows the publish step to update its assets and notes;
+      # rejection stops the run. This environment also gates new tagged releases and manual builds.
       name: dwc-release-approval
       url: ${{ needs.resolve-dwc.outputs.release-url }}
     steps:
@@ -324,7 +431,7 @@ jobs:
           name: ${{ steps.title.outputs.name }}
           body: ${{ steps.changelog.outputs.body }}
           files: |
-            plugin/duetPrintGuard-*.zip
+            plugin/${{ env.PLUGIN_NAME }}-*.zip
             ${{ runner.temp }}/standalone-assets/standalone-*.zip
           fail_on_unmatched_files: false
 
@@ -332,5 +439,5 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v7
         with:
-          name: duetPrintGuard-plugin
-          path: plugin/duetPrintGuard-*.zip
+          name: ${{ env.PLUGIN_NAME }}-plugin
+          path: plugin/${{ env.PLUGIN_NAME }}-*.zip
