@@ -17,7 +17,7 @@ Venv python install e.g.
 # and make itmore suited to the DWC environment
 
 """
-Version 1.1.0 - Initial release
+Version 1.0.0 - Initial release
 """
 
 import sys
@@ -31,7 +31,7 @@ from duet_config import get_DWC_config
 
 global progName, progVersion
 progName = 'duetPrintGuard'
-progVersion = '1.1.0'
+progVersion = '1.0.0'
 # Min python version
 pythonMajor = 3
 pythonMinor = 9
