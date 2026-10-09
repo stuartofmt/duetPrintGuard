@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 /**
- * Pick the GitHub Release title for a version: `vX.Y.Z — "<guard-themed title>"`.
+ * Pick the GitHub Release title for a version: `vX.Y.Z — "<title>"`.
  *
- * Titles come from scripts/release-titles.txt (one per line). The version's position among all
+ * Titles come from scripts/release-titles.txt (one per line); without that file the title is just
+ * `vX.Y.Z`. The version's position among all
  * semver-sorted `v*` tags is its index into that list (wrapping if it runs out), so each release gets
  * a stable, distinct title with no per-release bookkeeping. The release workflow uses the output as the
  * Release name; run it locally to preview: `node scripts/release-title.mjs [vX.Y.Z]`.
@@ -10,9 +11,10 @@
  * Flags: `--remaining` prints just how many unused titles are left after this one (for low-list checks).
  */
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { readManifest } from "./manifest.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -51,14 +53,14 @@ function cmp(a, b) {
 
 /** Resolve the title + list stats for a version (defaults to plugin.json's version). */
 export function pickTitle(version) {
-	const titles = readFileSync(join(here, "release-titles.txt"), "utf8")
+	const titlesFile = join(here, "release-titles.txt");
+	const titles = (existsSync(titlesFile) ? readFileSync(titlesFile, "utf8") : "")
 		.split("\n")
 		.map((l) => l.trim())
 		.filter((l) => l && !l.startsWith("#"));
 
 	const current = ver(
-		version || process.env.GITHUB_REF_NAME
-			|| JSON.parse(readFileSync(join(here, "..", process.env.MANIFEST || "Code/plugin.json"), "utf8")).version,
+		version || process.env.GITHUB_REF_NAME || readManifest().version,
 	);
 
 	const tags = git(["tag", "-l", "v*"]).split("\n").map((t) => ver(t)).filter(Boolean);
@@ -87,7 +89,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
 	if (remainingOnly) {
 		process.stdout.write(String(r.remaining));
 	} else {
-		if (r.remaining <= LOW_TITLES_THRESHOLD) {
+		if (r.total > 0 && r.remaining <= LOW_TITLES_THRESHOLD) {
 			process.stderr.write(
 				`⚠️  Only ${r.remaining} unused release title(s) left after this one — add more to scripts/release-titles.txt (it wraps around for now).\n`,
 			);

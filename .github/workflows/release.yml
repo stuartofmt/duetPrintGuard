@@ -424,7 +424,7 @@ jobs:
             echo '__TITLE_EOF__'
           } >> "$GITHUB_OUTPUT"
           LEFT=$(node scripts/release-title.mjs --remaining)
-          if [ "$LEFT" -le 5 ]; then
+          if [ -f scripts/release-titles.txt ] && [ "$LEFT" -le 5 ]; then
             echo "::warning::Only $LEFT unused release title(s) left — add more to scripts/release-titles.txt"
           fi
 

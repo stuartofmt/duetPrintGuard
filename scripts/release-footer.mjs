@@ -3,19 +3,20 @@
  * Print the static footer appended to every GitHub Release body: install instructions and the
  * DuetWebControl version the ZIP was built against.
  *
- * The plugin manifest path comes from MANIFEST (set by the release workflow; relative to the repository
- * root, default Code/plugin.json). The DWC details come from the CI build environment (the release
- * workflow sets these after it checks out DuetWebControl), so it also reads sensibly when run locally.
+ * Everything plugin-specific comes from plugin.json (found by ./manifest.mjs), so this works unchanged
+ * for any plugin: the ZIP name from id + version, the project link from homepage, and the SBC note from
+ * sbcRequired. A docs/Installation-Configuration.md in the repository is linked if present.
+ * The DWC details come from the CI build environment (the release workflow sets these after it checks
+ * out DuetWebControl), so it also reads sensibly when run locally.
  */
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+import { readManifest, repoRoot } from "./manifest.mjs";
 
-const here = dirname(fileURLToPath(import.meta.url));
-const manifestPath = join(here, "..", process.env.MANIFEST || "Code/plugin.json");
-const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+const manifest = readManifest();
 const pkgVersion = manifest.version;
 const asset = `${manifest.id}-${pkgVersion}.zip`;
+const ref = process.env.GITHUB_REF_NAME || "main";
 
 const dwcVersion = process.env.DWC_VERSION || "";
 
@@ -34,18 +35,28 @@ const dwcBuiltAgainst = dwcVersion
 	? `**DuetWebControl ${dwcVersion}**${dwcSha ? ` (\`${dwcSha}\`, ref \`${dwcRef}\`)` : ` (ref \`${dwcRef}\`)`}`
 	: `DuetWebControl (ref \`${dwcRef}\`)`;
 
+// Optional links, included only when the information exists.
+const guide = "docs/Installation-Configuration.md";
+const links = [];
+if (existsSync(join(repoRoot, guide))) {
+	links.push(`[installation and configuration guide](${manifest.homepage ? `${manifest.homepage}/blob/${ref}/${guide}` : guide})`);
+}
+if (manifest.homepage) links.push(`[project page](${manifest.homepage})`);
+const seeAlso = links.length ? `\nSee the ${links.join(" and the ")} for setup details.\n` : "";
+
+const requirement = `Requires DuetWebControl ${requiredDwc || dwcVersion || "(see plugin.json)"}`
+	+ (manifest.sbcRequired ? " on a Duet running in SBC mode" : "");
+
 const out = `
 ---
 
-### 📦 Install
+### 📦 Install ${manifest.name || manifest.id}
 1. Download \`${asset}\` from the **Assets** below.
 2. In DuetWebControl, go to **Settings → General → Plugins** and click **Install Plugin**.
 3. Select the downloaded ZIP and accept the third-party-plugin prompt.
 4. Reload DWC if asked.
-
-See the [installation and configuration guide](${manifest.homepage ? `${manifest.homepage}/blob/${process.env.GITHUB_REF_NAME || "main"}/docs/Installation-Configuration.md` : "docs/Installation-Configuration.md"}) for setup details.
-
-> 🔧 Built against ${dwcBuiltAgainst}. Requires DuetWebControl ${requiredDwc || dwcVersion || "(see plugin.json)"} on a Duet running in SBC mode.
+${seeAlso}
+> 🔧 Built against ${dwcBuiltAgainst}. ${requirement}.
 
 <!-- dwc-plugin-update ${JSON.stringify({ version: pkgVersion, dwcVersion: requiredDwc, asset })} -->
 `;
