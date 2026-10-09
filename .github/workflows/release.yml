@@ -1,5 +1,7 @@
 name: Release
 
+# These notes are also in release.yml.md (next to this file) - if you change one, update the other.
+#
 # WHAT THIS WORKFLOW DOES
 #   It builds the installable plugin ZIP file on GitHub's servers, compiling the plugin against the
 #   DuetWebControl (DWC) source code. You do not need to build anything on your own computer.
@@ -52,9 +54,11 @@ name: Release
 #      Reject if you do not want that.
 #
 #   4. After approval the workflow builds the ZIP and publishes the GitHub Release automatically:
-#        - Title: the next unused line from scripts/release-titles.txt.
+#        - Title: taken from scripts/release-titles.txt, using the version's position among all v*
+#          tags (just vX.Y.Z if there is no titles file).
 #        - Notes: a list of changes generated from the commit messages since the previous tag
-#          (see CONTRIBUTING.md for the commit message format), plus install instructions.
+#          (Conventional Commit messages such as "feat: ..." and "fix: ..." are grouped by type),
+#          plus install instructions.
 #        - Files: the plugin ZIP, plus any ZIP files in the standalone-zip/ folder (renamed with a
 #          "standalone-" prefix).
 #      No further action is needed - the Release is public as soon as the run finishes.
@@ -96,7 +100,7 @@ name: Release
 #   1. resolve-dwc - read plugin.json, check the tag matches its version, see if a Release already
 #                    exists, and choose the DWC version.
 #   2. approval    - pause until someone approves at the dwc-release-approval environment.
-#   3. build       - download DWC, type-check the plugin and build the ZIP.
+#   3. build       - download DWC and build the ZIP with DWC's scripts/build-plugin.js.
 #   4. output      - automatic: publish the GitHub Release. Manual: provide the ZIP as an artifact.
 
 on:
