@@ -2,8 +2,8 @@
 # Release the plugin version that is in plugin.json (the first one found in the repository).
 #
 # This script does NOT change plugin.json. It:
-#   1. reads "version" from plugin.json and works out the tag name: v<version> on the latest channel,
-#      v<version>-dwc<dwcVersion> on a maintenance channel (set in scripts/release-channel.txt)
+#   1. reads "version" and "dwcVersion" from plugin.json and works out the tag name:
+#      v<version>-dwc<dwcVersion>, e.g. v1.2.3-dwc3.7
 #   2. reports whether that tag has already been used (on this computer or on GitHub)
 #   3. asks whether to release with this tag or create a new one:
 #        - use this tag: pushes the branch, creates the tag and pushes it on its own
@@ -33,23 +33,26 @@ fi
 
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
 VERSION=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['version'])" "$MANIFEST")
+DWC_VERSION=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('dwcVersion', ''))" "$MANIFEST")
+# The tag includes dwcVersion, so it must be a plain version (not e.g. "auto"); same rule as the Release workflow.
+[[ "$DWC_VERSION" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?(-[0-9A-Za-z.-]+)?$ ]] \
+	|| { echo "Error: $MANIFEST needs a numeric dwcVersion for the tag name, not \"$DWC_VERSION\"."; exit 1; }
+TAG="v$VERSION-dwc$DWC_VERSION"
 
 # Release channel (scripts/release-channel.txt, default "latest"; same rules as scripts/manifest.mjs).
+# It only decides whether the GitHub Release is marked Latest; the tag is the same either way.
 CHANNEL=""
 [ -f scripts/release-channel.txt ] && CHANNEL=$(sed -e 's/#.*//' -e 's/[[:space:]]//g' scripts/release-channel.txt | grep -m1 . || true)
 CHANNEL=${CHANNEL:-latest}
 case "$CHANNEL" in
-	latest) TAG="v$VERSION" ;;
-	maintenance)
-		DWC_VERSION=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['dwcVersion'])" "$MANIFEST")
-		TAG="v$VERSION-dwc$DWC_VERSION"
-		;;
+	latest|maintenance) ;;
 	*) echo "Error: scripts/release-channel.txt must say \"latest\" or \"maintenance\", not \"$CHANNEL\"."; exit 1 ;;
 esac
 
 echo "Branch:       $BRANCH"
 echo "Version:      $VERSION  (from $MANIFEST)"
-echo "Channel:      $CHANNEL"
+echo "DWC version:  $DWC_VERSION"
+echo "Channel:      $CHANNEL$([ "$CHANNEL" = latest ] && echo "  (Release marked Latest)" || echo "  (Release not marked Latest)")"
 echo "Release tag:  $TAG"
 echo
 
