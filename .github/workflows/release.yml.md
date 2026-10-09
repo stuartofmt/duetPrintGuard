@@ -57,7 +57,7 @@ After approval the workflow builds the ZIP and publishes the GitHub Release auto
 
 - **Title:** taken from `scripts/release-titles.txt`, using the version's position among the `v*` tags with this branch's `-dwc<dwcVersion>` suffix (just the tag name if there is no titles file).
 - **Notes:** a list of changes generated from the commit messages since the previous tag (Conventional Commit messages such as `feat: …` and `fix: …` are grouped by type), plus install instructions.
-- **Files:** the plugin ZIP (for DWC 3.7 and later also a small `-srcmap.zip` of source maps), plus any ZIP files in the `standalone-zip/` folder (renamed with a `standalone-` prefix).
+- **Files:** the plugin ZIP, named `<id>-<version>-<dwcVersion>.zip` using `plugin.json`'s `dwcVersion` (e.g. `MyPlugin-1.2.3-3.7.zip`; for DWC 3.7 and later also a small `-srcmap.zip` of source maps), plus any ZIP files in the `standalone-zip/` folder (renamed with a `standalone-` prefix).
 
 No further action is needed. The Release is public as soon as the run finishes.
 
