@@ -38,3 +38,25 @@ export function manifestPath() {
 export function readManifest() {
 	return JSON.parse(readFileSync(join(repoRoot, manifestPath()), "utf8"));
 }
+
+/**
+ * This branch's release channel, from scripts/release-channel.txt (default "latest"):
+ *   latest      - the main line. Tags are v<version> and its Releases are marked Latest.
+ *   maintenance - a line built for an older DWC. Tags are v<version>-dwc<dwcVersion>, so they never
+ *                 clash with another branch's tags, and its Releases are never marked Latest.
+ */
+export function releaseChannel() {
+	const file = join(repoRoot, "scripts", "release-channel.txt");
+	const channel = existsSync(file)
+		? readFileSync(file, "utf8").split("\n").map((l) => l.replace(/#.*/, "").trim()).find(Boolean)
+		: undefined;
+	if (channel && !["latest", "maintenance"].includes(channel)) {
+		throw new Error(`scripts/release-channel.txt must say "latest" or "maintenance", not "${channel}".`);
+	}
+	return channel || "latest";
+}
+
+/** The suffix after v<version> in this branch's release tags: "" or "-dwc<dwcVersion>". */
+export function tagSuffix(manifest = readManifest()) {
+	return releaseChannel() === "maintenance" ? `-dwc${manifest.dwcVersion}` : "";
+}

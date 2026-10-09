@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 /**
- * Pick the GitHub Release title for a version: `vX.Y.Z — "<title>"`.
+ * Pick the GitHub Release title for a version: `<tag> — "<title>"`, where <tag> is `vX.Y.Z` on the
+ * latest channel and `vX.Y.Z-dwc<dwcVersion>` on a maintenance channel (see manifest.mjs).
  *
  * Titles come from scripts/release-titles.txt (one per line); without that file the title is just
- * `vX.Y.Z`. The version's position among all
- * semver-sorted `v*` tags is its index into that list (wrapping if it runs out), so each release gets
+ * the tag. The version's position among the semver-sorted `v*` tags of this branch's channel (tags
+ * with the same suffix) is its index into that list (wrapping if it runs out), so each release gets
  * a stable, distinct title with no per-release bookkeeping. The release workflow uses the output as the
  * Release name; run it locally to preview: `node scripts/release-title.mjs [vX.Y.Z]`.
  *
@@ -14,7 +15,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { readManifest } from "./manifest.mjs";
+import { readManifest, tagSuffix } from "./manifest.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -30,6 +31,9 @@ function git(args) {
 }
 
 const ver = (v) => v.replace(/^v/, "").trim();
+
+// The suffix of a maintenance-channel tag, e.g. "-dwc3.6" in v0.1.0-dwc3.6.
+const DWC_SUFFIX = /-dwc\d[0-9A-Za-z.-]*$/;
 
 // semver-ish compare: numeric segment-by-segment; a release (1.0.0) sorts after its prerelease (1.0.0-rc).
 function cmp(a, b) {
@@ -59,11 +63,13 @@ export function pickTitle(version) {
 		.map((l) => l.trim())
 		.filter((l) => l && !l.startsWith("#"));
 
-	const current = ver(
-		version || process.env.GITHUB_REF_NAME || readManifest().version,
-	);
+	const suffix = tagSuffix();
+	const current = ver(version || readManifest().version).replace(DWC_SUFFIX, "");
 
-	const tags = git(["tag", "-l", "v*"]).split("\n").map((t) => ver(t)).filter(Boolean);
+	// Only this channel's tags: those ending in this branch's suffix, or with no -dwc suffix at all.
+	const tags = git(["tag", "-l", "v*"]).split("\n").map((t) => t.trim()).filter(Boolean)
+		.filter((t) => (suffix ? t.endsWith(suffix) : !DWC_SUFFIX.test(t)))
+		.map((t) => ver(t.slice(0, t.length - suffix.length)));
 	if (!tags.includes(current)) tags.push(current);
 	tags.sort(cmp);
 	const idx = tags.indexOf(current);
@@ -72,7 +78,7 @@ export function pickTitle(version) {
 	return {
 		version: current,
 		title,
-		label: title ? `v${current} — "${title}"` : `v${current}`,
+		label: title ? `v${current}${suffix} — "${title}"` : `v${current}${suffix}`,
 		index: idx,
 		total: titles.length,
 		remaining: Math.max(0, titles.length - 1 - idx), // unused titles after this one (before wrap)

@@ -2,7 +2,8 @@
 # Release the plugin version that is in plugin.json (the first one found in the repository).
 #
 # This script does NOT change plugin.json. It:
-#   1. reads "version" from plugin.json and works out the tag name (v<version>)
+#   1. reads "version" from plugin.json and works out the tag name: v<version> on the latest channel,
+#      v<version>-dwc<dwcVersion> on a maintenance channel (set in scripts/release-channel.txt)
 #   2. reports whether that tag has already been used (on this computer or on GitHub)
 #   3. asks whether to release with this tag or create a new one:
 #        - use this tag: pushes the branch, creates the tag and pushes it on its own
@@ -32,10 +33,23 @@ fi
 
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
 VERSION=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['version'])" "$MANIFEST")
-TAG="v$VERSION"
+
+# Release channel (scripts/release-channel.txt, default "latest"; same rules as scripts/manifest.mjs).
+CHANNEL=""
+[ -f scripts/release-channel.txt ] && CHANNEL=$(sed -e 's/#.*//' -e 's/[[:space:]]//g' scripts/release-channel.txt | grep -m1 . || true)
+CHANNEL=${CHANNEL:-latest}
+case "$CHANNEL" in
+	latest) TAG="v$VERSION" ;;
+	maintenance)
+		DWC_VERSION=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['dwcVersion'])" "$MANIFEST")
+		TAG="v$VERSION-dwc$DWC_VERSION"
+		;;
+	*) echo "Error: scripts/release-channel.txt must say \"latest\" or \"maintenance\", not \"$CHANNEL\"."; exit 1 ;;
+esac
 
 echo "Branch:       $BRANCH"
 echo "Version:      $VERSION  (from $MANIFEST)"
+echo "Channel:      $CHANNEL"
 echo "Release tag:  $TAG"
 echo
 

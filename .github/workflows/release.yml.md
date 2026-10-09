@@ -23,7 +23,7 @@ Open `plugin.json` and change the `"version"` value to the new version number, e
 
 ### 2. Create and push the tag
 
-Create a tag on that commit, named `v` followed by exactly the same version number, then push the tag to GitHub. From the repository folder on your computer run:
+Create a tag on that commit, named `v` followed by exactly the same version number, then push the tag to GitHub. (On a maintenance branch the tag also ends in `-dwc<dwcVersion>`, e.g. `v1.2.3-dwc3.6`. See [Releasing from more than one branch](#releasing-from-more-than-one-branch).) From the repository folder on your computer run:
 
 ```bash
 git tag v1.2.3
@@ -32,7 +32,7 @@ git push origin v1.2.3
 
 Make sure the commit from step 1 is the one checked out when you run `git tag`, because the tag is attached to whatever commit you are currently on.
 
-Alternatively, run `./scripts/release.sh`. It reads the version from `plugin.json`, reports whether that tag has already been used, and creates and pushes the tag for you. It never changes `plugin.json`.
+Alternatively, run `./scripts/release.sh`. It reads the version from `plugin.json` (and the channel from `scripts/release-channel.txt`), reports whether that tag has already been used, and creates and pushes the tag for you. It never changes `plugin.json`.
 
 > [!IMPORTANT]
 > Do **not** create the tag or the Release using the **Releases** page on the GitHub website ("Draft a new release" / "Create a new release"). Doing that publishes a Release before this workflow runs, so the workflow will find an existing Release and ask you to approve overwriting it. Always create the tag with git as shown above and let this workflow create the Release.
@@ -55,7 +55,7 @@ Pushing the tag starts the workflow. It first checks the version and chooses whi
 
 After approval the workflow builds the ZIP and publishes the GitHub Release automatically:
 
-- **Title:** taken from `scripts/release-titles.txt`, using the version's position among all `v*` tags (just `vX.Y.Z` if there is no titles file).
+- **Title:** taken from `scripts/release-titles.txt`, using the version's position among the `v*` tags of this branch's channel (just the tag name if there is no titles file).
 - **Notes:** a list of changes generated from the commit messages since the previous tag (Conventional Commit messages such as `feat: …` and `fix: …` are grouped by type), plus install instructions.
 - **Files:** the plugin ZIP (for DWC 3.7 and later also a small `-srcmap.zip` of source maps), plus any ZIP files in the `standalone-zip/` folder (renamed with a `standalone-` prefix).
 
@@ -73,6 +73,19 @@ No further action is needed. The Release is public as soon as the run finishes.
 > If you choose a **tag** instead of a branch in step 2, the run is treated like an automatic one: it checks the tag against `plugin.json` and publishes (or overwrites) the GitHub Release for that tag, in addition to providing the downloadable ZIP.
 
 The **Run workflow** button only appears if `release.yml` is also on the repository's default branch (`main`).
+
+## Releasing from more than one branch
+
+A tag name can only be used once in the whole repository, so branches built for different DWC versions (e.g. `3.7.x` and `3.6.x`) cannot both tag `v1.2.3`. `scripts/release-channel.txt` sets each branch's channel:
+
+| Channel | Use for | Tag | Marked Latest on GitHub |
+|---|---|---|---|
+| `latest` (default if the file is missing) | The main line | `v<version>`, e.g. `v1.2.3` | Yes |
+| `maintenance` | A line for an older DWC | `v<version>-dwc<dwcVersion>`, e.g. `v1.2.3-dwc3.6`, `v1.2.3-dwc3.6.3` | No |
+
+- The suffix is `plugin.json`'s `dwcVersion` exactly, so every maintenance branch needs a different `dwcVersion`, or their tags clash again.
+- Release titles are counted separately for each channel.
+- The release notes list the commits since the previous tag in the branch's own history, so they do not mix in the other branches' changes.
 
 ## Which DWC version is used
 
@@ -94,7 +107,7 @@ The scripts take the plugin's name, ZIP name and links from `plugin.json`, so th
 
 ## Order the jobs run in
 
-1. **resolve-dwc**: read `plugin.json`, check the tag matches its version, see if a Release already exists, and choose the DWC version.
+1. **resolve-dwc**: read `plugin.json`, check the tag matches its version and channel, see if a Release already exists, and choose the DWC version.
 2. **approval**: pause until someone approves at the `dwc-release-approval` environment.
 3. **build**: download DWC and build the ZIP with DWC's `scripts/build-plugin.js`. DWC 3.7 and later write the ZIP next to `plugin.json`; earlier versions write it to DWC's `dist/` folder.
 4. **output**: automatic: publish the GitHub Release. Manual: provide the ZIP as an artifact.
