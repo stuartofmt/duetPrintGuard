@@ -339,23 +339,36 @@ jobs:
         working-directory: DuetWebControl
         run: npm install
 
-      # Build with DWC's own plugin builder, run on the folder holding plugin.json (e.g. Code/). It
-      # installs any npm dependencies the plugin's package.json lists, compiles src/ and writes
-      # <id>-<version>.zip (plus <id>-<version>-srcmap.zip for a stable build) into that folder; DWC
-      # versions before 3.7 write the ZIP to DuetWebControl/dist instead. The plugin ZIP(s) are moved to
-      # $RUNNER_TEMP/plugin-zip for the publish/upload steps.
+      # Build with DWC's own plugin builder, run on the folder holding plugin.json (e.g. Code/). The
+      # command is the same for every DWC version (as in plugin_tools); where the ZIP ends up is not:
+      #   DWC 3.7 and later: <id>-<version>.zip (plus <id>-<version>-srcmap.zip for a stable build) in
+      #                      the plugin folder. The builder installs the plugin's own npm dependencies.
+      #   DWC before 3.7:    <id>-<version>.zip (<id>-<DWC version>.zip for version "auto") in
+      #                      DuetWebControl/dist. This builder can report errors yet still exit 0, so a
+      #                      missing ZIP is what marks a failed build.
+      # The plugin ZIP(s) are moved to $RUNNER_TEMP/plugin-zip for the publish/upload steps.
       - name: Build installable ZIP
         working-directory: DuetWebControl
         env:
           MANIFEST: ${{ needs.resolve-dwc.outputs.manifest }}
+          DWC_VERSION: ${{ steps.dwc.outputs.version }}
         run: |
           CODE_DIR="$GITHUB_WORKSPACE/plugin/$(dirname "$MANIFEST")"
-          rm -f "${CODE_DIR:?}"/*.zip dist/"${PLUGIN_NAME:?}"-*.zip
+          IFS=. read -r DWC_MAJOR DWC_MINOR _ <<< "${DWC_VERSION%%-*}"
+          if (( DWC_MAJOR > 3 || (DWC_MAJOR == 3 && DWC_MINOR >= 7) )); then
+            OUT_DIR="${CODE_DIR:?}"
+            PATTERN="*.zip"
+          else
+            OUT_DIR="$PWD/dist"
+            PATTERN="${PLUGIN_NAME:?}-*.zip"
+          fi
+          echo "DWC $DWC_VERSION writes the plugin ZIP to $OUT_DIR"
+          rm -f "${OUT_DIR:?}"/$PATTERN
           node ./scripts/build-plugin.js "$CODE_DIR"
           shopt -s nullglob
-          zips=("$CODE_DIR"/*.zip dist/"$PLUGIN_NAME"-*.zip)
+          zips=("$OUT_DIR"/$PATTERN)
           if (( ${#zips[@]} == 0 )); then
-            echo "::error::The build finished but no ZIP was found in $CODE_DIR or DuetWebControl/dist."
+            echo "::error::The build finished but no plugin ZIP was found in $OUT_DIR."
             exit 1
           fi
           mkdir -p "$RUNNER_TEMP/plugin-zip"
