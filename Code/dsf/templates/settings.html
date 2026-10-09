@@ -1,192 +1,142 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>duetPrintGuard Settings</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='css/settings.css') }}">
-    <script type="module" src="{{ url_for('static', path='js/settings.js') }}" defer></script>
-    
-    <!-- Detect and expose mobile mode -->
-    <script>
-      window.isMobileMode = new URLSearchParams(window.location.search).get('mobile') === 'true';
-      if (window.isMobileMode) {
-        document.documentElement.classList.add('mobile-mode');
-      }
-    </script>
-</head>
-<body>
-    <template id="camera-template">
-        <div class="camera-items">
-            <ul>
-                <li class="camera-item">
-                    <div class="camera-text-content">
-                        <div class="camera-header" style="font-size: large;">
-                            <span class="nickname">Unknown</span>
-                            <span class="source">Unknown</span>
-                        </div>
-                    </div>
-                    <div class="camera-controls">
-                        <label class="autostart-label">
-                            <input type="checkbox" class="autostart-checkbox">
-                            Auto-start
-                        </label>
-                        <button class="remove-camera-btn" title="Remove camera">
-                            Remove Camera
-                        </button>
-                    </div>
-                    <form action="/settings/save-settings" method="post" class="settings-form camera-settings">
-                        <input type="hidden" class="camera-uuid" name="camera_uuid" value="">
-                        <div class="camera-setting">
-                            <label class="majority-vote-threshold-label">Majority Vote Threshold: <span class="majority-vote-threshold-val"></span></label>
-                            <input type="range" class="majority-vote-threshold" name="majority_vote_threshold" min="1" max="20" />
-                        </div>
-                        <div class="camera-setting">
-                            <label class="majority-vote-window-label">Majority Vote Window (frames): <span class="majority-vote-window-val"></span></label>
-                            <input type="range" class="majority-vote-window" name="majority_vote_window" min="1" max="100" />
-                        </div>
-                    </form>
-                </li>
-            </ul>                             
-        </div>
-    </template>
+{% extends "base.html" %}
+{% block title %}duetPrintGuard Settings{% endblock %}
 
-    
-    <div class="grid-container">
-        
-        <div class="grid-item" id="video-feed-container">
-            <img id="videoPreview" src="" alt="Camera Preview" />
-            <div id="loadingOverlay" class="loading-overlay">
-                <div class="loading-spinner"></div>
-                <p>Loading Camera feed...</p>
-            </div>
-        </div>
-        
-        <div class="grid-item">
-            <div class="camera-section" id="grid">
-                    <!-- Camera list will be rendered here -->
-            </div>
-            <div class="add-new-camera">
-                <button type="button" class="add-camera" id="addCameraBtn">Add a Camera</button>
-                <button type="button" class="add-camera" id="detectionBtn">Detection</button>
-                <button type="button" class="add-camera" id="configBtn">Configuration</button>
-            </div>
-        </div>
-        
-        <!-- Majority vote settings are now in each camera card (camera-template) -->
-        <!-- Sensitivity, brightness, contrast and focus settings disabled
-        <div class="settings-item">
-            <label for="sensitivity">Sensitivity: <span id="sensitivity_val"></span></label>
-            <input type="range" id="sensitivity" name="sensitivity" min="0" max="2" step="0.05"  value="-" />
-        </div>
-        <div class="settings-item">
-            <label for="brightness">Brightness: <span id="brightness_val"></span></label>
-            <input type="range" id="brightness" name="brightness" min="0" max="2" step="0.05"  value="-" />
-        </div>
-        <div class="settings-item">
-            <label for="contrast">Contrast: <span id="contrast_val"></span></label>
-            <input type="range" id="contrast" name="contrast" min="0" max="2" step="0.05"  value="-" />
-        </div>
-        <div class="settings-item">
-            <label for="focus">Focus: <span id="focus_val"></span></label>
-            <input type="range" id="focus" name="focus" min="0" max="2" step="0.05"  value="-" />
-        </div>
-        -->
+{% block page %}{% raw %}
+<pg-page>
+	<v-row>
+		<!-- Selected camera snapshot and countdown settings -->
+		<v-col cols="12" md="7">
+			<v-card class="mb-4">
+				<v-card-title class="d-flex align-center">
+					{{ selected ? selected.nickname : 'Camera Preview' }}
+					<v-spacer></v-spacer>
+					<v-btn v-if="selected" icon="mdi-refresh" variant="text" size="small" title="Refresh snapshot"
+						   @click="loadSelectedSnapshot"></v-btn>
+				</v-card-title>
+				<div class="pg-media">
+					<img v-if="snapshot.url" :src="snapshot.url" alt="Camera preview"
+						 @load="snapshot.loading = false" @error="snapshot.loading = false; snapshot.failed = true" />
+					<div v-if="snapshot.loading" class="pg-media-overlay">
+						<v-progress-circular indeterminate></v-progress-circular>
+						<span>Loading camera feed...</span>
+					</div>
+					<div v-else-if="snapshot.failed || !selected" class="pg-media-overlay">
+						<v-icon icon="mdi-camera-off" size="large"></v-icon>
+						<span>{{ selected ? 'Unable to load camera feed' : 'No camera selected' }}</span>
+					</div>
+				</div>
+			</v-card>
 
-        <div class = grid-item>            
-            <div class="countdown-section">
-                <form action="/config/update-countdown" method="post" class="control-form settings-grid">
-                    <div class="settings-item">
-                        <label for="countdown_action">Countdown Action</label>
-                        <select id="countdown_action" name="countdown_action" class="settings-dropdown">
-                            <option value="ignore">Ignore</option>
-                            <option value="cancel_print">Cancel Print</option>
-                            <option value="pause_print">Pause Print</option>
-                        </select>
-                    </div>
-                    <div class="settings-item">
-                        <label for="countdown_time">Countdown Time (s): <span id="countdown_time_val"></span></label>
-                        <input type="range" id="countdown_time" name="countdown_time" min="0" max="300" step="5"/>
-                    </div>
-                    <div class="settings-item">
-                        <label for="countdown_control">Which Cameras</label>
-                        <select id="countdown_control" name="countdown_control" class="settings-dropdown">
-                            <option value="any_camera">Any</option>
-                            <option value="all_cameras">All</option>
-                        </select>
-                    </div>
-                </form>
+			<v-card>
+				<v-card-title>Countdown</v-card-title>
+				<v-card-subtitle class="text-wrap">What happens when a defect is detected and nobody intervenes.</v-card-subtitle>
+				<v-card-text>
+					<v-select v-model="countdown.countdown_action" label="Countdown Action" :items="countdownActions"
+							  variant="outlined" density="comfortable" @update:model-value="saveCountdown"></v-select>
+					<v-slider v-model="countdown.countdown_time" :min="0" :max="300" :step="5" color="primary"
+							  thumb-label @end="saveCountdown">
+						<template #prepend>
+							<span class="text-no-wrap">Countdown Time</span>
+						</template>
+						<template #append>
+							<span class="text-no-wrap">{{ countdown.countdown_time }} s</span>
+						</template>
+					</v-slider>
+					<v-select v-model="countdown.countdown_control" label="Which Cameras" :items="countdownControls"
+							  variant="outlined" density="comfortable" @update:model-value="saveCountdown"></v-select>
+				</v-card-text>
+			</v-card>
+		</v-col>
 
-            </div>
-         </div>
-    </div>
-    
+		<!-- Cameras -->
+		<v-col cols="12" md="5">
+			<v-card v-for="camera in cameras" :key="camera.uuid" class="mb-4 pg-clickable"
+					:class="{ 'pg-selected': selected && selected.uuid === camera.uuid }" @click="select(camera)">
+				<v-card-title class="d-flex align-center">
+					<span class="text-truncate">{{ camera.nickname }}</span>
+					<v-spacer></v-spacer>
+					<v-btn icon="mdi-delete" variant="text" size="small" color="error" title="Remove camera"
+						   @click.stop="removeCamera(camera)"></v-btn>
+				</v-card-title>
+				<v-card-subtitle class="text-wrap text-break">{{ camera.source }}</v-card-subtitle>
+				<v-card-text @click.stop>
+					<v-switch v-model="camera.autostart" label="Auto-start" color="primary" density="compact"
+							  hide-details @update:model-value="saveAutostart(camera)"></v-switch>
+					<v-slider v-model="camera.majority_vote_threshold" :min="1" :max="20" :step="1" color="primary"
+							  thumb-label hide-details class="mt-2" @end="saveCameraSettings(camera)">
+						<template #prepend>
+							<span class="text-no-wrap">Vote Threshold</span>
+						</template>
+						<template #append>
+							<span>{{ camera.majority_vote_threshold }}</span>
+						</template>
+					</v-slider>
+					<v-slider v-model="camera.majority_vote_window" :min="1" :max="100" :step="1" color="primary"
+							  thumb-label hide-details class="mt-2" @end="saveCameraSettings(camera)">
+						<template #prepend>
+							<span class="text-no-wrap">Vote Window</span>
+						</template>
+						<template #append>
+							<span>{{ camera.majority_vote_window }}</span>
+						</template>
+					</v-slider>
+					<p class="text-body-small text-medium-emphasis mt-2">
+						A defect is raised when at least the threshold number of the last window frames show a failure.
+					</p>
+				</v-card-text>
+			</v-card>
 
-    <div class="setup-modal-overlay" id="addCameraModalOverlay" style="display: none;">
-        <div class="setup-modal">
-            <div class="setup-modal-header">
-                <h2 class="setup-modal-title">Add Camera</h2>
-                <button class="setup-modal-close" id="addCameraModalClose">×</button>
-            </div>
-            <div class="setup-modal-content">
-                <div id="cameraTypeSelection" class="button-group">
-                    <!-- V4L (/dev/videoN) cameras disabled
-                    <button id="addSerialCameraButton" class="add-camera">Setup Serial (USB) Camera</button>
-                    -->
-                    <button id="addRtspCameraButton" class="add-camera">Setup HTTP or RTSP Camera</button>
-                </div>
-                <form id="addCameraForm" style="display: none;">
-                    <div class="form-group">
-                        <label for="cameraNickname">Camera Nickname</label>
-                        <input type="text" id="cameraNickname" name="nickname" required />
-                    </div>
-                    <div id="serialCameraSetup" style="display: none;">
-                        <div class="form-group">
-                            <label for="serialDevice">Serial Device</label>
-                            <div id="serialLoading" style="display: none;">
-                                <div class="loader"></div>
-                                <span>Loading devices...</span>
-                            </div>
-                            <select id="serialDevice" name="source" class="settings-dropdown" required style="display: none;">
-                            </select>
-                            <p id="noSerialDeviceMessage" style="display: none;">No serial devices available.</p>
-                        </div>
-                    </div>
-                    <div id="rtspCameraSetup" style="display: none;">
-                        <div class="form-group">
-                            <label for="rtspUrl">HTTP or RTSP Stream URL</label>
-                            <input type="url" id="rtspUrl" name="source" placeholder="e.g. http://IP_ADDRESS:PORT/stream" required />
-                        </div>
-                        <div class="form-group">
-                            <label for="snapshotUrl">HTTP Snapshot URL (not needed for RTSP)</label>
-                            <input type="url" id="snapshotUrl" name="snapshot" placeholder="e.g. http://IP_ADDRESS:PORT/snapshot" required />
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>
-                            <input type="checkbox" id="enablePreview" style="margin-right: 10px;">
-                            Show camera preview
-                        </label>
-                    </div>
-                    <div id="cameraPreviewContainer" style="display: none;">
-                        <div class="form-group">
-                            <label>Camera Preview</label>
-                            <div id="cameraPreviewWrapper" style="position: relative; width: 100%; max-width: 400px; margin: 0 auto;">
-                                <img id="cameraPreviewImage" src="" alt="Camera Preview" style="width: 100%; height: auto; border: 2px dotted var(--text-primary); display: none;">
-                                <div id="cameraPreviewLoading" style="display: none; text-align: center; padding: 20px; border: 2px dotted var(--text-primary); background: var(--background-tertiary);">
-                                    <div class="loading-spinner" style="margin: 0 auto 10px;"></div>
-                                    <p>Loading camera preview...</p>
-                                </div>
-                                <div id="cameraPreviewError" style="display: none; text-align: center; padding: 20px; border: 2px dotted var(--color-danger); background: var(--error-bg); color: var(--color-danger);">
-                                    <p>Unable to load camera preview</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <button type="submit" class="add-camera primary">Add Camera</button>
-                </form>
-            </div>
-        </div>
-    </div>
-</body>
-</html>
+			<v-btn block color="primary" prepend-icon="mdi-plus" @click="openAddCamera">Add a Camera</v-btn>
+		</v-col>
+	</v-row>
+
+	<!-- Add camera -->
+	<v-dialog v-model="add.show" max-width="560" persistent>
+		<v-card>
+			<v-card-title class="d-flex align-center">
+				Add HTTP or RTSP Camera
+				<v-spacer></v-spacer>
+				<v-btn icon="mdi-close" variant="text" size="small" @click="closeAddCamera"></v-btn>
+			</v-card-title>
+			<v-form ref="addForm" @submit.prevent="addCamera">
+				<v-card-text>
+					<v-text-field v-model="add.nickname" label="Camera Nickname" :rules="[rules.required, rules.uniqueNickname]"
+								  variant="outlined" density="comfortable" class="mb-2"></v-text-field>
+					<v-text-field v-model="add.source" label="HTTP or RTSP Stream URL" type="url"
+								  placeholder="e.g. http://IP_ADDRESS:PORT/stream" persistent-placeholder
+								  :rules="[rules.required, rules.uniqueSource]"
+								  variant="outlined" density="comfortable" class="mb-2"
+								  @update:model-value="schedulePreview"></v-text-field>
+					<v-text-field v-model="add.snapshot" label="HTTP Snapshot URL" type="url"
+								  placeholder="e.g. http://IP_ADDRESS:PORT/snapshot" persistent-placeholder
+								  hint="Not needed for RTSP cameras" persistent-hint :rules="[rules.snapshot]"
+								  variant="outlined" density="comfortable" class="mb-2"></v-text-field>
+					<v-switch v-model="add.preview" label="Show camera preview" color="primary" density="compact"
+							  hide-details @update:model-value="updatePreview"></v-switch>
+					<div v-if="add.preview" class="pg-media mt-2">
+						<img v-if="add.previewUrl" :src="add.previewUrl" alt="Camera preview"
+							 @load="add.previewState = 'ok'" @error="add.previewState = 'error'" />
+						<div v-if="add.previewState === 'loading'" class="pg-media-overlay">
+							<v-progress-circular indeterminate></v-progress-circular>
+							<span>Loading camera preview...</span>
+						</div>
+						<div v-else-if="add.previewState === 'error'" class="pg-media-overlay">
+							<v-icon icon="mdi-camera-off" size="large" color="error"></v-icon>
+							<span>Unable to load camera preview</span>
+						</div>
+					</div>
+				</v-card-text>
+				<v-card-actions>
+					<v-spacer></v-spacer>
+					<v-btn @click="closeAddCamera">Cancel</v-btn>
+					<v-btn type="submit" color="primary" variant="flat" :loading="add.saving">Add Camera</v-btn>
+				</v-card-actions>
+			</v-form>
+		</v-card>
+	</v-dialog>
+</pg-page>
+{% endraw %}{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', path='js/settings.js') }}"></script>
+{% endblock %}

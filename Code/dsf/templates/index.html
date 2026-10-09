@@ -1,89 +1,116 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>duetPrintGuard Control</title>
-  <link rel="stylesheet" href="{{ url_for('static', path='css/index.css') }}" />
-  <script src="{{ url_for('static', path='js/sse.js') }}" defer></script>
-  <script type="module" src="{{ url_for('static', path='js/index.js') }}"></script>
-  
-  <!-- Detect and expose mobile mode -->
-  <script>
-    window.isMobileMode = new URLSearchParams(window.location.search).get('mobile') === 'true';
-    if (window.isMobileMode) {
-      document.documentElement.classList.add('mobile-mode');
-    }
-  </script>
-</head>
+{% extends "base.html" %}
+{% block title %}duetPrintGuard Control{% endblock %}
 
-<body>
-  <!-- Grid -->
-  <div id="grid" class="grid">
-    <!-- Camera cards will be rendered here -->
-  </div>
+{% block page %}{% raw %}
+<pg-page>
+	<!-- Print controls and the defect countdown -->
+	<v-card class="mb-4">
+		<v-card-text class="d-flex flex-wrap align-center ga-2">
+			<v-btn :color="paused ? 'success' : 'warning'" :prepend-icon="paused ? 'mdi-play' : 'mdi-pause'"
+				   :class="{ 'pg-pulse': countdown.active && countdown.action === 'pause_print' }"
+				   @click="togglePause">
+				{{ paused ? 'Resume' : 'Pause' }}
+			</v-btn>
+			<v-btn color="error" prepend-icon="mdi-stop"
+				   :class="{ 'pg-pulse': countdown.active && countdown.action === 'cancel_print' }"
+				   @click="cancelPrint">
+				Cancel
+			</v-btn>
+			<v-btn v-if="countdown.active" color="secondary" prepend-icon="mdi-bell-off"
+				   :class="{ 'pg-pulse': countdown.action !== 'pause_print' && countdown.action !== 'cancel_print' }"
+				   @click="runAction('ignore')">
+				Ignore
+			</v-btn>
+			<v-chip v-if="countdown.active" color="error" variant="flat" prepend-icon="mdi-timer-sand" label>
+				{{ countdownText }} in {{ countdown.seconds }} sec
+			</v-chip>
+		</v-card-text>
+	</v-card>
 
-  <!-- Templates -->
-  <template id="top-button-template">
-    <div class="top-controls">
-      <button class="control btn-pause">Pause</button>
-      <button class="control btn-cancel">Cancel</button>
-      <button class="control btn-ignore" style="display: none;">Ignore</button>
-      <span class="control countdown-timer" style="display: none;"></span>
-    </div>
-  </template>
+	<!-- One row per camera: status card and snapshot -->
+	<v-row>
+		<template v-for="camera in cameras" :key="camera.uuid">
+			<v-col cols="12" sm="5" md="4">
+				<v-card class="h-100 d-flex flex-column">
+					<v-card-title class="d-flex align-center">
+						<span class="text-truncate">{{ camera.nickname }}</span>
+						<v-spacer></v-spacer>
+						<v-chip :color="isDetecting(camera) ? 'success' : 'error'" size="small" variant="tonal">
+							{{ isDetecting(camera) ? 'Detecting' : 'Inactive' }}
+						</v-chip>
+					</v-card-title>
+					<v-list density="compact" class="bg-transparent">
+						<v-list-item title="Detection">
+							<template #append>
+								<span :class="resultClass(camera)">{{ camera.state.last_result ?? 'Unknown' }}</span>
+							</template>
+						</v-list-item>
+						<v-list-item title="Last Update">
+							<template #append>
+								<span>{{ lastUpdate(camera) }}</span>
+							</template>
+						</v-list-item>
+					</v-list>
+					<v-spacer></v-spacer>
+					<v-card-actions>
+						<v-btn block variant="flat" :color="isDetecting(camera) ? 'error' : 'success'"
+							   :prepend-icon="isDetecting(camera) ? 'mdi-stop' : 'mdi-play'"
+							   :loading="camera.busy" @click="toggleDetection(camera)">
+							{{ isDetecting(camera) ? 'Stop Detection' : 'Start Detection' }}
+						</v-btn>
+					</v-card-actions>
+				</v-card>
+			</v-col>
+			<v-col cols="12" sm="7" md="8">
+				<div class="pg-media pg-media--compact pg-clickable" title="Open live stream" @click="openStream(camera)">
+					<img :src="camera.snapshot || defaultIcon" :alt="camera.nickname" />
+				</div>
+			</v-col>
+		</template>
+	</v-row>
 
-  <template id="camera-template">
-    <div class="camera-card">
-      <div class="camera-header">
-        <span class="nickname">----</span>
-        <span class="camera-status">----</span>
-      </div>
+	<!-- Bottom controls -->
+	<div class="d-flex flex-wrap ga-2 mt-4">
+		<v-btn prepend-icon="mdi-bell-refresh" @click="resetNotifications">Reset Notification</v-btn>
+		<v-btn v-if="autostart.enabled" :color="autostart.waiting ? 'warning' : (autostart.running ? 'error' : 'success')"
+			   :loading="autostart.waiting" :prepend-icon="autostart.running ? 'mdi-autorenew-off' : 'mdi-autorenew'"
+			   @click="toggleAutostart">
+			{{ autostart.running ? 'Disable Autostart' : 'Enable Autostart' }}
+		</v-btn>
+	</div>
 
-      <div class="camera-body">
-        <div class="camera-detection">
-          <span class="detection-label">Detection: </span>
-          <span class="detection-value">Unknown</span>
-        </div>
+	<!-- Live stream -->
+	<v-dialog v-model="stream.show" max-width="1100">
+		<v-card>
+			<v-card-title class="d-flex align-center">
+				{{ stream.nickname }}
+				<v-spacer></v-spacer>
+				<v-btn icon="mdi-open-in-new" variant="text" size="small" title="Open in a new tab"
+					   :href="stream.page" target="_blank"></v-btn>
+				<v-btn icon="mdi-close" variant="text" size="small" @click="stream.show = false"></v-btn>
+			</v-card-title>
+			<div class="pg-media">
+				<img v-if="stream.show" :src="stream.url" :alt="stream.nickname" />
+			</div>
+		</v-card>
+	</v-dialog>
 
-        <div class="last-update">
-          <span class="update-label">Last Update: </span>
-          <span class="update-value">Never</span>
-        </div>
-      </div>
+	<!-- No cameras configured -->
+	<v-dialog v-model="noCameras" max-width="420">
+		<v-card>
+			<v-card-title>No Cameras Configured</v-card-title>
+			<v-card-text>Add a camera on the Settings page.</v-card-text>
+			<v-card-actions>
+				<v-spacer></v-spacer>
+				<v-btn @click="noCameras = false">Close</v-btn>
+				<v-btn color="primary" variant="flat" :href="settingsUrl">Settings</v-btn>
+			</v-card-actions>
+		</v-card>
+	</v-dialog>
+</pg-page>
+{% endraw %}{% endblock %}
 
-      <div class="camera-footer">
-        <button class="start-stop-camera-btn" title="Start/Stop Detection">
-          Start Detection
-        </button>
-      </div>
-    </div>
-  </template>
-
-  <template id="video-template">
-    <div class="camera-video-preview">
-      <img src="{{ url_for('static', path='images/default_icon.png') }}" alt="Camera Icon" />
-    </div>
-  </template>
-
-<template id="bottom-button-template">
-    <div class="bottom-controls">
-      <button class="control btn-settings">Settings</button>
-      <button class="control btn-notification">Reset Notification</button>
-      <button class="control btn-autostart" style="display: none;">Enable Autostart</button>
-    </div>
-  </template>
-
-  <!-- No Camera Modal -->
-  <div id="noCamera" class="modal" role="dialog" aria-modal="true">
-    <div class="modal-content">
-      <span id="closeModal" aria-label="Close modal">&times;</span>
-      <h2>No Cameras Configured</h2>
-      <p>Go to Settings</p>
-      <div class="modal-actions">
-        <button id="noCameraSettingsBtn" class="control btn-settings">Settings</button>
-      </div>
-    </div>
-  </div>
-</body>
-</html>
+{% block scripts %}
+<script src="{{ url_for('static', path='js/sse.js') }}"></script>
+<script src="{{ url_for('static', path='js/index.js') }}"></script>
+{% endblock %}

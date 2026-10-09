@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>{% block title %}duetPrintGuard{% endblock %}</title>
+	<link rel="stylesheet" href="{{ url_for('static', path='vendor/vuetify.min.css') }}" />
+	<link rel="stylesheet" href="{{ url_for('static', path='vendor/mdi/css/materialdesignicons.min.css') }}" />
+	<link rel="stylesheet" href="{{ url_for('static', path='css/pg.css') }}" />
+	<script src="{{ url_for('static', path='vendor/vue.global.prod.js') }}"></script>
+	<script src="{{ url_for('static', path='vendor/vuetify.min.js') }}"></script>
+	<script src="{{ url_for('static', path='js/common.js') }}"></script>
+</head>
+<body>
+	<div id="app" v-cloak></div>
+
+	{# The page markup is a Vue template. It is wrapped in raw so Jinja leaves Vue's {{ }} alone, and kept
+	   in a text/x-template script so the browser does not parse it as HTML first (which would mangle
+	   self-closing and camelCase component tags). #}
+	<script type="text/x-template" id="page-template">
+{% block page %}{% endblock %}
+	</script>
+
+	{% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,171 +1,152 @@
 // =========================
-// Helper Functions
+// Configuration page
 // =========================
-function getPageURL(page) {
-	return window.isMobileMode ? `${page}?mobile=true` : page;
-}
+const { reactive, ref, onMounted } = Vue;
 
-// =========================
-// Elements
-// =========================
-const configForm = document.getElementById('configForm');
-const saveBtn = document.getElementById('saveBtn');
-const statusMessage = document.getElementById('statusMessage');
-const logLevelSelect = document.getElementById('LOGGING.LEVEL');
-const uiPortInUse = document.getElementById('uiPortInUse');
-const uiIpInUse = document.getElementById('uiIpInUse');
-
-// =========================
-// Status Message
-// =========================
-function showStatus(message, type) {
-	statusMessage.textContent = message;
-	statusMessage.className = `status-message ${type}`;
-	statusMessage.style.display = 'block';
-	statusMessage.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-}
-
-function clearFieldErrors() {
-	configForm
-		.querySelectorAll('.field-error')
-		.forEach(el => el.remove());
-	configForm
-		.querySelectorAll('.invalid')
-		.forEach(el => el.classList.remove('invalid'));
-}
-
-function showFieldErrors(errors) {
-	for (const [name, message] of Object.entries(errors)) {
-		const input = configForm.elements[name];
-		if (!input) continue;
-		input.classList.add('invalid');
-		const error = document.createElement('p');
-		error.className = 'field-error';
-		error.textContent = message;
-		input.closest('.form-group').appendChild(error);
+// Field names are SECTION.KEY, matching /config/get-app-config and /config/save-app-config
+const sections = [
+	{
+		title: 'Web Interface',
+		fields: [
+			{ name: 'UI.IP' },
+			{
+				name: 'UI.PORT', label: 'Port', type: 'number', min: 0, max: 65535, restart: true,
+				hint: 'Port for the Detection, Settings and Configuration pages. Must not conflict with DWC or other plugins. Use 0 to pick a free port automatically at startup. If the chosen port is in use, a free port is picked instead.'
+			},
+			{ name: 'LOGGING.LEVEL', label: 'Logging Level', type: 'select' }
+		]
+	},
+	{
+		title: 'Printer Actions',
+		help: 'Commands sent to the printer when a defect is detected and nobody intervenes. Leave blank to use the default.',
+		fields: [
+			{ name: 'ACTION.PAUSE', label: 'Pause Command', placeholder: 'M25' },
+			{ name: 'ACTION.RESUME', label: 'Resume Command', placeholder: 'M24' },
+			{ name: 'ACTION.CANCEL', label: 'Cancel Command', placeholder: 'M2' }
+		]
+	},
+	{
+		title: 'Macro Alert',
+		fields: [
+			{
+				name: 'MACRO.MACRO', label: 'Macro', placeholder: 'e.g. 0:/sys/duetPrintGuard/macros/Notify.g',
+				hint: 'Macro called on failure e.g. to send MQTT. Enter just the path used in M98 P"<path>".'
+			},
+			{ name: 'MACRO.MAXTIMES', label: 'Maximum Times', type: 'number', min: 0 }
+		]
+	},
+	{
+		title: 'ntfy Alert',
+		link: 'https://docs.ntfy.sh/publish/#message-priority',
+		fields: [
+			{ name: 'NTFY.TOPIC', label: 'Topic', hint: 'The ntfy topic you subscribe to. Required to send ntfy alerts.' },
+			{ name: 'NTFY.TITLE', label: 'Title', placeholder: 'System title' },
+			{ name: 'NTFY.MESSAGE', label: 'Message', placeholder: 'System message' },
+			{ name: 'NTFY.PRIORITY', label: 'Priority', type: 'number', min: 1, max: 5 },
+			{ name: 'NTFY.MAXTIMES', label: 'Maximum Times', type: 'number', min: 0 }
+		]
+	},
+	{
+		title: 'Pushover Alert',
+		help: 'Both the API token and user key are required to send Pushover alerts.',
+		fields: [
+			{ name: 'PUSHOVER.API', label: 'API Token' },
+			{ name: 'PUSHOVER.USER', label: 'User / Group Key' },
+			{ name: 'PUSHOVER.TITLE', label: 'Title', placeholder: 'System title' },
+			{ name: 'PUSHOVER.MESSAGE', label: 'Message', placeholder: 'System message' },
+			{ name: 'PUSHOVER.MAXTIMES', label: 'Maximum Times', type: 'number', min: 0 }
+		]
 	}
-}
+];
 
-// =========================
-// Load Configuration
-// =========================
-async function loadConfig() {
-	try {
-		const response = await fetch('/config/get-app-config');
-		if (!response.ok) {
-			throw new Error(response.statusText);
+const editableFields = sections.flatMap((s) => s.fields).filter((f) => f.label);
+
+PG.mount({
+	setup() {
+		const values = reactive({});
+		const placeholders = reactive({});
+		const errors = reactive({});
+		const logLevels = ref([]);
+		const ipInUse = ref('');
+		const portStatus = ref('');
+		const status = reactive({ text: '', type: 'success' });
+		const saving = ref(false);
+
+		const fieldHint = (field) => (field.name === 'UI.PORT' && portStatus.value)
+			? `${portStatus.value}. ${field.hint}`
+			: field.hint;
+
+		function setErrors(newErrors = {}) {
+			Object.keys(errors).forEach((key) => delete errors[key]);
+			Object.assign(errors, newErrors);
 		}
-		const data = await response.json();
 
-		logLevelSelect.innerHTML = '';
-		data.log_levels.forEach(level => {
-			const option = document.createElement('option');
-			option.value = level;
-			option.textContent = level;
-			logLevelSelect.appendChild(option);
-		});
+		async function load() {
+			try {
+				const data = await PG.api.get('/config/get-app-config');
+				logLevels.value = data.log_levels;
 
-		for (const [section, keys] of Object.entries(data.settings)) {
-			for (const [key, setting] of Object.entries(keys)) {
-				const input = configForm.elements[`${section}.${key}`];
-				if (!input) continue;
-
-				if (input.type === 'checkbox') {
-					input.checked = Boolean(setting.value);
-				} else {
-					input.value = setting.value;
+				for (const field of editableFields) {
+					const [section, key] = field.name.split('.');
+					const setting = data.settings?.[section]?.[key];
+					if (!setting) continue;
+					values[field.name] = setting.value;
+					placeholders[field.name] = field.placeholder
+						|| (setting.default !== '' && setting.default !== undefined ? String(setting.default) : '');
 				}
 
-				if (!input.placeholder && setting.default !== '') {
-					input.placeholder = setting.default;
+				const savedPort = data.settings.UI.PORT.value;
+				const portInUse = data.ui_port_in_use;
+				ipInUse.value = data.ui_ip_in_use;
+				portStatus.value = `Currently connected to port ${portInUse}`;
+				if (savedPort === 0) {
+					portStatus.value += ' (picked automatically)';
+				} else if (portInUse !== savedPort) {
+					portStatus.value += ` - ${savedPort} will be used after restart, if it is free`;
 				}
+			} catch (err) {
+				console.error('Failed to load configuration:', err);
+				Object.assign(status, { text: 'Failed to load configuration.', type: 'error' });
 			}
 		}
 
-		const savedPort = data.settings.UI.PORT.value;
-		const portInUse = data.ui_port_in_use;
-		uiIpInUse.value = data.ui_ip_in_use;
-		uiPortInUse.textContent = `Currently connected to port: ${portInUse}`;
-		if (savedPort === 0) {
-			uiPortInUse.textContent += ' (picked automatically)';
-		} else if (portInUse !== savedPort) {
-			uiPortInUse.textContent += ` - ${savedPort} will be used after restart, if it is free`;
+		async function save() {
+			setErrors();
+			const data = {};
+			for (const field of editableFields) {
+				const [section, key] = field.name.split('.');
+				data[section] ??= {};
+				data[section][key] = values[field.name] ?? '';
+			}
+
+			saving.value = true;
+			try {
+				const result = await PG.api.postJson('/config/save-app-config', data);
+				if (result.restart_required.length) {
+					Object.assign(status, {
+						text: `Saved. Restart the plugin for these changes to take effect: ${result.restart_required.join(', ')}`,
+						type: 'warning'
+					});
+				} else {
+					status.text = '';
+					PG.notify('Saved.');
+				}
+				await load();
+			} catch (err) {
+				if (err.status === 400 && err.data?.errors) {
+					setErrors(err.data.errors);
+					Object.assign(status, { text: 'Some settings are invalid - nothing was saved.', type: 'error' });
+				} else {
+					console.error('Failed to save configuration:', err);
+					Object.assign(status, { text: `Failed to save configuration: ${err.message}`, type: 'error' });
+				}
+			} finally {
+				saving.value = false;
+			}
 		}
 
-	} catch (err) {
-		console.error('Failed to load configuration:', err);
-		showStatus('Failed to load configuration.', 'error');
-	}
-}
+		onMounted(load);
 
-// =========================
-// Save Configuration
-// =========================
-configForm.addEventListener('submit', async function(e) {
-
-	e.preventDefault();
-	clearFieldErrors();
-
-	const data = {};
-	for (const input of configForm.elements) {
-		if (!input.name) continue;
-		const [section, key] = input.name.split('.');
-		data[section] ??= {};
-		data[section][key] =
-			input.type === 'checkbox' ? input.checked : input.value;
-	}
-
-	saveBtn.disabled = true;
-
-	try {
-		const response = await fetch('/config/save-app-config', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify(data)
-		});
-
-		const result = await response.json();
-
-		if (response.status === 400 && result.errors) {
-			showFieldErrors(result.errors);
-			showStatus('Some settings are invalid - nothing was saved.', 'error');
-			return;
-		}
-
-		if (!response.ok) {
-			throw new Error(result.detail || response.statusText);
-		}
-
-		if (result.restart_required.length) {
-			showStatus(
-				`Saved. Restart the plugin for these changes to take effect: ${result.restart_required.join(', ')}`,
-				'warning'
-			);
-		} else {
-			showStatus('Saved.', 'success');
-		}
-
-		await loadConfig();
-
-	} catch (err) {
-		console.error('Failed to save configuration:', err);
-		showStatus(`Failed to save configuration: ${err.message}`, 'error');
-	} finally {
-		saveBtn.disabled = false;
+		return { sections, values, placeholders, errors, logLevels, ipInUse, status, saving, fieldHint, save };
 	}
 });
-
-// =========================
-// Navigation
-// =========================
-document.getElementById('settingsBtn').addEventListener('click', () => {
-	window.location.href = getPageURL('/settings');
-});
-
-document.getElementById('detectionBtn').addEventListener('click', () => {
-	window.location.href = getPageURL('/index');
-});
-
-loadConfig();

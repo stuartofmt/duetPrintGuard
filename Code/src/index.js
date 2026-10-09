@@ -8,6 +8,7 @@ registerRoute(duetPrintGuard, {
     duetPrintGuard: {
       icon: 'mdi-transition',
       caption: 'duetPrintGuard',
+      translated: true,
       path: '/Plugins/duetPrintGuard',
     },
   },

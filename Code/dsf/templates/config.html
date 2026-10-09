@@ -1,139 +1,60 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>duetPrintGuard Configuration</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='css/config.css') }}">
-    <script type="module" src="{{ url_for('static', path='js/config.js') }}" defer></script>
+{% extends "base.html" %}
+{% block title %}duetPrintGuard Configuration{% endblock %}
 
-    <!-- Detect and expose mobile mode -->
-    <script>
-      window.isMobileMode = new URLSearchParams(window.location.search).get('mobile') === 'true';
-      if (window.isMobileMode) {
-        document.documentElement.classList.add('mobile-mode');
-      }
-    </script>
-</head>
-<body>
-    <div class="config-container">
-        <div class="config-header">
-            <h1>Configuration</h1>
-            <div class="nav-buttons">
-                <button type="button" class="nav-btn" id="settingsBtn">Settings</button>
-                <button type="button" class="nav-btn" id="detectionBtn">Detection</button>
-            </div>
-        </div>
+{% block page %}{% raw %}
+<pg-page>
+	<v-row justify="center">
+		<v-col cols="12" md="10" lg="8">
+			<v-alert v-if="status.text" :type="status.type" variant="tonal" closable class="mb-4"
+					 @click:close="status.text = ''">
+				{{ status.text }}
+			</v-alert>
 
-        <div id="statusMessage" class="status-message" style="display: none;"></div>
+			<v-form @submit.prevent="save">
+				<v-card v-for="section in sections" :key="section.title" class="mb-4">
+					<v-card-title>{{ section.title }}</v-card-title>
+					<v-card-subtitle v-if="section.help" class="text-wrap">{{ section.help }}</v-card-subtitle>
+					<v-card-text>
+						<template v-for="field in section.fields" :key="field.name">
+							<v-text-field v-if="field.name === 'UI.IP'" label="IP Address" :model-value="ipInUse"
+										  readonly variant="outlined" density="comfortable" class="mb-3"
+										  hint="IP address of this machine, detected automatically at startup."
+										  persistent-hint></v-text-field>
 
-        <form id="configForm" novalidate>
+							<v-select v-else-if="field.type === 'select'" v-model="values[field.name]"
+									  :label="field.label" :items="logLevels" :error-messages="errors[field.name]"
+									  variant="outlined" density="comfortable" class="mb-3"></v-select>
 
-            <fieldset class="config-section">
-                <legend>Web Interface</legend>
-                <div class="form-group">
-                    <label for="uiIpInUse">IP Address</label>
-                    <input type="text" id="uiIpInUse" readonly />
-                    <p class="help">IP address of this machine, detected automatically at startup.</p>
-                </div>
-                <div class="form-group">
-                    <label for="UI.PORT">Port <span class="restart-tag">restart</span></label>
-                    <input type="number" id="UI.PORT" name="UI.PORT" min="0" max="65535" required />
-                    <p class="port-in-use" id="uiPortInUse"></p>
-                    <p class="help">Port for the Detection, Settings and Configuration pages. Must not conflict with DWC or other plugins. Use 0 to pick a free port automatically at startup. If the chosen port is in use, a free port is picked instead.</p>
-                </div>
-                <div class="form-group">
-                    <label for="LOGGING.LEVEL">Logging Level</label>
-                    <select id="LOGGING.LEVEL" name="LOGGING.LEVEL"></select>
-                </div>
-            </fieldset>
+							<v-text-field v-else v-model="values[field.name]" :label="field.label"
+										  :type="field.type || 'text'" :min="field.min" :max="field.max"
+										  :placeholder="placeholders[field.name]" persistent-placeholder
+										  :error-messages="errors[field.name]" :hint="fieldHint(field)" persistent-hint
+										  variant="outlined" density="comfortable" class="mb-3">
+								<template v-if="field.restart" #append-inner>
+									<v-chip size="x-small" color="warning" variant="tonal">restart</v-chip>
+								</template>
+							</v-text-field>
+						</template>
+						<p v-if="section.link" class="text-body-small text-medium-emphasis">
+							Priority 1 to 5 - see
+							<a :href="section.link" target="_blank" rel="noopener">ntfy message priority</a>.
+						</p>
+					</v-card-text>
+				</v-card>
 
-            <fieldset class="config-section">
-                <legend>Printer Actions</legend>
-                <p class="section-help">Commands sent to the printer when a defect is detected and nobody intervenes. Leave blank to use the default.</p>
-                <div class="form-group">
-                    <label for="ACTION.PAUSE">Pause Command</label>
-                    <input type="text" id="ACTION.PAUSE" name="ACTION.PAUSE" placeholder="M25" />
-                </div>
-                <div class="form-group">
-                    <label for="ACTION.RESUME">Resume Command</label>
-                    <input type="text" id="ACTION.RESUME" name="ACTION.RESUME" placeholder="M24" />
-                </div>
-                <div class="form-group">
-                    <label for="ACTION.CANCEL">Cancel Command</label>
-                    <input type="text" id="ACTION.CANCEL" name="ACTION.CANCEL" placeholder="M2" />
-                </div>
-            </fieldset>
+				<div class="d-flex flex-wrap align-center ga-4 mb-4">
+					<span class="text-body-small text-medium-emphasis flex-grow-1">
+						Settings marked <v-chip size="x-small" color="warning" variant="tonal">restart</v-chip>
+						take effect after the plugin is restarted. Other settings apply immediately.
+					</span>
+					<v-btn type="submit" color="primary" prepend-icon="mdi-content-save" :loading="saving">Save</v-btn>
+				</div>
+			</v-form>
+		</v-col>
+	</v-row>
+</pg-page>
+{% endraw %}{% endblock %}
 
-            <fieldset class="config-section">
-                <legend>Macro Alert</legend>
-                <div class="form-group">
-                    <label for="MACRO.MACRO">Macro</label>
-                    <input type="text" id="MACRO.MACRO" name="MACRO.MACRO" placeholder="e.g. 0:/sys/duetPrintGuard/macros/Notify.g" />
-                    <p class="help">Macro called on failure e.g. to send MQTT. Enter just the path used in M98 P"&lt;path&gt;".</p>
-                </div>
-                <div class="form-group">
-                    <label for="MACRO.MAXTIMES">Maximum Times</label>
-                    <input type="number" id="MACRO.MAXTIMES" name="MACRO.MAXTIMES" min="0" />
-                </div>
-            </fieldset>
-
-            <fieldset class="config-section">
-                <legend>ntfy Alert</legend>
-                <div class="form-group">
-                    <label for="NTFY.TOPIC">Topic</label>
-                    <input type="text" id="NTFY.TOPIC" name="NTFY.TOPIC" />
-                    <p class="help">The ntfy topic you subscribe to. Required to send ntfy alerts.</p>
-                </div>
-                <div class="form-group">
-                    <label for="NTFY.TITLE">Title</label>
-                    <input type="text" id="NTFY.TITLE" name="NTFY.TITLE" placeholder="System title" />
-                </div>
-                <div class="form-group">
-                    <label for="NTFY.MESSAGE">Message</label>
-                    <input type="text" id="NTFY.MESSAGE" name="NTFY.MESSAGE" placeholder="System message" />
-                </div>
-                <div class="form-group">
-                    <label for="NTFY.PRIORITY">Priority</label>
-                    <input type="number" id="NTFY.PRIORITY" name="NTFY.PRIORITY" min="1" max="5" />
-                    <p class="help">1 to 5 - see <a href="https://docs.ntfy.sh/publish/#message-priority" target="_blank" rel="noopener">ntfy message priority</a>.</p>
-                </div>
-                <div class="form-group">
-                    <label for="NTFY.MAXTIMES">Maximum Times</label>
-                    <input type="number" id="NTFY.MAXTIMES" name="NTFY.MAXTIMES" min="0" />
-                </div>
-            </fieldset>
-
-            <fieldset class="config-section">
-                <legend>Pushover Alert</legend>
-                <p class="section-help">Both the API token and user key are required to send Pushover alerts.</p>
-                <div class="form-group">
-                    <label for="PUSHOVER.API">API Token</label>
-                    <input type="text" id="PUSHOVER.API" name="PUSHOVER.API" />
-                </div>
-                <div class="form-group">
-                    <label for="PUSHOVER.USER">User / Group Key</label>
-                    <input type="text" id="PUSHOVER.USER" name="PUSHOVER.USER" />
-                </div>
-                <div class="form-group">
-                    <label for="PUSHOVER.TITLE">Title</label>
-                    <input type="text" id="PUSHOVER.TITLE" name="PUSHOVER.TITLE" placeholder="System title" />
-                </div>
-                <div class="form-group">
-                    <label for="PUSHOVER.MESSAGE">Message</label>
-                    <input type="text" id="PUSHOVER.MESSAGE" name="PUSHOVER.MESSAGE" placeholder="System message" />
-                </div>
-                <div class="form-group">
-                    <label for="PUSHOVER.MAXTIMES">Maximum Times</label>
-                    <input type="number" id="PUSHOVER.MAXTIMES" name="PUSHOVER.MAXTIMES" min="0" />
-                </div>
-            </fieldset>
-
-            <div class="form-actions">
-                <p class="help">Settings marked <span class="restart-tag">restart</span> take effect after the plugin is restarted. Other settings apply immediately.</p>
-                <button type="submit" class="save-btn" id="saveBtn">Save</button>
-            </div>
-        </form>
-    </div>
-</body>
-</html>
+{% block scripts %}
+<script src="{{ url_for('static', path='js/config.js') }}"></script>
+{% endblock %}
