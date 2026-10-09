@@ -12,6 +12,7 @@ data/
 .DS_Store
 not-in-use/
 *.sh
+!/scripts/release.sh
 duetPrintGuard.config
 duetPrintGuard.log
 duetPrintGuard.json
