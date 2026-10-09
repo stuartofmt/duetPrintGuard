@@ -41,9 +41,9 @@ export function readManifest() {
 
 /**
  * This branch's release channel, from scripts/release-channel.txt (default "latest"):
- *   latest      - the main line. Tags are v<version> and its Releases are marked Latest.
- *   maintenance - a line built for an older DWC. Tags are v<version>-dwc<dwcVersion>, so they never
- *                 clash with another branch's tags, and its Releases are never marked Latest.
+ *   latest      - the main line. Its Releases are marked Latest.
+ *   maintenance - a line built for an older DWC. Its Releases are never marked Latest.
+ * Tags are v<version>-dwc<dwcVersion> on both channels (see tagSuffix).
  */
 export function releaseChannel() {
 	const file = join(repoRoot, "scripts", "release-channel.txt");
@@ -56,7 +56,10 @@ export function releaseChannel() {
 	return channel || "latest";
 }
 
-/** The suffix after v<version> in this branch's release tags: "" or "-dwc<dwcVersion>". */
+/**
+ * The suffix after v<version> in release tags: "-dwc<dwcVersion>", e.g. "-dwc3.7". Every tag carries
+ * the DWC version it is built for, so branches for different DWC versions never clash.
+ */
 export function tagSuffix(manifest = readManifest()) {
-	return releaseChannel() === "maintenance" ? `-dwc${manifest.dwcVersion}` : "";
+	return `-dwc${manifest.dwcVersion}`;
 }

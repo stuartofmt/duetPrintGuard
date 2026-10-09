@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * Pick the GitHub Release title for a version: `<tag> — "<title>"`, where <tag> is `vX.Y.Z` on the
- * latest channel and `vX.Y.Z-dwc<dwcVersion>` on a maintenance channel (see manifest.mjs).
+ * Pick the GitHub Release title for a version: `<tag> — "<title>"`, where <tag> is
+ * `vX.Y.Z-dwc<dwcVersion>` (see manifest.mjs).
  *
  * Titles come from scripts/release-titles.txt (one per line); without that file the title is just
- * the tag. The version's position among the semver-sorted `v*` tags of this branch's channel (tags
- * with the same suffix) is its index into that list (wrapping if it runs out), so each release gets
+ * the tag. The version's position among the semver-sorted `v*` tags with this branch's -dwc suffix
+ * is its index into that list (wrapping if it runs out), so each release gets
  * a stable, distinct title with no per-release bookkeeping. The release workflow uses the output as the
  * Release name; run it locally to preview: `node scripts/release-title.mjs [vX.Y.Z]`.
  *
@@ -32,7 +32,7 @@ function git(args) {
 
 const ver = (v) => v.replace(/^v/, "").trim();
 
-// The suffix of a maintenance-channel tag, e.g. "-dwc3.6" in v0.1.0-dwc3.6.
+// The DWC suffix of a tag, e.g. "-dwc3.6" in v0.1.0-dwc3.6.
 const DWC_SUFFIX = /-dwc\d[0-9A-Za-z.-]*$/;
 
 // semver-ish compare: numeric segment-by-segment; a release (1.0.0) sorts after its prerelease (1.0.0-rc).
@@ -66,7 +66,7 @@ export function pickTitle(version) {
 	const suffix = tagSuffix();
 	const current = ver(version || readManifest().version).replace(DWC_SUFFIX, "");
 
-	// Only this channel's tags: those ending in this branch's suffix, or with no -dwc suffix at all.
+	// Only this branch's tags: those ending in its -dwc suffix.
 	const tags = git(["tag", "-l", "v*"]).split("\n").map((t) => t.trim()).filter(Boolean)
 		.filter((t) => (suffix ? t.endsWith(suffix) : !DWC_SUFFIX.test(t)))
 		.map((t) => ver(t.slice(0, t.length - suffix.length)));

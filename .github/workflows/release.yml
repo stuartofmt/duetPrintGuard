@@ -28,13 +28,13 @@ name: Release
 #   1. Open plugin.json and change the "version" value to the new version number, e.g. "1.2.3".
 #      Commit this change and push it to the repository on GitHub.
 #
-#   2. Create a tag on that commit, named "v" followed by exactly the same version number, then push
-#      the tag to GitHub. (On a maintenance branch the tag also ends in -dwc<dwcVersion>, e.g.
-#      v1.2.3-dwc3.6 - see "Releasing from more than one branch" below.) From the repository folder on
-#      your computer run:
+#   2. Create a tag on that commit, named "v" followed by exactly the same version number and then
+#      -dwc followed by plugin.json's dwcVersion, e.g. v1.2.3-dwc3.7, then push the tag to GitHub
+#      (or run ./scripts/release.sh, which does this for you). From the repository folder on your
+#      computer run:
 #
-#        git tag v1.2.3
-#        git push origin v1.2.3
+#        git tag v1.2.3-dwc3.7
+#        git push origin v1.2.3-dwc3.7
 #
 #      Make sure the commit from step 1 is the one checked out when you run "git tag", because the
 #      tag is attached to whatever commit you are currently on.
@@ -57,7 +57,7 @@ name: Release
 #
 #   4. After approval the workflow builds the ZIP and publishes the GitHub Release automatically:
 #        - Title: taken from scripts/release-titles.txt, using the version's position among the v*
-#          tags of this branch's channel (just the tag name if there is no titles file).
+#          tags with this branch's -dwc suffix (just the tag name if there is no titles file).
 #        - Notes: a list of changes generated from the commit messages since the previous tag
 #          (Conventional Commit messages such as "feat: ..." and "fix: ..." are grouped by type),
 #          plus install instructions.
@@ -87,17 +87,15 @@ name: Release
 # ---------------------------------------------------------------------------------------------------
 # Releasing from more than one branch
 # ---------------------------------------------------------------------------------------------------
-#   A tag name can only be used once in the whole repository, so branches built for different DWC
-#   versions (e.g. 3.7.x and 3.6.x) cannot both tag v1.2.3. scripts/release-channel.txt sets each
-#   branch's channel:
-#     latest      - the main line (the default if the file is missing). Tags are v<version> and its
-#                   Releases are marked Latest on GitHub.
-#     maintenance - a line for an older DWC. Tags are v<version>-dwc<dwcVersion>, using plugin.json's
-#                   dwcVersion exactly (e.g. v1.2.3-dwc3.6, v1.2.3-dwc3.6.3), and its Releases are
-#                   never marked Latest.
-#   Every maintenance branch needs a different dwcVersion, or their tags clash again. Release titles
-#   are counted separately for each channel, and the release notes list the commits since the
-#   previous tag in the branch's own history.
+#   A tag name can only be used once in the whole repository, so every tag ends in -dwc<dwcVersion>,
+#   using plugin.json's dwcVersion exactly (e.g. v1.2.3-dwc3.7, v1.2.3-dwc3.6, v1.2.3-dwc3.6.3).
+#   Branches built for different DWC versions (e.g. 3.7.x and 3.6.x) can then release the same plugin
+#   version; every branch needs a different dwcVersion, or their tags clash again.
+#   scripts/release-channel.txt sets each branch's channel:
+#     latest      - the main line (the default if the file is missing). Its Releases are marked Latest.
+#     maintenance - a line for an older DWC. Its Releases are never marked Latest.
+#   Release titles are counted separately for each dwcVersion, and the release notes list the commits
+#   since the previous tag in the branch's own history.
 #
 # ---------------------------------------------------------------------------------------------------
 # Which DWC version is used (applies to both automatic and manual runs)
@@ -114,7 +112,7 @@ name: Release
 # ---------------------------------------------------------------------------------------------------
 # Order the jobs run in
 # ---------------------------------------------------------------------------------------------------
-#   1. resolve-dwc - read plugin.json, check the tag matches its version and channel, see if a Release already
+#   1. resolve-dwc - read plugin.json, check the tag matches its version and dwcVersion, see if a Release already
 #                    exists, and choose the DWC version.
 #   2. approval    - pause until someone approves at the dwc-release-approval environment.
 #   3. build       - download DWC and build the ZIP with DWC's scripts/build-plugin.js.
@@ -202,8 +200,8 @@ jobs:
           }
 
           // Release channel (scripts/release-channel.txt, default "latest"; same rules as
-          // scripts/manifest.mjs). The latest line tags v<version> and is marked Latest. A maintenance
-          // line (built for an older DWC) tags v<version>-dwc<dwcVersion> and is never marked Latest.
+          // scripts/manifest.mjs). The latest line is marked Latest; a maintenance line (built for an
+          // older DWC) is never marked Latest. Tags are v<version>-dwc<dwcVersion> on both.
           const channelFile = "scripts/release-channel.txt";
           const channel = (existsSync(channelFile)
             ? readFileSync(channelFile, "utf8").split("\n").map((l) => l.replace(/#.*/, "").trim()).find(Boolean)
@@ -211,17 +209,17 @@ jobs:
           if (!["latest", "maintenance"].includes(channel)) {
             throw new Error(`${channelFile} must say "latest" or "maintenance", not "${channel}".`);
           }
-          if (channel === "maintenance" && !/^\d+\.\d+(\.\d+)?(-[0-9A-Za-z.-]+)?$/.test(manifest.dwcVersion)) {
-            throw new Error(`A maintenance branch needs a numeric dwcVersion in ${manifestPath} for its tag names, not "${manifest.dwcVersion}".`);
+          if (!/^\d+\.\d+(\.\d+)?(-[0-9A-Za-z.-]+)?$/.test(manifest.dwcVersion)) {
+            throw new Error(`Release tags need a numeric dwcVersion in ${manifestPath}, not "${manifest.dwcVersion}".`);
           }
-          const expectedTag = channel === "maintenance" ? `v${manifest.version}-dwc${manifest.dwcVersion}` : `v${manifest.version}`;
+          const expectedTag = `v${manifest.version}-dwc${manifest.dwcVersion}`;
 
           const tag = process.env.GITHUB_REF.startsWith("refs/tags/")
             ? process.env.GITHUB_REF.slice("refs/tags/".length)
             : "";
           // A pushed tag is taken verbatim from GITHUB_REF. Manual runs on branches have no release tag.
           if (tag && tag !== expectedTag) {
-            throw new Error(`Release tag "${tag}" does not match "${expectedTag}" (${manifestPath} version "${manifest.version}", ${channel} channel).`);
+            throw new Error(`Release tag "${tag}" does not match "${expectedTag}" (${manifestPath} version "${manifest.version}", dwcVersion "${manifest.dwcVersion}").`);
           }
 
           // Look up the release associated with this exact tag before building. A match is not an
