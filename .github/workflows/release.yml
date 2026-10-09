@@ -339,26 +339,28 @@ jobs:
         working-directory: DuetWebControl
         run: npm install
 
-      - name: Install plugin (and its bundled deps into DWC)
-        working-directory: plugin
-        run: |
-          npm install
-          # Install the plugin's runtime dependencies into DWC with their exact specs (github: specs
-          # used verbatim, registry specs as name@range) so the build/type-check can resolve them.
-          SPECS=$(node -p "Object.entries(require('./package.json').dependencies||{}).map(([k,v])=>/[:\\/]/.test(v)?v:k+'@'+v).join(' ')")
-          if [ -n "$SPECS" ]; then (cd ../DuetWebControl && npm install --no-save $SPECS); fi
-
-      - name: Type-check against DWC
-        working-directory: plugin
-        env:
-          DWC_DIR: ${{ github.workspace }}/DuetWebControl
-        run: npm run typecheck
-
+      # Build with DWC's own plugin builder, run on the folder holding plugin.json (e.g. Code/). It
+      # installs any npm dependencies the plugin's package.json lists, compiles src/ and writes
+      # <id>-<version>.zip (plus <id>-<version>-srcmap.zip for a stable build) into that folder; DWC
+      # versions before 3.7 write the ZIP to DuetWebControl/dist instead. The plugin ZIP(s) are moved to
+      # $RUNNER_TEMP/plugin-zip for the publish/upload steps.
       - name: Build installable ZIP
-        working-directory: plugin
+        working-directory: DuetWebControl
         env:
-          DWC_DIR: ${{ github.workspace }}/DuetWebControl
-        run: npm run verify-build
+          MANIFEST: ${{ needs.resolve-dwc.outputs.manifest }}
+        run: |
+          CODE_DIR="$GITHUB_WORKSPACE/plugin/$(dirname "$MANIFEST")"
+          rm -f "${CODE_DIR:?}"/*.zip dist/"${PLUGIN_NAME:?}"-*.zip
+          node ./scripts/build-plugin.js "$CODE_DIR"
+          shopt -s nullglob
+          zips=("$CODE_DIR"/*.zip dist/"$PLUGIN_NAME"-*.zip)
+          if (( ${#zips[@]} == 0 )); then
+            echo "::error::The build finished but no ZIP was found in $CODE_DIR or DuetWebControl/dist."
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/plugin-zip"
+          mv -- "${zips[@]}" "$RUNNER_TEMP/plugin-zip/"
+          ls -l "$RUNNER_TEMP/plugin-zip"
 
       - name: Prepare standalone ZIP assets
         if: startsWith(github.ref, 'refs/tags/')
@@ -396,6 +398,7 @@ jobs:
           DWC_VERSION: ${{ steps.dwc.outputs.version }}
           DWC_SHA: ${{ steps.dwc.outputs.sha }}
           DWC_REF: ${{ steps.dwc.outputs.ref }}
+          MANIFEST: ${{ needs.resolve-dwc.outputs.manifest }}
         run: |
           {
             echo 'body<<__CHANGELOG_EOF__'
@@ -411,6 +414,8 @@ jobs:
         id: title
         if: startsWith(github.ref, 'refs/tags/')
         working-directory: plugin
+        env:
+          MANIFEST: ${{ needs.resolve-dwc.outputs.manifest }}
         run: |
           {
             echo 'name<<__TITLE_EOF__'
@@ -431,7 +436,7 @@ jobs:
           name: ${{ steps.title.outputs.name }}
           body: ${{ steps.changelog.outputs.body }}
           files: |
-            plugin/${{ env.PLUGIN_NAME }}-*.zip
+            ${{ runner.temp }}/plugin-zip/*.zip
             ${{ runner.temp }}/standalone-assets/standalone-*.zip
           fail_on_unmatched_files: false
 
@@ -440,4 +445,4 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: ${{ env.PLUGIN_NAME }}-plugin
-          path: plugin/${{ env.PLUGIN_NAME }}-*.zip
+          path: ${{ runner.temp }}/plugin-zip/*.zip

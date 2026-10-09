@@ -57,7 +57,8 @@ export function pickTitle(version) {
 		.filter((l) => l && !l.startsWith("#"));
 
 	const current = ver(
-		version || process.env.GITHUB_REF_NAME || JSON.parse(readFileSync(join(here, "..", "plugin.json"), "utf8")).version,
+		version || process.env.GITHUB_REF_NAME
+			|| JSON.parse(readFileSync(join(here, "..", process.env.MANIFEST || "Code/plugin.json"), "utf8")).version,
 	);
 
 	const tags = git(["tag", "-l", "v*"]).split("\n").map((t) => ver(t)).filter(Boolean);
