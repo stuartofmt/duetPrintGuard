@@ -147,6 +147,7 @@ jobs:
       plugin-name: ${{ steps.resolve.outputs.plugin-name }}
       dwc-ref: ${{ steps.resolve.outputs.dwc-ref }}
       plugin-version: ${{ steps.resolve.outputs.plugin-version }}
+      plugin-dwc-version: ${{ steps.resolve.outputs.plugin-dwc-version }}
       release-exists: ${{ steps.resolve.outputs.release-exists }}
       release-url: ${{ steps.resolve.outputs.release-url }}
       make-latest: ${{ steps.resolve.outputs.make-latest }}
@@ -329,7 +330,7 @@ jobs:
             : tag
               ? `\n\nNo published release currently exists for \`${tag}\`. Approve the \`dwc-release-approval\` environment to continue, or reject the deployment to stop this run.`
               : "";
-          appendFileSync(process.env.GITHUB_OUTPUT, `manifest=${manifestPath}\nplugin-name=${manifest.id}\nplugin-version=${manifest.version}\ndwc-ref=${selected}\nrelease-exists=${existingRelease ? "true" : "false"}\nrelease-url=${existingRelease?.html_url ?? ""}\nmake-latest=${channel === "latest"}\n`);
+          appendFileSync(process.env.GITHUB_OUTPUT, `manifest=${manifestPath}\nplugin-name=${manifest.id}\nplugin-version=${manifest.version}\nplugin-dwc-version=${manifest.dwcVersion}\ndwc-ref=${selected}\nrelease-exists=${existingRelease ? "true" : "false"}\nrelease-url=${existingRelease?.html_url ?? ""}\nmake-latest=${channel === "latest"}\n`);
           appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### Release preflight\n\n- Plugin manifest: \`${manifestPath}\`\n- Plugin version: \`${manifest.version}\`\n- Release channel: \`${channel}\` (tag \`${expectedTag}\`${channel === "latest" ? ", marked Latest" : ", not marked Latest"})\n- Required DWC version: \`${manifest.dwcVersion}\`\n- Selected DWC release: \`${selected}\`\n${releaseSummary}\n`);
           NODE
 
@@ -380,11 +381,15 @@ jobs:
       #   DWC before 3.7:    <id>-<version>.zip (<id>-<DWC version>.zip for version "auto") in
       #                      DuetWebControl/dist. This builder can report errors yet still exit 0, so a
       #                      missing ZIP is what marks a failed build.
-      # The plugin ZIP(s) are moved to $RUNNER_TEMP/plugin-zip for the publish/upload steps.
+      # The plugin ZIP(s) are moved to $RUNNER_TEMP/plugin-zip for the publish/upload steps, with
+      # plugin.json's dwcVersion added after the plugin version: <id>-<version>-<dwcVersion>.zip (and
+      # <id>-<version>-<dwcVersion>-srcmap.zip), e.g. MyPlugin-1.2.3-3.7.zip.
       - name: Build installable ZIP
         working-directory: DuetWebControl
         env:
           MANIFEST: ${{ needs.resolve-dwc.outputs.manifest }}
+          PLUGIN_VERSION: ${{ needs.resolve-dwc.outputs.plugin-version }}
+          PLUGIN_DWC_VERSION: ${{ needs.resolve-dwc.outputs.plugin-dwc-version }}
           DWC_VERSION: ${{ steps.dwc.outputs.version }}
         run: |
           CODE_DIR="$GITHUB_WORKSPACE/plugin/$(dirname "$MANIFEST")"
@@ -406,7 +411,18 @@ jobs:
             exit 1
           fi
           mkdir -p "$RUNNER_TEMP/plugin-zip"
-          mv -- "${zips[@]}" "$RUNNER_TEMP/plugin-zip/"
+          PREFIX="${PLUGIN_NAME:?}-${PLUGIN_VERSION:?}"
+          for zip in "${zips[@]}"; do
+            base=$(basename "$zip" .zip)
+            # <id>-<version>[-srcmap] -> <id>-<version>-<dwcVersion>[-srcmap]; anything else gets the
+            # DWC version on the end.
+            if [[ "$base" == "$PREFIX" || "$base" == "$PREFIX"-* ]]; then
+              name="$PREFIX-${PLUGIN_DWC_VERSION:?}${base#"$PREFIX"}.zip"
+            else
+              name="$base-${PLUGIN_DWC_VERSION:?}.zip"
+            fi
+            mv -- "$zip" "$RUNNER_TEMP/plugin-zip/$name"
+          done
           ls -l "$RUNNER_TEMP/plugin-zip"
 
       - name: Prepare standalone ZIP assets

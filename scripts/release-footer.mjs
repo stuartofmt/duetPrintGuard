@@ -4,7 +4,7 @@
  * DuetWebControl version the ZIP was built against.
  *
  * Everything plugin-specific comes from plugin.json (found by ./manifest.mjs), so this works unchanged
- * for any plugin: the ZIP name from id + version, the project link from homepage, and the SBC note from
+ * for any plugin: the ZIP name from id + version + dwcVersion, the project link from homepage, and the SBC note from
  * sbcRequired. A docs/Installation-Configuration.md in the repository is linked if present.
  * The DWC details come from the CI build environment (the release workflow sets these after it checks
  * out DuetWebControl), so it also reads sensibly when run locally.
@@ -15,7 +15,7 @@ import { readManifest, repoRoot } from "./manifest.mjs";
 
 const manifest = readManifest();
 const pkgVersion = manifest.version;
-const asset = `${manifest.id}-${pkgVersion}.zip`;
+const asset = `${manifest.id}-${pkgVersion}-${manifest.dwcVersion}.zip`;
 const ref = process.env.GITHUB_REF_NAME || "main";
 
 const dwcVersion = process.env.DWC_VERSION || "";
