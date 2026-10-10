@@ -1,10 +1,16 @@
 """
 Application configuration for duetPrintGuard
 
-All settings are held in duetPrintGuard.json (in the plugin's dsf directory):
+All settings are held in duetPrintGuard.json (in the folder given at startup,
+alongside the log file):
 - the sections in CONFIG_SCHEMA, edited through the /config web page
 - camera_settings and countdown_settings, edited through the /settings web page
   (held in memory by utils/config.py, which loads and saves them through this module)
+
+The file is stored zlib-compressed and base64 encoded so it is not plain
+text. This is obfuscation only - it is not encryption. A plain json file
+(from an earlier version) is still read, and is rewritten encoded on the
+next save.
 
 No config file is required - if there is no json file, one is created
 from the defaults (with no cameras) on startup.
@@ -12,8 +18,11 @@ from the defaults (with no cameras) on startup.
 The section objects (DUET, UI, etc.) are created on import and are only
 ever updated in place, so modules that import them see live changes.
 """
+import base64
+import binascii
 import json
 import os
+import zlib
 import threading
 
 global DUET, UI, LOGGING, ACTION, MACRO, NTFY, PUSHOVER
@@ -141,11 +150,29 @@ def _merge(target, source):
 				_logger.warning(f'Ignoring invalid config value {section}.{key} = {values[key]!r}: {e}')
 
 
+def _encode(config):
+	"""Compress and base64 encode the config so the file is not plain text."""
+	data = json.dumps(config).encode('utf-8')
+	return base64.b64encode(zlib.compress(data, 9)).decode('ascii')
+
+
+def _decode(text):
+	"""Reverse _encode. Plain json (from an earlier version) is also accepted."""
+	text = text.strip()
+	if text.startswith('{'):
+		return json.loads(text)
+	try:
+		data = zlib.decompress(base64.b64decode(text, validate=True))
+	except binascii.Error as e:
+		raise ValueError(f'not a valid encoded config: {e}')
+	return json.loads(data.decode('utf-8'))
+
+
 def _save(config):
 	with _lock:
 		tmp_file = _config_file + '.tmp'
-		with open(tmp_file, 'w', encoding='utf-8') as f:
-			json.dump(config, f, indent=2)
+		with open(tmp_file, 'w', encoding='ascii') as f:
+			f.write(_encode(config))
 		os.replace(tmp_file, _config_file)
 
 
@@ -162,8 +189,8 @@ def _load():
 		if os.path.exists(_config_file):
 			try:
 				with open(_config_file, 'r', encoding='utf-8') as f:
-					_merge(config, json.load(f))
-			except (OSError, json.JSONDecodeError) as e:
+					_merge(config, _decode(f.read()))
+			except (OSError, ValueError, zlib.error) as e:
 				_logger.error(f'Could not read {_config_file} - using defaults: {e}')
 	return config
 
@@ -185,7 +212,7 @@ def get_DWC_config(file_path, logger):
 	"""Load the configuration, creating it from the defaults if needed."""
 	global _config_file, _logger
 	_logger = logger
-	_config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), CONFIGFILENAME)
+	_config_file = os.path.join(file_path, CONFIGFILENAME)
 	logger.debug(f'Looking for config file at {_config_file}')
 
 	if not os.path.exists(_config_file):

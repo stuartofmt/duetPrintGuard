@@ -12,7 +12,7 @@ duetPrintGuard is packaged as a DWC plugin and installed in the normal manner fr
 
 ## Configuration
 
-No configuration file needs to be created. On first start the plugin creates `duetPrintGuard.json` in its own plugin directory with default settings.
+No configuration file needs to be created. On first start the plugin creates `duetPrintGuard.json` with default settings in the folder given at startup (the same folder as the log file `duetPrintGuard.log`). The file is stored compressed and base64 encoded, so edit settings through the plugin's Config and Settings pages rather than by hand.
 
 Settings are changed from the Configuration page, accessible from the Settings page or via `http://<IP>:<PORT>/config`.
 
