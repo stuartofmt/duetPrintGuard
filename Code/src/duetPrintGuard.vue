@@ -40,7 +40,7 @@ Passes DWC's theme to the page: ?theme=dark|light in the URL, then the live them
 </template>
 
 <script setup>
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue';
 import { useTheme } from 'vuetify';
 import { useMachineStore } from 'DuetWebControl';
 
@@ -63,20 +63,28 @@ const pluginStopped = ref(false);
 let intervalId = null;
 let resizeObserver = null;
 
-// Send DWC's current theme to the page so it matches, including plugin themes and later changes
-const sendTheme = () => {
+const postToPage = (message) => {
 	const target = iframe.value?.contentWindow;
 	if (!target || !myurl.value) {
 		return;
 	}
+	target.postMessage({ source: pluginName, ...message }, new URL(myurl.value).origin);
+};
+
+// Send DWC's current theme to the page so it matches, including plugin themes and later changes
+const sendTheme = () => {
 	const current = theme.global.current.value;
-	target.postMessage({
-		source: pluginName,
+	postToPage({
 		type: 'theme',
 		dark: current.dark,
 		colors: JSON.parse(JSON.stringify(current.colors)) // plain copy - reactive proxies can't be posted
-	}, new URL(myurl.value).origin);
+	});
 };
+
+// If DWC keeps this page alive while another DWC page is shown, tell the plugin page so it can
+// close its camera streams and event connection (see PG.visibility in common.js)
+onActivated(() => postToPage({ type: 'visibility', visible: true }));
+onDeactivated(() => postToPage({ type: 'visibility', visible: false }));
 
 watch(() => theme.global.current.value, sendTheme, { deep: true });
 

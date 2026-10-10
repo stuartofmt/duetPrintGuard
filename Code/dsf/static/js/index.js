@@ -1,10 +1,12 @@
 // =========================
 // Detection page
 // =========================
-const { computed, onBeforeUnmount, onMounted, reactive, ref } = Vue;
+// A camera that is detecting shows its live stream. Otherwise it shows a snapshot taken when the page
+// was shown (or when detection stopped). While the page is hidden, or a camera's stream is open in a
+// new tab, the page closes its streams and event connection - see PG.visibility in common.js.
+const { computed, onBeforeUnmount, onMounted, reactive, ref, watch } = Vue;
 
 const DEFAULT_ICON = '/static/images/default_icon.png';
-const SNAPSHOT_INTERVAL = 2000; // ms, plus up to 500 ms jitter so cameras don't refresh together
 const MAX_CONCURRENT_SNAPSHOTS = 2;
 
 const ACTION_NAMES = { pause_print: 'Pause', cancel_print: 'Cancel', ignore: 'Action' };
@@ -51,11 +53,12 @@ PG.mount({
 		const paused = ref(false);
 		const countdown = reactive({ active: false, seconds: 0, action: null });
 		const autostart = reactive({ enabled: false, running: false, waiting: false });
-		const stream = reactive({ show: false, nickname: '', url: '', page: '' });
 		const settingsUrl = PG.pageUrl('/settings');
-		const snapshotTimers = new Map();
+		// Set when a stream is opened in a new tab, until this page is shown or focused again
+		const suspended = ref(false);
+		const active = computed(() => PG.visibility.visible && !suspended.value);
 		let countdownTimer = null;
-		let closeSSE = () => {};
+		let closeSSE = null;
 
 		const countdownText = computed(() => ACTION_NAMES[countdown.action] ?? 'Action');
 
@@ -71,10 +74,37 @@ PG.mount({
 		// =========================
 		// Cameras
 		// =========================
+		const showStream = (camera) => active.value && isDetecting(camera) && !camera.streamFailed;
+		const cameraView = (camera) => showStream(camera)
+			? `/camera/stream/${camera.uuid}`
+			: (camera.snapshot || DEFAULT_ICON);
+
+		function refreshSnapshot(camera) {
+			enqueueSnapshot(() => loadSnapshot(camera));
+		}
+
+		// A stream that fails falls back to the snapshot until the page is shown again
+		function onViewError(camera) {
+			if (showStream(camera)) {
+				camera.streamFailed = true;
+				refreshSnapshot(camera);
+			}
+		}
+
+		function setState(camera, state) {
+			const wasDetecting = isDetecting(camera);
+			camera.state = state;
+			if (wasDetecting && !isDetecting(camera)) {
+				refreshSnapshot(camera); // The stream closes, so show the camera as it is now
+			} else if (!wasDetecting && isDetecting(camera)) {
+				camera.streamFailed = false;
+			}
+		}
+
 		async function refreshState(camera) {
 			try {
 				const data = await PG.api.postJson('/config/get-camera-state', { camera_uuid: camera.uuid });
-				if (data?.state) camera.state = data.state;
+				if (data?.state) setState(camera, data.state);
 			} catch (err) {
 				console.warn(`Error from /config/get-camera-state for camera ${camera.uuid}:`, err);
 			}
@@ -96,23 +126,14 @@ PG.mount({
 			}
 		}
 
-		function startSnapshots(camera) {
-			const loop = () => {
-				if (!document.hidden) {
-					enqueueSnapshot(() => loadSnapshot(camera));
-				}
-				snapshotTimers.set(camera.uuid, setTimeout(loop, SNAPSHOT_INTERVAL + Math.random() * 500));
-			};
-			loop();
-		}
-
+		// Open the stream in a new tab and close this page's connections until it is shown again
 		function openStream(camera) {
-			Object.assign(stream, {
-				show: true,
-				nickname: camera.nickname,
-				url: `/camera/stream/${camera.uuid}`,
-				page: `/stream/${encodeURIComponent(camera.nickname)}`
-			});
+			const tab = window.open(PG.pageUrl(`/stream/${encodeURIComponent(camera.nickname)}`), '_blank');
+			if (!tab) {
+				PG.notify('The browser blocked the new tab - allow pop-ups for this page.', 'error');
+				return;
+			}
+			suspended.value = true;
 		}
 
 		// =========================
@@ -200,23 +221,48 @@ PG.mount({
 		}
 
 		// =========================
-		// Init
+		// Connections - open only while the page is active
 		// =========================
-		onMounted(async () => {
-			closeSSE = PG.connectSSE({
-				countdown_time: onCountdown,
-				camera_updated: (data) => {
-					const camera = findCamera(data?.camera_uuid);
-					if (camera && data.state) camera.state = data.state;
-				},
+		const sseHandlers = {
+			countdown_time: onCountdown,
+			camera_updated: (data) => {
+				const camera = findCamera(data?.camera_uuid);
+				if (camera && data.state) setState(camera, data.state);
+			},
 				autostart_updated: (data) => {
 					autostart.enabled = Boolean(data?.state);
 				},
-				autostart_running: (data) => {
-					autostart.running = Boolean(data?.state);
-					autostart.waiting = false;
-				}
-			});
+			autostart_running: (data) => {
+				autostart.running = Boolean(data?.state);
+				autostart.waiting = false;
+			}
+		};
+
+		function connect() {
+			if (closeSSE) return;
+			closeSSE = PG.connectSSE(sseHandlers); // Sends the current countdown on connect
+			for (const camera of cameras.value) {
+				camera.streamFailed = false;
+				refreshState(camera);
+				refreshSnapshot(camera);
+			}
+		}
+
+		function disconnect() {
+			closeSSE?.();
+			closeSSE = null;
+		}
+
+		watch(() => PG.visibility.visible, (visible) => {
+			if (visible) suspended.value = false;
+		});
+		const onFocus = () => { suspended.value = false; };
+
+		// =========================
+		// Init
+		// =========================
+		onMounted(async () => {
+			window.addEventListener('focus', onFocus);
 
 			let list = {};
 			try {
@@ -230,29 +276,24 @@ PG.mount({
 				nickname: camera.nickname,
 				state: {},
 				snapshot: '',
+				streamFailed: false,
 				busy: false
 			}));
 			autostart.enabled = Object.values(list).some((camera) => camera.autostart);
 			noCameras.value = cameras.value.length === 0;
 
-			for (const camera of cameras.value) {
-				// Use the reactive proxy so updates re-render
-				const reactiveCamera = findCamera(camera.uuid);
-				refreshState(reactiveCamera);
-				startSnapshots(reactiveCamera);
-			}
+			watch(active, (on) => (on ? connect() : disconnect()), { immediate: true });
 		});
 
 		onBeforeUnmount(() => {
-			closeSSE();
+			window.removeEventListener('focus', onFocus);
+			disconnect();
 			stopCountdown();
-			snapshotTimers.forEach(clearTimeout);
 		});
 
 		return {
-			cameras, noCameras, paused, countdown, countdownText, autostart, stream, settingsUrl,
-			defaultIcon: DEFAULT_ICON,
-			isDetecting, resultClass, lastUpdate, toggleDetection, openStream,
+			cameras, noCameras, paused, countdown, countdownText, autostart, settingsUrl,
+			isDetecting, resultClass, lastUpdate, cameraView, onViewError, toggleDetection, openStream,
 			runAction, togglePause, cancelPrint, toggleAutostart, resetNotifications
 		};
 	}

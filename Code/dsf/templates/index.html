@@ -62,8 +62,8 @@
 				</v-card>
 			</v-col>
 			<v-col cols="12" sm="7" md="8">
-				<div class="pg-media pg-media--compact pg-clickable" title="Open live stream" @click="openStream(camera)">
-					<img :src="camera.snapshot || defaultIcon" :alt="camera.nickname" />
+				<div class="pg-media pg-media--compact pg-clickable" title="Open the live stream in a new tab" @click="openStream(camera)">
+					<img :src="cameraView(camera)" :alt="camera.nickname" @error="onViewError(camera)" />
 				</div>
 			</v-col>
 		</template>
@@ -78,22 +78,6 @@
 			{{ autostart.running ? 'Disable Autostart' : 'Enable Autostart' }}
 		</v-btn>
 	</div>
-
-	<!-- Live stream -->
-	<v-dialog v-model="stream.show" max-width="1100">
-		<v-card>
-			<v-card-title class="d-flex align-center">
-				{{ stream.nickname }}
-				<v-spacer></v-spacer>
-				<v-btn icon="mdi-open-in-new" variant="text" size="small" title="Open in a new tab"
-					   :href="stream.page" target="_blank"></v-btn>
-				<v-btn icon="mdi-close" variant="text" size="small" @click="stream.show = false"></v-btn>
-			</v-card-title>
-			<div class="pg-media">
-				<img v-if="stream.show" :src="stream.url" :alt="stream.nickname" />
-			</div>
-		</v-card>
-	</v-dialog>
 
 	<!-- No cameras configured -->
 	<v-dialog v-model="noCameras" max-width="420">

@@ -1,7 +1,7 @@
 // =========================
 // Settings page
 // =========================
-const { onMounted, reactive, ref } = Vue;
+const { onMounted, reactive, ref, watch } = Vue;
 
 const PREVIEW_DELAY = 1000; // ms after the stream URL stops changing before the preview reloads
 
@@ -65,7 +65,8 @@ PG.mount({
 		}
 
 		function select(camera) {
-			if (selected.value?.uuid === camera.uuid && snapshot.url) {
+			// Clicking the selected camera again only reloads it if the last snapshot failed
+			if (selected.value?.uuid === camera.uuid && snapshot.url && !snapshot.failed) {
 				return;
 			}
 			selected.value = camera;
@@ -179,6 +180,10 @@ PG.mount({
 		function updatePreview() {
 			clearTimeout(previewTimeout);
 			const source = add.source.trim();
+			if (!PG.visibility.visible) {
+				add.previewUrl = ''; // Reopened when the page is shown again
+				return;
+			}
 			if (!add.preview || !source) {
 				add.previewUrl = '';
 				add.previewState = add.preview ? 'error' : '';
@@ -217,6 +222,17 @@ PG.mount({
 				add.saving = false;
 			}
 		}
+
+		// The preview stream is closed while the page is hidden (see PG.visibility in common.js)
+		watch(() => PG.visibility.visible, (visible) => {
+			if (!visible) {
+				clearTimeout(previewTimeout);
+				add.previewUrl = '';
+				return;
+			}
+			if (add.show && add.preview) updatePreview();
+			loadSelectedSnapshot();
+		});
 
 		onMounted(() => {
 			loadCameras();

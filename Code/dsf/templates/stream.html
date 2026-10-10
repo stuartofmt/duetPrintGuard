@@ -8,7 +8,7 @@
 			<h1 class="text-headline-medium">{{ nickname }}</h1>
 			<v-card class="w-100" max-width="960">
 				<div class="pg-media">
-					<img :src="streamUrl" :alt="'Live stream for ' + nickname" />
+					<img v-if="streamUrl" :src="streamUrl" :alt="'Live stream for ' + nickname" />
 				</div>
 			</v-card>
 		</v-container>
@@ -18,12 +18,12 @@
 
 {% block scripts %}
 <script>
+	// The stream is closed while the tab is hidden (see PG.visibility in common.js)
+	const STREAM_URL = '/camera/stream/' + encodeURIComponent({{ camera_uuid | tojson }});
 	PG.mount({
 		setup() {
-			return {
-				nickname: {{ nickname | tojson }},
-				streamUrl: '/camera/stream/' + encodeURIComponent({{ camera_uuid | tojson }})
-			};
+			const streamUrl = Vue.computed(() => PG.visibility.visible ? STREAM_URL : '');
+			return { nickname: {{ nickname | tojson }}, streamUrl };
 		}
 	});
 </script>
