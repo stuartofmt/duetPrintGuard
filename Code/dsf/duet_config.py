@@ -8,9 +8,10 @@ alongside the log file):
   (held in memory by utils/config.py, which loads and saves them through this module)
 
 The file is stored zlib-compressed and base64 encoded so it is not plain
-text. This is obfuscation only - it is not encryption. A plain json file
-(from an earlier version) is still read, and is rewritten encoded on the
-next save.
+text, prefixed with a CRC32 checksum of the encoded data ("<crc32>:<base64>").
+This is obfuscation only - it is not encryption. If the checksum does not
+validate (or the file cannot be decoded) the file is deleted and a new
+one is created from the defaults.
 
 No config file is required - if there is no json file, one is created
 from the defaults (with no cameras) on startup.
@@ -150,22 +151,30 @@ def _merge(target, source):
 				_logger.warning(f'Ignoring invalid config value {section}.{key} = {values[key]!r}: {e}')
 
 
+def _checksum(payload):
+	return f'{zlib.crc32(payload.encode("ascii")):08x}'
+
+
 def _encode(config):
-	"""Compress and base64 encode the config so the file is not plain text."""
+	"""Compress and base64 encode the config, prefixed with a checksum."""
 	data = json.dumps(config).encode('utf-8')
-	return base64.b64encode(zlib.compress(data, 9)).decode('ascii')
+	payload = base64.b64encode(zlib.compress(data, 9)).decode('ascii')
+	return f'{_checksum(payload)}:{payload}'
 
 
 def _decode(text):
-	"""Reverse _encode. Plain json (from an earlier version) is also accepted."""
-	text = text.strip()
-	if text.startswith('{'):
-		return json.loads(text)
+	"""Reverse _encode. Raises ValueError if the checksum does not validate."""
+	checksum, sep, payload = text.strip().partition(':')
+	if not sep or not payload.isascii() or checksum != _checksum(payload):
+		raise ValueError('checksum does not validate')
 	try:
-		data = zlib.decompress(base64.b64decode(text, validate=True))
-	except binascii.Error as e:
+		data = zlib.decompress(base64.b64decode(payload, validate=True))
+	except (binascii.Error, zlib.error) as e:
 		raise ValueError(f'not a valid encoded config: {e}')
-	return json.loads(data.decode('utf-8'))
+	config = json.loads(data.decode('utf-8'))
+	if not isinstance(config, dict):
+		raise ValueError('not a valid config')
+	return config
 
 
 def _save(config):
@@ -189,10 +198,26 @@ def _load():
 		if os.path.exists(_config_file):
 			try:
 				with open(_config_file, 'r', encoding='utf-8') as f:
-					_merge(config, _decode(f.read()))
-			except (OSError, ValueError, zlib.error) as e:
+					text = f.read()
+			except OSError as e:
 				_logger.error(f'Could not read {_config_file} - using defaults: {e}')
+				return config
+			try:
+				_merge(config, _decode(text))
+			except ValueError as e:
+				_logger.error(f'Invalid config file {_config_file} ({e}) - recreating from defaults')
+				_recreate_defaults()
 	return config
+
+
+def _recreate_defaults():
+	"""Delete the invalid config file and write a new one from the defaults."""
+	try:
+		os.remove(_config_file)
+		_save(_defaults())
+		_logger.info(f'Default configuration saved to {_config_file}')
+	except OSError as e:
+		_logger.error(f'Could not recreate {_config_file}: {e}')
 
 
 def load_section(name):
