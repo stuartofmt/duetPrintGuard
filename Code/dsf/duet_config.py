@@ -72,7 +72,7 @@ CAMERA_SECTION = 'camera_settings'
 COUNTDOWN_SECTION = 'countdown_settings'
 DEFAULT_COUNTDOWN_SETTINGS = {'countdown_time': 60, 'countdown_action': 'ignore', 'countdown_control': 'any_camera'}
 
-LOG_LEVELS = ['WARNING', 'INFO', 'DEBUG']
+LOG_LEVELS = ['INFO', 'DEBUG']
 
 
 class ConfigSection:

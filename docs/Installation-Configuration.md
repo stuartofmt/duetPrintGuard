@@ -116,7 +116,7 @@ The Configuration page is accessible from the Configuration tab or via `http://<
 `Web Interface`
 - `IP Address` - detected automatically at startup (read only)
 - `Port` - the port for the Detection, Settings and Configuration pages. Must not conflict with DWC or other plugins. Use 0 to pick a free port automatically (see Configuration above)
-- `Logging Level` - WARNING, INFO or DEBUG
+- `Logging Level` - INFO or DEBUG
 
 `Printer Actions` - the commands sent to the printer for Pause (default `M25`), Resume (default `M24`) and Cancel (default `M2`). Leave blank to use the default.
 
