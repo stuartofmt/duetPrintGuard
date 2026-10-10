@@ -58,10 +58,12 @@ Press `Add a Camera` to open the Add Camera dialog. If no cameras are configured
 
 - `Camera Nickname` - the name shown on the Detection page
 - `HTTP or RTSP Stream URL` - the camera stream
-- `HTTP Snapshot URL` - optional. A URL that returns a single image. Not needed for RTSP cameras
+- `HTTP Snapshot URL` - a URL that returns a single JPEG image. Required for HTTP cameras (it is used for detection and the Detection page snapshots). Not needed for RTSP cameras
 - `Show camera preview` - shows the camera stream, to check the URL is correct before adding the camera
 
 Each camera must have a unique nickname and a unique stream URL.
+
+When `Add Camera` is pressed, the plugin checks that video can be read from the stream URL and, if given, that the snapshot URL returns a JPEG image. This can take a few seconds. If either check fails, the camera is not added and an alert in the dialog says which URL did not work. Correct the URL and press `Add Camera` again.
 
 <img src="media/images/AddCamera2.png" style="width:50%; height:auto;">
 

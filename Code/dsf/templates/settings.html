@@ -103,6 +103,8 @@
 			</v-card-title>
 			<v-form ref="addForm" @submit.prevent="addCamera">
 				<v-card-text>
+					<v-alert v-if="add.error" type="error" variant="tonal" density="compact" class="mb-4"
+							 closable :text="add.error" @click:close="add.error = ''"></v-alert>
 					<v-text-field v-model="add.nickname" label="Camera Nickname" :rules="[rules.required, rules.uniqueNickname]"
 								  variant="outlined" density="comfortable" class="mb-2"></v-text-field>
 					<v-text-field v-model="add.source" label="HTTP or RTSP Stream URL" type="url"

@@ -32,7 +32,7 @@ from utils.config import (
 )
 from duet_config import get_config_for_ui, update_config
 from utils.shared_video_stream import get_shared_stream_manager
-from utils.mjpeg_source import is_http_source, fetch_snapshot_bytes, stream_mjpeg
+from utils.mjpeg_source import is_http_source, check_mjpeg_stream, fetch_snapshot_bytes, stream_mjpeg
 from utils.stream_utils import UI_countdown, default_notification_text, start_live_detection, stop_live_detection, save_app_state_request, create_optimized_frame_generator
 
 router = APIRouter()
@@ -417,6 +417,40 @@ async def stream_by_nickname(nickname: str):
 	return camera_live_stream(camera_uuid)
 
 
+async def rtsp_stream_works(source):
+	"""Return True if a frame can be read from an RTSP (or other OpenCV) source within 5 seconds."""
+	check_uuid = f"check_{uuid.uuid4()}"
+	manager = get_shared_stream_manager()
+	stream = manager.get_stream(check_uuid, source)
+	try:
+		for _ in range(50):
+			if stream.is_frame_available():
+				return True
+			await asyncio.sleep(0.1)
+		return False
+	finally:
+		manager.release_stream(check_uuid)
+
+
+async def check_camera_urls(source, snapshot):
+	"""Check the stream (and snapshot, if given) URLs of a new camera. Returns a list of problems."""
+	async def snapshot_works():
+		return not snapshot or await asyncio.to_thread(fetch_snapshot_bytes, snapshot) is not None
+
+	# Checked together, so an unreachable camera only waits for one timeout
+	stream_ok, snapshot_ok = await asyncio.gather(
+		asyncio.to_thread(check_mjpeg_stream, source) if is_http_source(source) else rtsp_stream_works(source),
+		snapshot_works())
+	problems = []
+	if not stream_ok:
+		problems.append(f"Could not read video from the stream URL {source}.")
+	if not snapshot_ok:
+		problems.append(f"Could not get a JPEG image from the snapshot URL {snapshot}.")
+	for problem in problems:
+		logger.warning("Camera not added: %s", problem)
+	return problems
+
+
 # config_routes.py
 @router.post("/config/add-camera")
 async def add_camera_config(request: Request):
@@ -430,6 +464,9 @@ async def add_camera_config(request: Request):
 	# HTTP cameras need a snapshot URL (used for detection and snapshots) - RTSP cameras do not
 	if is_http_source(source) and not snapshot:
 		raise HTTPException(status_code=400, detail="Missing camera snapshot URL.")
+	problems = await check_camera_urls(source, snapshot)
+	if problems:
+		raise HTTPException(status_code=400, detail=' '.join(problems))
 	camera_uuid = str(uuid.uuid4())
 	default_camera_settings = deepcopy(DEFAULT_CAMERA_SETTINGS) # Precaution vs shallow copy
 	add_to_config({'camera_settings': {camera_uuid: {

@@ -27,7 +27,7 @@ PG.mount({
 		const countdown = reactive({ countdown_action: 'ignore', countdown_time: 0, countdown_control: 'any_camera' });
 		const addForm = ref(null);
 		const add = reactive({
-			show: false, saving: false, nickname: '', source: '', snapshot: '',
+			show: false, saving: false, error: '', nickname: '', source: '', snapshot: '',
 			preview: false, previewUrl: '', previewState: ''
 		});
 		let previewTimeout = null;
@@ -165,7 +165,7 @@ PG.mount({
 
 		function openAddCamera() {
 			Object.assign(add, {
-				show: true, saving: false, nickname: '', source: '', snapshot: '',
+				show: true, saving: false, error: '', nickname: '', source: '', snapshot: '',
 				preview: false, previewUrl: '', previewState: ''
 			});
 		}
@@ -203,14 +203,16 @@ PG.mount({
 			if (add.snapshot.trim()) data.snapshot = add.snapshot.trim();
 
 			add.saving = true;
+			add.error = '';
 			try {
+				// The server checks that the stream and snapshot URLs work before adding the camera
 				await PG.api.postJson('/config/add-camera', data);
 				PG.notify(`Added ${data.nickname}.`);
 				closeAddCamera();
 				await loadCameras();
 			} catch (err) {
 				console.error('Failed adding camera:', err);
-				PG.notify(err.message || 'Failed to add camera', 'error');
+				add.error = err.message || 'Failed to add camera';
 			} finally {
 				add.saving = false;
 			}

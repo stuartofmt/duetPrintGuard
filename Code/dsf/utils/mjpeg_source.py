@@ -98,6 +98,15 @@ def iter_mjpeg_frames(stream_url: str, max_fps: float = 0, holder: Optional[dict
 			logger.warning("MJPEG stream %s ended: %s", stream_url, e)
 
 
+def check_mjpeg_stream(stream_url: str) -> bool:
+	"""Return True if at least one JPEG frame can be read from an HTTP MJPEG stream."""
+	frames = iter_mjpeg_frames(stream_url)
+	try:
+		return next(frames, None) is not None
+	finally:
+		frames.close() # Closes the camera connection
+
+
 async def stream_mjpeg(stream_url: str, max_fps: float = 0) -> AsyncIterator[bytes]:
 	"""Async version of iter_mjpeg_frames for StreamingResponse.
 
