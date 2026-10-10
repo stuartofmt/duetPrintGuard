@@ -25,6 +25,17 @@ global autostart_running
 autostart_running = threading.Event()
 
 
+class RevalidatedStaticFiles(StaticFiles):
+	"""Static files the browser must revalidate (a quick 304 if unchanged) before using a cached copy.
+
+	Without Cache-Control the browser may keep using old JavaScript after the plugin is updated.
+	"""
+	async def get_response(self, path, scope):
+		response = await super().get_response(path, scope)
+		response.headers['Cache-Control'] = 'no-cache'
+		return response
+
+
 
 def init_routes_and_modules():
 	"""
@@ -120,7 +131,7 @@ def init_routes_and_modules():
 	base_dir = os.path.dirname(__file__)
 	static_dir = os.path.join(base_dir, "static")
 	templates_dir = os.path.join(base_dir, "templates")
-	app.mount("/static", StaticFiles(directory=static_dir), name="static")
+	app.mount("/static", RevalidatedStaticFiles(directory=static_dir), name="static")
 	global templates
 	templates = Jinja2Templates(directory=templates_dir)
 
