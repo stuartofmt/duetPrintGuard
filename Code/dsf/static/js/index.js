@@ -7,7 +7,7 @@ const DEFAULT_ICON = '/static/images/default_icon.png';
 const SNAPSHOT_INTERVAL = 2000; // ms, plus up to 500 ms jitter so cameras don't refresh together
 const MAX_CONCURRENT_SNAPSHOTS = 2;
 
-const ACTION_NAMES = { pause_print: 'Pause', cancel_print: 'Cancel', ignore: 'Alert' };
+const ACTION_NAMES = { pause_print: 'Pause', cancel_print: 'Cancel', ignore: 'Action' };
 
 // =========================
 // Snapshot queue - at most MAX_CONCURRENT_SNAPSHOTS loading at once
@@ -57,7 +57,7 @@ PG.mount({
 		let countdownTimer = null;
 		let closeSSE = () => {};
 
-		const countdownText = computed(() => ACTION_NAMES[countdown.action] ?? 'Alert');
+		const countdownText = computed(() => ACTION_NAMES[countdown.action] ?? 'Action');
 
 		const findCamera = (uuid) => cameras.value.find((c) => c.uuid === uuid);
 		const isDetecting = (camera) => camera.state.live_detection_running === 'yes';
