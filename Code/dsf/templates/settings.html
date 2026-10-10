@@ -50,7 +50,8 @@
 
 		<!-- Cameras -->
 		<v-col cols="12" md="5">
-			<v-card v-for="camera in cameras" :key="camera.uuid" class="mb-4 pg-clickable"
+			<!-- A click anywhere on the card (including its controls) selects the camera; no ripple, so dragging a slider doesn't flash the card -->
+			<v-card v-for="camera in cameras" :key="camera.uuid" class="mb-4 pg-clickable" :ripple="false"
 					:class="{ 'pg-selected': selected && selected.uuid === camera.uuid }" @click="select(camera)">
 				<v-card-title class="d-flex align-center">
 					<span class="text-truncate">{{ camera.nickname }}</span>
@@ -59,7 +60,7 @@
 						   @click.stop="removeCamera(camera)"></v-btn>
 				</v-card-title>
 				<v-card-subtitle class="text-wrap text-break">{{ camera.source }}</v-card-subtitle>
-				<v-card-text @click.stop>
+				<v-card-text>
 					<v-switch v-model="camera.autostart" label="Auto-start" color="primary" density="compact"
 							  hide-details @update:model-value="saveAutostart(camera)"></v-switch>
 					<v-slider v-model="camera.majority_vote_threshold" :min="1" :max="20" :step="1" color="primary"
