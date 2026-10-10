@@ -19,7 +19,7 @@ from duet_config import UI
 
 from utils.config import (get_prototypes_dir,
 						   get_model_path, get_model_options_path,
-						config_set_paths_and_initialize,DEVICE_TYPE, SUCCESS_LABEL, PRINTER_POLL_SECONDS)
+						init_config,DEVICE_TYPE, SUCCESS_LABEL, PRINTER_POLL_SECONDS)
 
 global autostart_running
 autostart_running = threading.Event()
@@ -258,7 +258,7 @@ def appstartup():
 
 
 	# Allow config to first set paths for config file
-	config_set_paths_and_initialize()
+	init_config()
 
 	init_routes_and_modules()
 	

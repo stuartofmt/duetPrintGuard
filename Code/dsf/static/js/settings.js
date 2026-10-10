@@ -90,6 +90,16 @@ PG.mount({
 			}
 		}
 
+		// The window must be at least the threshold, so moving one slider past the other drags it along
+		function keepWindowAboveThreshold(camera, moved) {
+			if (camera.majority_vote_window >= camera.majority_vote_threshold) return;
+			if (moved === 'threshold') {
+				camera.majority_vote_window = camera.majority_vote_threshold;
+			} else {
+				camera.majority_vote_threshold = camera.majority_vote_window;
+			}
+		}
+
 		async function saveCameraSettings(camera) {
 			try {
 				await PG.api.postForm('/settings/save-settings', {
@@ -214,7 +224,7 @@ PG.mount({
 		return {
 			cameras, selected, snapshot, countdown, countdownActions, countdownControls,
 			addForm, add, rules,
-			select, loadSelectedSnapshot, saveAutostart, saveCameraSettings, removeCamera, saveCountdown,
+			select, loadSelectedSnapshot, saveAutostart, keepWindowAboveThreshold, saveCameraSettings, removeCamera, saveCountdown,
 			openAddCamera, closeAddCamera, updatePreview, schedulePreview, addCamera
 		};
 	}

@@ -33,4 +33,4 @@ huggingface_hub==0.33.4
 stdeb
 requests
 python-dateutil
-dsf-python==3.7.prod1
+dsf-python==3.7.0.post1

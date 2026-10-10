@@ -24,8 +24,7 @@ from dsf.connections import SubscribeConnection, SubscriptionMode, CommandConnec
 from dsf.object_model.inputs import inputs as _inputs
 from dsf.object_model.job.gcode_fileinfo import GCodeFileInfo
 
-
-
+'''
 # Workaround: dsf-python 3.7.0b1 rejects null entries in the inputs collection,
 # but DSF reports unused input channels as null
 _orig_inputs_init = _inputs.Inputs.__init__
@@ -43,6 +42,13 @@ def _set_custom_info(self, value):
 	else:
 		_custom_info_prop.fset(self, value)
 GCodeFileInfo.custom_info = _custom_info_prop.setter(_set_custom_info)
+'''
+
+
+# ------------------------------------------------------------
+# Callback for Poll object model
+# ------------------------------------------------------------
+
 
 def handle_change(*, key, data, indices):
 	global PRINTER_STATUS
@@ -50,6 +56,7 @@ def handle_change(*, key, data, indices):
 
 	if key == 'state.status':
 		PRINTER_STATUS = data
+
 
 # ------------------------------------------------------------
 # Poll object model

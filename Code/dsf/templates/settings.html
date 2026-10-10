@@ -63,7 +63,8 @@
 					<v-switch v-model="camera.autostart" label="Auto-start" color="primary" density="compact"
 							  hide-details @update:model-value="saveAutostart(camera)"></v-switch>
 					<v-slider v-model="camera.majority_vote_threshold" :min="1" :max="20" :step="1" color="primary"
-							  thumb-label hide-details class="mt-2" @end="saveCameraSettings(camera)">
+							  thumb-label hide-details class="mt-2" @update:model-value="keepWindowAboveThreshold(camera, 'threshold')"
+							  @end="saveCameraSettings(camera)">
 						<template #prepend>
 							<span class="text-no-wrap">Vote Threshold</span>
 						</template>
@@ -72,7 +73,8 @@
 						</template>
 					</v-slider>
 					<v-slider v-model="camera.majority_vote_window" :min="1" :max="100" :step="1" color="primary"
-							  thumb-label hide-details class="mt-2" @end="saveCameraSettings(camera)">
+							  thumb-label hide-details class="mt-2" @update:model-value="keepWindowAboveThreshold(camera, 'window')"
+							  @end="saveCameraSettings(camera)">
 						<template #prepend>
 							<span class="text-no-wrap">Vote Window</span>
 						</template>
@@ -81,7 +83,8 @@
 						</template>
 					</v-slider>
 					<p class="text-body-small text-medium-emphasis mt-2">
-						A defect is raised when at least the threshold number of the last window frames show a failure.
+						A defect is raised when at least the threshold number of the last window frames show a failure,
+						so the window is never smaller than the threshold.
 					</p>
 				</v-card-text>
 			</v-card>

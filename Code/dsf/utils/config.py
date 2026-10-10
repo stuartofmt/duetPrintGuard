@@ -3,23 +3,19 @@ Nothing is run on import.
 All initialization is done through explicit function calls.
 """
 
-import json
-from logger_module import logger
 import os
-import fcntl
-import threading
 from copy import deepcopy
 
 import torch
-from platformdirs import user_data_dir
 
+from logger_module import logger
 from .model_downloader import get_model_downloader
-#from models import SavedConfig
 
-from duet_config import DUET
+from duet_config import (CAMERA_SECTION, COUNTDOWN_SECTION, DEFAULT_COUNTDOWN_SETTINGS,
+						 load_section, save_section)
 
-# Config version - increment this when the config structure changes
-CONFIG_VERSION = "1.0.0"
+# The dsf directory (holds the model files)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # The camera configuration that is accessed by other modules
 # Frequently updated and exist only in memory - not persisted to disk
@@ -52,12 +48,10 @@ DEFAULT_CAMERA_SETTINGS = {'majority_vote_window': DETECTION_VOTING_WINDOW,
 						   'autostart': AUTOSTART}
 
 #Settings that determine if a defect should be declared
-COUNTDOWN_TIME = 60
-COUNTDOWN_ACTION = 'ignore'
-COUNTDOWN_CONTROL = "any_camera"
+# alert_status is runtime state only - it is not saved, so every start begins with no active alert
 ALERT_STATUS = 'inactive'
 
-COUNTDOWN_SETTINGS = {'countdown_time': COUNTDOWN_TIME, 'countdown_action': COUNTDOWN_ACTION, 'countdown_control': COUNTDOWN_CONTROL, 'alert_status': ALERT_STATUS}
+COUNTDOWN_SETTINGS = {**DEFAULT_COUNTDOWN_SETTINGS, 'alert_status': ALERT_STATUS}
 
 # Streaming and detection parameters
 DETECTIONS_PER_SECOND = 1 #15
@@ -73,181 +67,99 @@ PRINTER_POLL_SECONDS = 10
 DEVICE_TYPE = "cuda" if (torch.cuda.is_available()) else (
 	"mps" if (torch.backends.mps.is_available()) else "cpu")
 
-def config_set_paths_and_initialize():
-	global BASE_DIR, APP_DATA_DIR, CONFIG_FILE
-
-	APP_DATA_DIR = ""
-	BASE_DIR = os.path.dirname(os.path.abspath(__name__))
-
-	# When running as a plugin use a directory within the plugin's base directory
-	# When running locally for testing we will use the platformdirs location
-	APP_DATA_DIR = user_data_dir("duetprintguard", "duetprintguard")
-	if  not APP_DATA_DIR.startswith('/home') :  # Likely running as plugin user_data_dir will not resolve
-		# So we put it where dsf has permissions
-		APP_DATA_DIR = os.path.join(BASE_DIR, '.sbc')
-	else: # used for local testing
-		logger.warning(f"Using app data directory: {APP_DATA_DIR}")
-
-	os.makedirs(APP_DATA_DIR, exist_ok=True)
-
-	CONFIG_FILE = os.path.join(APP_DATA_DIR, "config.json")
-
-	init_config()
+def _save_cameras():
+	"""Save the persisted camera settings to duetPrintGuard.json."""
+	save_section(CAMERA_SECTION, {
+		camera_uuid: {k: v for k, v in settings.items() if k in PERSISTED_CAMERA_SETTINGS}
+		for camera_uuid, settings in CAMERA_SETTINGS.items()
+	})
 
 
-def _get_config_from_file():
-	"""Load configuration from disk.
+def _save_countdown():
+	"""Save the countdown settings to duetPrintGuard.json (alert_status is runtime state and is not saved)."""
+	save_section(COUNTDOWN_SECTION, {k: v for k, v in COUNTDOWN_SETTINGS.items() if k in DEFAULT_COUNTDOWN_SETTINGS})
 
-	Returns:
-		dict or None: The JSON-loaded configuration, or None if file doesn't exist or load fails.
-	"""
-	if os.path.exists(CONFIG_FILE):
-		try:
-			with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
-				return json.load(f)
-		except Exception as e:
-			logger.error("Error loading config file: %s", e)
-	return None
 
 def add_to_config(updates: dict):
-	global CAMERA_SETTINGS, COUNTDOWN_SETTINGS, CAMERA_STATES
-	"""Thread-safe update of configuration values in the config file.
+	"""Update camera or countdown settings in memory and save them.
 
 	Args:
-		updates (dict): A mapping of config keys to their new values.
+		updates (dict): {'countdown_settings': {setting: value, ...}} or
+			{'camera_settings': {camera_uuid: {setting: value, ...}}}. Camera settings can be partial,
+			so the frontend only needs to send the settings that changed.
 	"""
+	if updates.get('countdown_settings') is not None:
+		for setting_type, value in updates['countdown_settings'].items():
+			COUNTDOWN_SETTINGS[setting_type] = value
+		_save_countdown()
 
-	config = _get_config_from_file() or {}
-	try:
-		if updates.get("countdown_settings") is not None or "countdown_settings" in updates:
-			# Countdown settings are all persisted together so we can just update the whole section
-			for setting_type, value in updates['countdown_settings'].items():				
-					config['countdown_settings'][setting_type] = value
-					COUNTDOWN_SETTINGS[setting_type] = value
+	elif updates.get('camera_settings') is not None:
+		for camera_uuid, settings in updates['camera_settings'].items():
+			if camera_uuid not in CAMERA_SETTINGS: # New camera entry
+				CAMERA_SETTINGS[camera_uuid] = deepcopy(DEFAULT_CAMERA_SETTINGS) # Precaution vs shallow copy
+				CAMERA_STATES[camera_uuid] = deepcopy(DEFAULT_CAMERA_STATE)
+			for setting_type, value in settings.items():
+				if setting_type in PERSISTED_CAMERA_SETTINGS:
+					CAMERA_SETTINGS[camera_uuid][setting_type] = value
+			logger.debug(f'{CAMERA_SETTINGS[camera_uuid]=}')
+		_save_cameras()
 
-
-		elif updates.get("camera_settings") is not None or "camera_settings" in updates:
-			# We want to allow partial updates to camera settings so we loop through
-			# the provided settings and only update the ones that are included in the request.
-			# This allows the frontend to send only the settings that were changed
-			# without needing to resend all settings for a camera.
-			for camera_uuid, settings in updates['camera_settings'].items():
-				if camera_uuid not in config['camera_settings']: # New camera entry
-					config['camera_settings'][camera_uuid] = {}
-					CAMERA_SETTINGS[camera_uuid] = deepcopy(DEFAULT_CAMERA_SETTINGS) # Precaution vs shallow copy
-					CAMERA_STATES[camera_uuid] = deepcopy(DEFAULT_CAMERA_STATE)
-				for setting_type, value in settings.items():
-						if setting_type in PERSISTED_CAMERA_SETTINGS:					
-							config['camera_settings'][camera_uuid][setting_type] = value
-							CAMERA_SETTINGS[camera_uuid][setting_type] = value
-
-				logger.debug(f'{config["camera_settings"][camera_uuid]=}')
-							
-		with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
-			json.dump(config, f, indent=2)
-	finally:
-		logger.debug(f'{config=}')
 
 def delete_from_config(updates: dict):
-	global CAMERA_SETTINGS, CAMERA_STATES
-	"""remove configuration from the config file for the specified camera.
+	"""Remove a camera's settings (saved) or state (memory only).
 
 	Args:
-		updates (dict): A mapping of config keys to their new values.
+		updates (dict): {'camera_settings': camera_uuid} and/or {'camera_states': camera_uuid}
 	"""
+	if updates.get('camera_settings') is not None:
+		CAMERA_SETTINGS.pop(updates['camera_settings'], None)
+		_save_cameras()
 
-	config = _get_config_from_file() or {}
-	try:
-		if updates.get("camera_settings") is not None or "camera_settings" in updates:
-			# camera settings are persisted in config file so we need to remove the entry for the specified camera and then rewrite the config file.
-			# We also remove it from the in memory CAMERA_SETTINGS so that it is consistent with what is persisted.
-			config['camera_settings'].pop(updates['camera_settings'], None)
-			CAMERA_SETTINGS.pop(updates['camera_settings'], None)
+	if updates.get('camera_states') is not None:
+		# CAMERA_STATES are not persisted
+		CAMERA_STATES.pop(updates['camera_states'], None)
 
-			with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
-				json.dump(config, f, indent=2)
 
-		if updates.get("camera_states") is not None or "camera_states" in updates:
-			# CAMERA_STATES are not persisted to config file
-			CAMERA_STATES.pop(updates['camera_states'], None)
+def _fix_vote_settings(camera_settings):
+	"""Raise any majority vote window that is smaller than its threshold, which could never be met.
 
-	finally:
-		logger.debug(f'{config=}')
+	Returns True if a camera was changed.
+	"""
+	changed = False
+	for settings in camera_settings.values():
+		threshold = settings.get('majority_vote_threshold', DETECTION_VOTING_THRESHOLD)
+		window = settings.get('majority_vote_window', DETECTION_VOTING_WINDOW)
+		if window < threshold:
+			logger.warning(
+				"Camera %s: majority vote window %s is smaller than the threshold %s - setting the window to %s",
+				settings.get('nickname', '?'), window, threshold, threshold)
+			settings['majority_vote_window'] = threshold
+			changed = True
+	return changed
 
 
 def init_config():
-	global CAMERA_STATES, CAMERA_SETTINGS, COUNTDOWN_SETTINGS
-	"""Initialize the configuration file with default keys if missing.
-	
-	Checks if the config file exists and has the correct version.
-	also checks if cameras have been defined
-	If not creates defaults .
+	"""Load the camera and countdown settings from duetPrintGuard.json into memory.
+
+	duet_config.get_DWC_config() must have run first - it creates the file (with no cameras) if needed.
+	The dicts are updated in place so modules that imported them see the loaded values.
 	"""
+	CAMERA_SETTINGS.clear()
+	CAMERA_SETTINGS.update(load_section(CAMERA_SECTION))
+	if _fix_vote_settings(CAMERA_SETTINGS):
+		_save_cameras()
 
-	try:
-		config_needs_reset = False
-		if os.path.exists(CONFIG_FILE):
-			try:
+	COUNTDOWN_SETTINGS.clear()
+	COUNTDOWN_SETTINGS.update(load_section(COUNTDOWN_SECTION))
+	COUNTDOWN_SETTINGS['alert_status'] = ALERT_STATUS
 
-				existing_config = _get_config_from_file()
-				if existing_config is None:
-					logger.info("Config file is corrupted or empty, recreating")
-					config_needs_reset = True
+	CAMERA_STATES.clear()
+	for camera_uuid in CAMERA_SETTINGS:
+		CAMERA_STATES[camera_uuid] = deepcopy(DEFAULT_CAMERA_STATE)
 
-				config_version = existing_config['version']
-				if config_version != CONFIG_VERSION:
-					logger.info(
-						"Config version mismatch (config: %s, expected: %s), recreating config",
-						config_version, CONFIG_VERSION)
-					config_needs_reset = True
+	logger.info(f'Loaded {len(CAMERA_SETTINGS)} camera(s) from the configuration')
+	logger.debug(f'{CAMERA_SETTINGS=} {COUNTDOWN_SETTINGS=}')
 
-				if 'countdown_settings' not in existing_config: # Should be there after first successful setup but just in case
-					logger.info("No COUNTDOWN_SETTINGS in config, recreating")
-					config_needs_reset = True
-			except Exception as e:
-				logger.warning("Error reading config file: %s, recreating", e)
-				config_needs_reset = True
-		else: # Config file doesn't exist, will be created with defaults
-			config_needs_reset = True
-
-		if config_needs_reset:
-			reset_config()
-	finally:
-		#SRS - on first start of each application run - reset globals
-
-		startup_config = _get_config_from_file()
-		CAMERA_SETTINGS = startup_config.get('camera_settings', {})
-		countdown_settings = startup_config.get('countdown_settings')
-		if countdown_settings is not None:
-			COUNTDOWN_SETTINGS.clear()
-			COUNTDOWN_SETTINGS.update(countdown_settings)
-		for camera_uuid,_ in CAMERA_SETTINGS.items():
-			CAMERA_STATES[camera_uuid] = deepcopy(DEFAULT_CAMERA_STATE)
-				
-		logger.debug('Starting with configuration')
-		logger.debug(f'{startup_config=}')
-
-
-def reset_config():
-	"""Reset the configuration file to default values.
-
-	"""
-	try:
-		if os.path.exists(CONFIG_FILE):
-			os.remove(CONFIG_FILE)
-			logger.info("Deleted old config file")
-
-		default_config = {
-			'version': CONFIG_VERSION,
-			'camera_settings': CAMERA_SETTINGS,
-			'countdown_settings': COUNTDOWN_SETTINGS,
-		}
-		with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
-			json.dump(default_config, f, indent=2)
-		logger.info(f'Created new config file with version {CONFIG_VERSION} at {CONFIG_FILE}')
-		logger.debug(f'{default_config=}')
-	except Exception as e:
-		logger.error(f"Error resetting config file: {e}")
 
 def get_model_path() -> str:
 	"""Get the model path for the detected backend."""

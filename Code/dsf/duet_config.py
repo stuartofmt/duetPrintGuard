@@ -1,16 +1,20 @@
 """
 Application configuration for duetPrintGuard
 
-Settings are held in duetPrintGuard.json (in the plugin's dsf directory)
-and are edited through the /config web page.
+All settings are held in duetPrintGuard.json (in the plugin's dsf directory):
+- the sections in CONFIG_SCHEMA, edited through the /config web page
+- camera_settings and countdown_settings, edited through the /settings web page
+  (held in memory by utils/config.py, which loads and saves them through this module)
+
 No config file is required - if there is no json file, one is created
-from the defaults on startup.
+from the defaults (with no cameras) on startup.
 
 The section objects (DUET, UI, etc.) are created on import and are only
 ever updated in place, so modules that import them see live changes.
 """
 import json
 import os
+import threading
 
 global DUET, UI, LOGGING, ACTION, MACRO, NTFY, PUSHOVER
 
@@ -53,6 +57,11 @@ CONFIG_SCHEMA = {
 # Set by the program at startup - not shown on, or editable from, the config page
 HIDDEN_SETTINGS = {('UI', 'IP')}
 
+# Sections managed by utils/config.py (cameras and the defect countdown)
+CAMERA_SECTION = 'camera_settings'
+COUNTDOWN_SECTION = 'countdown_settings'
+DEFAULT_COUNTDOWN_SETTINGS = {'countdown_time': 60, 'countdown_action': 'ignore', 'countdown_control': 'any_camera'}
+
 LOG_LEVELS = ['WARNING', 'INFO', 'DEBUG']
 
 
@@ -66,6 +75,8 @@ _SECTIONS = {'UI': UI, 'LOGGING': LOGGING, 'ACTION': ACTION,
 
 _config_file = None
 _logger = None
+# Every read-modify-write of the file holds this, so a camera change and a config page save can't overwrite each other
+_lock = threading.RLock()
 
 
 def _convert(value, value_type):
@@ -101,12 +112,22 @@ def _validate(section, key, value):
 
 
 def _defaults():
-	return {section: {key: spec[1] for key, spec in keys.items()}
-			for section, keys in CONFIG_SCHEMA.items()}
+	config = {section: {key: spec[1] for key, spec in keys.items()}
+			  for section, keys in CONFIG_SCHEMA.items()}
+	config[CAMERA_SECTION] = {}
+	config[COUNTDOWN_SECTION] = dict(DEFAULT_COUNTDOWN_SETTINGS)
+	return config
 
 
 def _merge(target, source):
 	"""Merge known, valid settings from source into target. Invalid values are logged and ignored."""
+	cameras = source.get(CAMERA_SECTION)
+	if isinstance(cameras, dict):
+		target[CAMERA_SECTION] = {uuid: settings for uuid, settings in cameras.items() if isinstance(settings, dict)}
+	countdown = source.get(COUNTDOWN_SECTION)
+	if isinstance(countdown, dict):
+		target[COUNTDOWN_SECTION].update({k: v for k, v in countdown.items() if k in DEFAULT_COUNTDOWN_SETTINGS})
+
 	for section, keys in CONFIG_SCHEMA.items():
 		values = {k.upper(): v for k, v in (source.get(section) or {}).items()}
 		for key, (value_type, _, _) in keys.items():
@@ -121,28 +142,43 @@ def _merge(target, source):
 
 
 def _save(config):
-	tmp_file = _config_file + '.tmp'
-	with open(tmp_file, 'w', encoding='utf-8') as f:
-		json.dump(config, f, indent=2)
-	os.replace(tmp_file, _config_file)
+	with _lock:
+		tmp_file = _config_file + '.tmp'
+		with open(tmp_file, 'w', encoding='utf-8') as f:
+			json.dump(config, f, indent=2)
+		os.replace(tmp_file, _config_file)
 
 
 def _apply(config):
 	"""Update the section objects in place so existing imports see the new values."""
-	for section, values in config.items():
-		for key, value in values.items():
+	for section in CONFIG_SCHEMA:
+		for key, value in config[section].items():
 			setattr(_SECTIONS[section], key, value)
 
 
 def _load():
 	config = _defaults()
-	if os.path.exists(_config_file):
-		try:
-			with open(_config_file, 'r', encoding='utf-8') as f:
-				_merge(config, json.load(f))
-		except (OSError, json.JSONDecodeError) as e:
-			_logger.error(f'Could not read {_config_file} - using defaults: {e}')
+	with _lock:
+		if os.path.exists(_config_file):
+			try:
+				with open(_config_file, 'r', encoding='utf-8') as f:
+					_merge(config, json.load(f))
+			except (OSError, json.JSONDecodeError) as e:
+				_logger.error(f'Could not read {_config_file} - using defaults: {e}')
 	return config
+
+
+def load_section(name):
+	"""Return one of the sections managed by utils/config.py (CAMERA_SECTION or COUNTDOWN_SECTION)."""
+	return _load()[name]
+
+
+def save_section(name, value):
+	"""Replace one of the sections managed by utils/config.py and save the file."""
+	with _lock:
+		config = _load()
+		config[name] = value
+		_save(config)
 
 
 def get_DWC_config(file_path, logger):
@@ -170,17 +206,23 @@ def get_DWC_config(file_path, logger):
 
 
 def save_ui_address(ip, port):
-	"""Record the ip and port actually in use, saving them if they differ from the config file."""
+	"""Record the ip and port actually in use, saving the ip if it differs from the config file.
+
+	The port is not saved: the configured value stays as the user set it, so 0 keeps picking a free
+	port at each startup, and a busy configured port is tried again next time. The config page shows
+	the port in use separately (ui_port_in_use).
+	"""
 	UI.IP, UI.PORT = ip, port
-	config = _load()
-	if config['UI']['IP'] == ip and config['UI']['PORT'] == port:
-		return
-	config['UI']['IP'], config['UI']['PORT'] = ip, port
-	try:
-		_save(config)
-		_logger.info(f'Saved UI address {ip}:{port} to {_config_file}')
-	except OSError as e:
-		_logger.error(f'Could not save {_config_file}: {e}')
+	with _lock:
+		config = _load()
+		if config['UI']['IP'] == ip:
+			return
+		config['UI']['IP'] = ip
+		try:
+			_save(config)
+			_logger.info(f'Saved UI address {ip} to {_config_file}')
+		except OSError as e:
+			_logger.error(f'Could not save {_config_file}: {e}')
 
 
 def get_config_for_ui():
@@ -208,6 +250,11 @@ def update_config(updates):
 
 	Returns (errors, restart_keys). Nothing is saved if there are errors.
 	"""
+	with _lock:
+		return _update_config(updates)
+
+
+def _update_config(updates):
 	config = _load()
 	errors = {}
 	restart_keys = []

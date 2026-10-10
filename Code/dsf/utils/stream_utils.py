@@ -535,6 +535,34 @@ async def _live_detection_loop(app_state, camera_uuid):
 		CAMERA_STATES[camera_uuid]["live_detection_running"] = 'no'
 
 	
+def default_notification_text(camera_name):
+	"""Title and message sent when no ntfy / Pushover title or message is configured.
+
+	Also shown on the config page as the placeholder for those fields.
+	"""
+	if COUNTDOWN_SETTINGS['countdown_control'] == 'all_cameras':
+		title_msg = "duetPrintguard: All cameras"
+	else:
+		title_msg = f"duetPrintguard: {camera_name}"
+
+	countdown_time = COUNTDOWN_SETTINGS['countdown_time']
+	action = COUNTDOWN_SETTINGS['countdown_action']
+	if countdown_time <= 0: # The action is taken straight away
+		if action == 'pause_print':
+			action_msg = "Print has been paused."
+		elif action == 'cancel_print':
+			action_msg = "Print has been cancelled."
+		else:
+			action_msg = "Alert has been dismissed automatically."
+	elif action == 'pause_print':
+		action_msg = f"Print will be paused if not dismissed within {countdown_time} seconds."
+	elif action == 'cancel_print':
+		action_msg = f"Print will be cancelled if not dismissed within {countdown_time} seconds."
+	else:
+		action_msg = f"Alert will be dismissed automatically in {countdown_time} seconds if not dismissed manually."
+	return title_msg, action_msg
+
+
 def send_defect_notification(camera_uuid):
 
 	#if COUNTDOWN_SETTINGS['alert_status'] != 'inactive': # don't send if in countdown
@@ -543,18 +571,7 @@ def send_defect_notification(camera_uuid):
 	COUNTDOWN_SETTINGS['alert_status'] = 'active'
 	logger.debug("Attempting to send defect notification")
 
-	if COUNTDOWN_SETTINGS['countdown_control'] == 'all_cameras':
-		title_msg = f"duetPrintguard: All cameras"
-	else:
-		title_msg = f"duetPrintguard: {CAMERA_SETTINGS[camera_uuid]['nickname']}"
-
-	if COUNTDOWN_SETTINGS['countdown_action'] == 'pause_print':
-		action_msg = f"Print will be paused if not dismissed within {COUNTDOWN_SETTINGS['countdown_time']} seconds."
-	elif COUNTDOWN_SETTINGS['countdown_action'] == 'cancel_print':
-		action_msg = f"Print will be cancelled if not dismissed within {COUNTDOWN_SETTINGS['countdown_time']} seconds."
-	else:
-		action_msg = f"Alert will be dismissed automatically in {COUNTDOWN_SETTINGS['countdown_time']} seconds if not dismissed manually."
-
+	title_msg, action_msg = default_notification_text(CAMERA_SETTINGS[camera_uuid]['nickname'])
 	notification = {'title': title_msg,'body': action_msg}
 
 	if duet_send_notification(notification):

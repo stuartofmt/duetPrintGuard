@@ -33,7 +33,7 @@ from utils.config import (
 from duet_config import get_config_for_ui, update_config
 from utils.shared_video_stream import get_shared_stream_manager
 from utils.mjpeg_source import is_http_source, fetch_snapshot_bytes, stream_mjpeg
-from utils.stream_utils import UI_countdown, start_live_detection, stop_live_detection, save_app_state_request, create_optimized_frame_generator
+from utils.stream_utils import UI_countdown, default_notification_text, start_live_detection, stop_live_detection, save_app_state_request, create_optimized_frame_generator
 
 router = APIRouter()
 
@@ -142,7 +142,11 @@ async def serve_config(request: Request):
 @router.get("/config/get-app-config", include_in_schema=False)
 async def get_app_config():
 	"""Get the application configuration (secrets are not returned)."""
-	return get_config_for_ui()
+	config = get_config_for_ui()
+	# What is sent when the ntfy / Pushover title or message is left blank
+	title, message = default_notification_text('<camera nickname>')
+	config['default_notification'] = {'title': title, 'message': message}
+	return config
 
 
 @router.post("/config/save-app-config", include_in_schema=False)
@@ -198,6 +202,9 @@ async def update_settings(request: Request,
 						  majority_vote_window: int = Form(...)
 						  ):
 	"""Update camera settings from the settings page."""
+	# A defect needs at least threshold failures within the window, so a smaller window could never trigger
+	if majority_vote_window < majority_vote_threshold:
+		raise HTTPException(status_code=400, detail="Majority vote window must be at least the threshold.")
 	add_to_config({'camera_settings': {camera_uuid: {
 		# "sensitivity": sensitivity,
 		# "brightness": brightness,

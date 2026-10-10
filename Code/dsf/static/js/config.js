@@ -3,6 +3,9 @@
 // =========================
 const { reactive, ref, onMounted } = Vue;
 
+// Blank ntfy / Pushover titles and messages use the system text, shown as the placeholder
+const SYSTEM_DEFAULT_HINT = 'Leave blank to use the system text shown, which follows the camera and countdown settings.';
+
 // Field names are SECTION.KEY, matching /config/get-app-config and /config/save-app-config
 const sections = [
 	{
@@ -40,8 +43,8 @@ const sections = [
 		link: 'https://docs.ntfy.sh/publish/#message-priority',
 		fields: [
 			{ name: 'NTFY.TOPIC', label: 'Topic', hint: 'The ntfy topic you subscribe to. Required to send ntfy alerts.' },
-			{ name: 'NTFY.TITLE', label: 'Title', placeholder: 'System title' },
-			{ name: 'NTFY.MESSAGE', label: 'Message', placeholder: 'System message' },
+			{ name: 'NTFY.TITLE', label: 'Title', systemDefault: 'title', hint: SYSTEM_DEFAULT_HINT },
+			{ name: 'NTFY.MESSAGE', label: 'Message', systemDefault: 'message', hint: SYSTEM_DEFAULT_HINT },
 			{ name: 'NTFY.PRIORITY', label: 'Priority', type: 'number', min: 1, max: 5 },
 			{ name: 'NTFY.MAXTIMES', label: 'Maximum Times', type: 'number', min: 0 }
 		]
@@ -52,8 +55,8 @@ const sections = [
 		fields: [
 			{ name: 'PUSHOVER.API', label: 'API Token' },
 			{ name: 'PUSHOVER.USER', label: 'User / Group Key' },
-			{ name: 'PUSHOVER.TITLE', label: 'Title', placeholder: 'System title' },
-			{ name: 'PUSHOVER.MESSAGE', label: 'Message', placeholder: 'System message' },
+			{ name: 'PUSHOVER.TITLE', label: 'Title', systemDefault: 'title', hint: SYSTEM_DEFAULT_HINT },
+			{ name: 'PUSHOVER.MESSAGE', label: 'Message', systemDefault: 'message', hint: SYSTEM_DEFAULT_HINT },
 			{ name: 'PUSHOVER.MAXTIMES', label: 'Maximum Times', type: 'number', min: 0 }
 		]
 	}
@@ -92,6 +95,7 @@ PG.mount({
 					if (!setting) continue;
 					values[field.name] = setting.value;
 					placeholders[field.name] = field.placeholder
+						|| (field.systemDefault && data.default_notification?.[field.systemDefault])
 						|| (setting.default !== '' && setting.default !== undefined ? String(setting.default) : '');
 				}
 
