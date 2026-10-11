@@ -5,9 +5,7 @@ Sends actions to duet printer and calls the configuration service
 import time
 import requests
 import json
-import time
 import threading
-import asyncio
 
 from logger_module import logger
 from duet_config import ACTION, MACRO, NTFY, PUSHOVER
@@ -21,29 +19,6 @@ global PRINTER_STATUS
 PRINTER_STATUS = 'idle' # Default state is idle
 
 from dsf.connections import SubscribeConnection, SubscriptionMode, CommandConnection
-from dsf.object_model.inputs import inputs as _inputs
-from dsf.object_model.job.gcode_fileinfo import GCodeFileInfo
-
-'''
-# Workaround: dsf-python 3.7.0b1 rejects null entries in the inputs collection,
-# but DSF reports unused input channels as null
-_orig_inputs_init = _inputs.Inputs.__init__
-def _inputs_init(self):
-	_orig_inputs_init(self)
-	self._allow_none = True
-_inputs.Inputs.__init__ = _inputs_init
-
-# Workaround: dsf-python 3.7.0b1 declares job.file.customInfo as non-nullable,
-# but DSF patches it to null when there is no job file. Treat null as "clear"
-_custom_info_prop = GCodeFileInfo.custom_info
-def _set_custom_info(self, value):
-	if value is None:
-		self.custom_info.clear()
-	else:
-		_custom_info_prop.fset(self, value)
-GCodeFileInfo.custom_info = _custom_info_prop.setter(_set_custom_info)
-'''
-
 
 # ------------------------------------------------------------
 # Callback for Poll object model
@@ -65,34 +40,50 @@ def handle_change(*, key, data, indices):
 subscription = SubscribeConnection(SubscriptionMode.PATCH)
 subscription.connect()
 object_model = subscription.get_object_model()
+# handle_change only sees later changes, so start from the current status (e.g. started mid-print)
+PRINTER_STATUS = getattr(object_model.state.status, 'value', object_model.state.status)
 
+# get_object_model() applies the patches DSF has queued (without blocking) and runs handle_change.
+# It is called from several threads, so it is serialised.
+_object_model_lock = threading.Lock()
 
 unsubscribe = subscription.subscribe_to_keys(
 	["state.status"],
 	handle_change,
 )
 
-async def duetStatus():
+
+def _refresh_object_model():
+	with _object_model_lock:
+		return subscription.get_object_model()
+
+
+def _drain_object_model():
+	"""Keep applying patches so they do not pile up between status checks."""
 	while True:
-		logger.debug('Checking object model')
-		object_model = subscription.get_object_model()
-		await asyncio.sleep(5)
+		try:
+			_refresh_object_model()
+		except Exception as e:
+			logger.warning(f'Could not update the printer object model: {e}')
+		time.sleep(1)
 
 # ------------------------------------------------------------
 # Send Gcode command
 # ------------------------------------------------------------
 
 def _send_duet_code(command):
-    command_connection = CommandConnection(debug=True)
-    command_connection.connect()
-
-    try:
-        # res = command_connection.set_plugin_data("ExecOnMcode", "test", "1")
-        # Perform a simple command and wait for its output
-        res = command_connection.perform_simple_code("command")
-        print(f'Response from {command} was: {res}')
-    finally:
-        command_connection.close()
+	"""Send a G/M-code to the printer and return its reply ('' if it could not be sent)."""
+	command_connection = CommandConnection()
+	try:
+		command_connection.connect()
+		res = command_connection.perform_simple_code(command)
+		logger.debug(f'Response from {command} was: {res}')
+		return res
+	except Exception as e:
+		logger.error(f'Could not send {command} to the printer: {e}')
+		return ''
+	finally:
+		command_connection.close()
 
 def _urlCall(url, cmd, post):
 	# If post is True then make a http post call
@@ -157,12 +148,12 @@ def publish_ui_address(ip, port):
 
 
 def _loginPrinter():
-    logger.info('Logging in')
-    object_model = subscription.get_object_model()
-    if object_model.state.status.value == 'disconnected':
-        return False
-    threading.Thread(target=lambda: asyncio.run(duetStatus()), daemon=True).start()
-    return True
+	logger.info('Logging in')
+	object_model = _refresh_object_model()
+	if object_model.state.status.value == 'disconnected':
+		return False
+	threading.Thread(target=_drain_object_model, daemon=True).start()
+	return True
 
 		
 def _duet_pause():
@@ -203,47 +194,57 @@ def duet_send_notification(alert):
 	_send_pushover(alert)
 	return True
 
+# How long to wait for the printer to reach a state after a pause / resume (e.g. finishing the current move)
+STATUS_WAIT_SECONDS = 60
+
+
 def get_duet_printer_status():
+	"""Return the printer status (e.g. 'idle', 'processing', 'paused'), applying any queued changes first."""
+	try:
+		_refresh_object_model()
+	except Exception as e:
+		logger.warning(f'Could not update the printer status: {e}')
 	return PRINTER_STATUS
 
 
+def _wait_for_status(wanted, timeout=STATUS_WAIT_SECONDS):
+	"""Wait until the printer reports the wanted status. Returns False if it does not within timeout."""
+	deadline = time.time() + timeout
+	while time.time() < deadline:
+		if get_duet_printer_status() == wanted:
+			return True
+		time.sleep(0.5)
+	logger.warning(f'Printer did not reach "{wanted}" within {timeout} seconds (status is "{PRINTER_STATUS}")')
+	return False
+
+
 def suspend_print_job(action):
-	global PRINTER_STATUS	
-	# Use of PRINTER_STATUS is to account for request from more than one camera
-	# Do not want to send multiple commands of the same type
-	# Need to allow for cancellation of request from one or other camera
-	# States are 'idle' ==> 'processing' ==> 'paused' ==> 'cancelled' after which no more commands sent
-	# or 'idle' ==> 'processing' ==> 'paused' ==> resumed ==> 'cancelled' ==> 'idle'
+	"""Pause, resume or cancel the print. Blocking - call it from a thread (asyncio.to_thread).
 
-	get_duet_printer_status() # Updates PRINTER_STATUS
-	if action  == 'pause_print':
-		if PRINTER_STATUS  == 'processing':
+	Commands are only sent if the printer is in the right state, so requests from more than
+	one camera (or the UI) do not send the same command twice.
+	"""
+	status = get_duet_printer_status()
+	if action == 'pause_print':
+		if status == 'processing':
 			_duet_pause()
-			_send_duet_code(f'''M291 S1 T0 P"Paused Printing"''')
-			# There is possibility of UI calling get_duet_status
-			# which changes PRINTER_STATUS before we get here
-			while PRINTER_STATUS != 'paused':
-				PRINTER_STATUS = get_duet_printer_status() or 'paused' # get_duet_printer_status returns false if disconnected
+			_send_duet_code('''M291 S1 T0 P"Paused Printing"''')
+			_wait_for_status('paused')
 
-	elif action  == 'resume_print':
-		if PRINTER_STATUS  == 'paused':
+	elif action == 'resume_print':
+		if status == 'paused':
 			_duet_resume()
-			_send_duet_code(f'''M291 S1 T0 P"Resumed Printing"''')
-			while PRINTER_STATUS != 'processing':
-				PRINTER_STATUS = get_duet_printer_status() or 'processing'
+			_send_duet_code('''M291 S1 T0 P"Resumed Printing"''')
+			_wait_for_status('processing')
 
-	elif action  == 'cancel_print':
-		if PRINTER_STATUS =='processing': # pause the printer first
+	elif action == 'cancel_print':
+		if status == 'processing': # A print must be paused before it can be cancelled
 			_duet_pause()
-			while PRINTER_STATUS != 'paused':
-				PRINTER_STATUS = get_duet_printer_status() or 'paused'
-
-		if PRINTER_STATUS =='paused':
+			if _wait_for_status('paused'):
+				status = 'paused'
+		if status == 'paused':
 			_duet_cancel()
-			_send_duet_code(f'''M291 S1 T0 P"Cancelled Printing"''')
-			# Actual printer status will go to 'idle'
-			# but we set to cancelled to stop any more commands being sent
-			PRINTER_STATUS = 'cancelled' 
+			_send_duet_code('''M291 S1 T0 P"Cancelled Printing"''')
 	else:
 		logger.critical(f'Unknown action {action}')
 
@@ -271,7 +272,6 @@ def _send_macro(alert):
 
 def _send_ntfy(alert):
 	global NTFY_TIMES
-	print(f'{NTFY_TIMES=}')
 	try:
 		if NTFY.TOPIC != '': # OK to send
 			if NTFY_TIMES < NTFY.MAXTIMES:		

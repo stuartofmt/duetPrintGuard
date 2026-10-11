@@ -2,7 +2,7 @@
     "id": "duetPrintGuard",
     "name": "duetPrintGuard",
     "author": "Stuartofmt",
-    "version": "0.2.1",
+    "version": "0.3.0",
     "license": "GPL-2.0-or-later",
     "homepage": "https://github.com/stuartofmt/duetPrintGuard",
 	"sbcRequired": true,
@@ -11,7 +11,7 @@
 	"sbcExecutable": "/opt/dsf/plugins/duetPrintGuard/dsf/duetPrintGuard.py",
 	"sbcExecutableArguments": "/opt/dsf/sd/sys/duetPrintGuard",
 	"sbcOutputRedirected": false,
-	"sbcPermissions": ["commandExecution", "objectModelReadWrite", "networkAccess", "webcamAccess", "fileSystemAccess","launchProcesses", "manageUserSessions"],
+	"sbcPermissions": ["commandExecution", "objectModelReadWrite", "networkAccess", "fileSystemAccess"],
 	"sbcPythonDependencies": ["requirements.txt"],
 	"data": {"ip": "", "port": 0}
  }

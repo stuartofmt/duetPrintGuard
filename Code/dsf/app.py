@@ -1,10 +1,8 @@
 
 import asyncio
-import threading
 from logger_module import logger
 import os
 from contextlib import asynccontextmanager
-import time
 import json
 
 
@@ -21,8 +19,9 @@ from utils.config import (get_prototypes_dir,
 						   get_model_path, get_model_options_path,
 						init_config,DEVICE_TYPE, SUCCESS_LABEL, PRINTER_POLL_SECONDS)
 
-global autostart_running
-autostart_running = threading.Event()
+# The autostart monitor - a task in uvicorn's event loop, so the detection it starts shares that loop
+# (and the SSE connections) with the rest of the app
+_autostart_task = None
 
 
 class RevalidatedStaticFiles(StaticFiles):
@@ -80,9 +79,9 @@ def init_routes_and_modules():
 				app_instance.state.defect_idx = defect_idx
 				logger.debug("Prototypes built successfully.")
 			except NameError:
-				logger.warning("Skipping prototype building.")
+				logger.error("Skipping prototype building - detection will not work.")
 			except ValueError as e:
-				logger.error("Error building prototypes: %s", e)
+				logger.error("Error building prototypes - detection will not work: %s", e)
 		except RuntimeError as e:
 			logger.error("Error during startup: %s", e)
 			app_instance.state.model = None
@@ -165,80 +164,68 @@ def activate_autostart_detection(Enable):
 	'''
 	If one or more cameras have autostart enabled the start the background poll
 	polling stops after the printer goes from processing to idle
-	so this needs to be called to reset autostart 
+	so this needs to be called to reset autostart.
+	Must be called from the event loop (e.g. a route handler).
 	'''
-	global autostart_running
-	if not Enable: # Stop the thread if its running
-		if autostart_running.is_set(): # stop the thread
+	global _autostart_task
+	running = _autostart_task is not None and not _autostart_task.done()
+	if not Enable: # Stop monitoring - detection that autostart has started keeps running
+		if running:
 			logger.debug('Autostart will be restarted')
-			autostart_running.clear() # This will allow the thread to stop
+			_autostart_task.cancel()
 		return
-	
-	if Enable:
-		if autostart_running.is_set(): #Already running
-			return
-	# Need to start the thread
+
+	if running: #Already running
+		return
+
 	from utils.config import CAMERA_SETTINGS # Need to import CAMERA_SETTINGS here to ensure it is initialized before use
 
 	autostartCameras = {k:v for k,v in CAMERA_SETTINGS.items() if v.get('autostart', False)}
 	if not autostartCameras:
 		logger.info('Autostart not required')
 		return
-	
-	def _run_autostart(cameras, app_state):
-		try:
-			asyncio.run(autostart_detection(cameras, app_state))
-		except Exception as e:
-			logger.error("Autostart detection background task failed: %s", e)
-	logger.info('Starting Autostart')
 
-	autostart_running.set() # Mark the thread as started
-	threading.Thread(target=_run_autostart, args=(autostartCameras, app.state,), daemon=True).start()
-	
+	logger.info('Starting Autostart')
+	_autostart_task = asyncio.get_running_loop().create_task(autostart_detection(autostartCameras, app.state))
+
 
 async def autostart_detection(cameras, app_state):
 	# Start detection when printer is processing
 	# Stops detection when printer goes to idle after processing
-	# Thread exits after idle state
-
+	# Finishes after idle state (or when cancelled by activate_autostart_detection(False))
 
 	from duet_printer import get_duet_printer_status
 	from utils.stream_utils import start_live_detection, stop_live_detection,save_app_state_request
 
-	global autostart_running
-
 	autostart_pending = True
-	monitoring = True
-	
+
 	await send_autostart_running(True)
-	while monitoring:
-		logger.debug(f'Waiting for printer before autostarting detection loop for cameras: {list(cameras.keys())}')
-		printer_status = get_duet_printer_status()
-		if printer_status == 'processing' and autostart_pending:
-			try:
-				logger.info(f'Autostarting detection loop for cameras: {list(cameras.keys())}')
-				for camera_uuid in cameras.keys():
-					save_app_state_request(app_state)
-					await start_live_detection(camera_uuid)
-				autostart_pending = False
-			except Exception as e:
-				logger.error(f'Error auto starting detection loop for cameras: {list(cameras.keys())}: {e}')
-		elif printer_status == 'idle' and not autostart_pending:
-			try:
+	try:
+		while True:
+			logger.debug(f'Waiting for printer before autostarting detection loop for cameras: {list(cameras.keys())}')
+			printer_status = await asyncio.to_thread(get_duet_printer_status)
+			if printer_status == 'processing' and autostart_pending:
+				try:
+					logger.info(f'Autostarting detection loop for cameras: {list(cameras.keys())}')
+					for camera_uuid in cameras.keys():
+						save_app_state_request(app_state)
+						await start_live_detection(camera_uuid)
+					autostart_pending = False
+				except Exception as e:
+					logger.error(f'Error auto starting detection loop for cameras: {list(cameras.keys())}: {e}')
+			elif printer_status == 'idle' and not autostart_pending:
+				try:
 					logger.debug(f'Autostopping detection loop for cameras: {list(cameras.keys())} as printer is not processing')
 					for camera_uuid in cameras.keys():
 						await stop_live_detection(camera_uuid)
-			except Exception as e:
-				logger.error(f'Error auto stopping detection loop for cameras: {list(cameras.keys())}: {e}')
-			finally:
-				monitoring = False
+				except Exception as e:
+					logger.error(f'Error auto stopping detection loop for cameras: {list(cameras.keys())}: {e}')
+				break
 
-		await asyncio.sleep(PRINTER_POLL_SECONDS)  # No need to poll to quickly
-		if not autostart_running.is_set():
-			break
-	await send_autostart_running(False)
-	autostart_running.clear() #Mark thread as finished
-	logger.info('Autostart Stopped')
+			await asyncio.sleep(PRINTER_POLL_SECONDS)  # No need to poll to quickly
+	finally:
+		await send_autostart_running(False)
+		logger.info('Autostart Stopped')
 
 async def send_autostart_running(state):
 	"""Send a direct autostart state SSE event to the browser.
@@ -290,6 +277,9 @@ def appstartup():
 	uvicorn.run(app,
 				host=UI.HOST,
 				port=port,
-				log_config=None
+				log_config=None,
+				# SSE and stream connections never finish on their own - without this, shutdown
+				# waits for them forever and DSF has to kill the plugin
+				timeout_graceful_shutdown=2
 				)
 		# At this point we swtch to uvicorn world and never return until done

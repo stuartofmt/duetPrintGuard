@@ -1,7 +1,7 @@
 <!--
 Displays an iFrame that is linked to the duetPrintGuard html Display
 Polls the status of the sbcPlugin and displays a message if the sbcPlugin is terminated
-Stops polling once the plugin has been detected as stopped
+Keeps polling, and shows the page again when the plugin is restarted
 Adds ?mobile=true to the iframe URL when accessed from a mobile device
 Passes DWC's theme to the page: ?theme=dark|light in the URL, then the live theme colours by postMessage
 -->
@@ -159,15 +159,19 @@ const stopPolling = () => {
 
 const checkRunning = () => {
 	if (isRunning()) {
-		updateUrl();
+		if (pluginStopped.value) {
+			console.info(`${pluginName} plugin is running again`);
+			pluginStopped.value = false; // The iframe is recreated, which loads the page
+		}
+		updateUrl(); // The port may have changed on restart
 		return;
 	}
 
-	console.warn(`${pluginName} plugin is no longer running`);
-
-	// Stop polling because the plugin has stopped and replace the iframe with the stopped message
-	stopPolling();
-	pluginStopped.value = true;
+	if (!pluginStopped.value) {
+		console.warn(`${pluginName} plugin is no longer running`);
+		// Replace the iframe with the stopped message - polling continues so a restart is noticed
+		pluginStopped.value = true;
+	}
 };
 
 onMounted(() => {

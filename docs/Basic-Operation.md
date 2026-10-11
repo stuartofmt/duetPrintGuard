@@ -73,7 +73,7 @@ Pressing `Pause`, `Cancel` or `Ignore` during the countdown stops the countdown 
 If the user does nothing within the configured `Countdown Time` - the `Countdown Action` will be sent to the printer as follows:
 
 - Ignore - does nothing
-- Pause - pauses the printer, stops detection, and changes the `Pause` button to `Resume`. Resuming the print restarts detection.
+- Pause - pauses the printer, stops detection (the cameras show `Paused`), and changes the `Pause` button to `Resume`. Resuming the print restarts detection.
 - Cancel - cancels the print job and stops detection
  
 

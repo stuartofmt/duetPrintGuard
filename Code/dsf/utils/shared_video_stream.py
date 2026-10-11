@@ -10,6 +10,8 @@ from .config import (CAMERA_SETTINGS,CAMERA_STATES,COUNTDOWN_SETTINGS)
 
 # Stop capturing if nothing has asked for a frame for this long - restarted on demand
 IDLE_TIMEOUT_SECONDS = 30
+# A frame older than this means the camera has stopped sending (e.g. a frozen RTSP feed)
+STALE_FRAME_SECONDS = 10
 OPEN_TIMEOUT_MSEC = 5000
 READ_TIMEOUT_MSEC = 5000
 
@@ -60,22 +62,6 @@ class SharedVideoStream:
             source = self.source
             # Build a list of candidate source representations to try opening.
             attempts = [source]
-            # V4L (/dev/videoN) and device index cameras disabled
-            # attempts = []
-            # if isinstance(source, str):
-            #     if source.isdigit():
-            #         attempts.append(int(source))
-            #     # handle Linux device path like /dev/video0 -> try index 0 as fallback
-            #     if source.startswith('/dev/video'):
-            #         try:
-            #             idx = int(source.rsplit('video', 1)[1])
-            #             attempts.append(idx)
-            #         except Exception:
-            #             pass
-            #     attempts.append(source)
-            # else:
-            #     attempts.append(source)
-
             # Try each candidate until one opens successfully
             self.cap = None
             opened_source = None
@@ -140,13 +126,15 @@ class SharedVideoStream:
             if self.cap and self.cap.isOpened():
                 self.cap.release()
 
-    def get_frame(self) -> Optional[np.ndarray]:
-        """Get the latest frame from the shared stream."""
+    def get_frame(self, max_age: Optional[float] = None) -> Optional[np.ndarray]:
+        """Get the latest frame from the shared stream, or None if there is none (or it is older than max_age seconds)."""
         self.last_access_time = time.time()
         with self.frame_lock:
-            if self.latest_frame is not None:
-                return self.latest_frame.copy()
-            return None
+            if self.latest_frame is None:
+                return None
+            if max_age is not None and time.time() - self.last_frame_time > max_age:
+                return None
+            return self.latest_frame.copy()
 
     def is_frame_available(self) -> bool:
         """Check if a frame is available."""
@@ -231,7 +219,10 @@ def get_shared_camera_frame(camera_uuid: str) -> Optional[np.ndarray]:
         while not stream.is_frame_available() and wait_count < max_wait:
             time.sleep(0.1)
             wait_count += 1
-        return stream.get_frame()
+        frame = stream.get_frame(max_age=STALE_FRAME_SECONDS)
+        if frame is None and stream.is_frame_available():
+            logger.warning("Camera %s has not sent a frame for %d seconds", camera_uuid, STALE_FRAME_SECONDS)
+        return frame
     except (ImportError, AttributeError) as e:
         logger.error("Error getting shared camera frame for %s: %s", camera_uuid, e)
         return None

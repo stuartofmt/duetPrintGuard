@@ -2,16 +2,15 @@
 
 
 import asyncio
+import math
 import time
 import uuid
-import sys
-import glob
 import json
 from urllib.parse import urlsplit, urlunsplit
 from copy import deepcopy
 
 from fastapi import APIRouter, Body, Form, HTTPException, Request
-from fastapi.responses import StreamingResponse, Response, RedirectResponse, JSONResponse
+from fastapi.responses import StreamingResponse, Response, JSONResponse
 from sse_starlette.sse import EventSourceResponse
 
 from logger_module import logger
@@ -19,8 +18,6 @@ from logger_module import logger
 from duet_printer import suspend_print_job, get_duet_printer_status, reset_notification_counters
 
 import cv2
-import numpy as np
-import requests
 
 from utils.config import (
 	STREAM_MAX_FPS,
@@ -34,44 +31,12 @@ from utils.config import (
 from duet_config import get_config_for_ui, update_config
 from utils.shared_video_stream import get_shared_stream_manager
 from utils.mjpeg_source import is_http_source, check_mjpeg_stream, fetch_snapshot_bytes, stream_mjpeg
-from utils.stream_utils import UI_countdown, default_notification_text, start_live_detection, stop_live_detection, save_app_state_request, create_optimized_frame_generator
+from utils.stream_utils import (UI_countdown, default_notification_text, start_live_detection, stop_live_detection,
+								save_app_state_request, create_optimized_frame_generator,
+								pause_all_detection, stop_all_detection, resume_all_detection)
 
 router = APIRouter()
 
-
-# V4L (/dev/videoN) cameras disabled
-# def find_available_serial_cameras() -> list[str]:
-# 	"""Find all available serial camera devices.
-#
-# 	Returns:
-# 		list[str]: device paths or index strings for available cameras.
-# 	"""
-# 	logger.debug("INFO: Running on platform: %s", sys.platform)
-# 	if sys.platform.startswith('linux'):
-# 		logger.debug("INFO: Detected Linux platform. Searching for /dev/video* devices.")
-# 		device_paths = glob.glob('/dev/video*')
-# 		if device_paths:
-# 			logger.debug("INFO: Found device paths: %s", device_paths)
-# 			return sorted(device_paths)
-# 		else:
-# 			logger.warning("WARN: No /dev/video* devices found. Falling back to index probing.")
-# 	api_preference = cv2.CAP_ANY
-# 	if sys.platform == "win32":
-# 		api_preference = cv2.CAP_DSHOW
-# 	available_indices = []
-# 	index = 0
-# 	while len(available_indices) < 10:
-# 		cap = cv2.VideoCapture(index, api_preference)
-# 		if cap.isOpened():
-# 			logger.debug("INFO: Camera found at index: %s", index)
-# 			available_indices.append(str(index))
-# 			cap.release()
-# 		else:
-# 			logger.debug("INFO: No camera found at index: %s", index)
-# 			cap.release()
-# 			break
-# 		index += 1
-# 	return available_indices
 
 # alert_routes.py
 @router.post("/countdown/action")
@@ -82,32 +47,32 @@ async def alert_response(request: Request,
 	Can be raised m the UI at any time independent of the alert's countdown status
 	"""
 
+	if action not in ('ignore', 'pause_print', 'resume_print', 'cancel_print'):
+		raise HTTPException(status_code=400, detail=f"Unknown action {action}")
+
 	await UI_countdown('stop') #Stop the countdown timer on the UI immediately when an action is taken
 
 	global COUNTDOWN_SETTINGS
+	# Printer commands wait for the printer to change state, so they run in a thread
 	match action:
 		case 'ignore': # allowing new alerts to be triggered 
 			COUNTDOWN_SETTINGS['alert_status'] = 'inactive'
 		case 'pause_print':
 			COUNTDOWN_SETTINGS['alert_status'] = 'paused'
-			suspend_print_job(action)
-			for camera_uuid,settings in CAMERA_STATES.items():
-				if settings['live_detection_running'] == 'yes': # only pause cameras that are currently running
-					await stop_live_detection(camera_uuid)
-					CAMERA_STATES[camera_uuid]['live_detection_running'] = 'paused' # Need cuz stop sets to inacive
+			await asyncio.to_thread(suspend_print_job, action)
+			await pause_all_detection()
+			COUNTDOWN_SETTINGS['alert_status'] = 'paused'
 		case 'resume_print':
 			COUNTDOWN_SETTINGS['alert_status'] = 'resumed'
-			suspend_print_job(action)
-			for camera_uuid,settings in CAMERA_STATES.items():
-				if settings['live_detection_running'] == 'paused':
-					await start_live_detection(camera_uuid)
+			await asyncio.to_thread(suspend_print_job, action)
+			await resume_all_detection()
 			COUNTDOWN_SETTINGS['alert_status'] = 'inactive' # reset after action
 		case 'cancel_print':
+			COUNTDOWN_SETTINGS['alert_status'] = 'cancelled'
+			await asyncio.to_thread(suspend_print_job, action)
+			await stop_all_detection()
 			COUNTDOWN_SETTINGS['alert_status'] = 'cancelled' # Not reset since print job has been stopped
-			suspend_print_job(action)
-			for camera_uuid,settings in CAMERA_STATES.items():
-				if settings['live_detection_running'] == 'yes':
-					await stop_live_detection(camera_uuid)
+	return {"success": True}
 
 
 # index_routes.py
@@ -214,26 +179,22 @@ def direct_stream_url(source, request):
 @router.post("/settings/save-settings", include_in_schema=False)
 async def update_settings(request: Request,
 						  camera_uuid: str = Form(...),
-						  # sensitivity: float = Form(...),
-						  # brightness: float = Form(...),
-						  # contrast: float = Form(...),
-						  # focus: float = Form(...),
 						  majority_vote_threshold: int = Form(...),
 						  majority_vote_window: int = Form(...)
 						  ):
 	"""Update camera settings from the settings page."""
+	if camera_uuid not in CAMERA_SETTINGS:
+		raise HTTPException(status_code=404, detail="Camera not found.")
+	if majority_vote_threshold < 1:
+		raise HTTPException(status_code=400, detail="Majority vote threshold must be at least 1.")
 	# A defect needs at least threshold failures within the window, so a smaller window could never trigger
 	if majority_vote_window < majority_vote_threshold:
 		raise HTTPException(status_code=400, detail="Majority vote window must be at least the threshold.")
 	add_to_config({'camera_settings': {camera_uuid: {
-		# "sensitivity": sensitivity,
-		# "brightness": brightness,
-		# "contrast": contrast,
-		# "focus": focus,
 		"majority_vote_threshold": majority_vote_threshold,
 		"majority_vote_window": majority_vote_window
 	}}})
-	return RedirectResponse("/settings", status_code=303)
+	return {"success": True}
 
 @router.post("/settings/update_autostart", include_in_schema=False)
 async def update_autostart(request: Request):
@@ -249,8 +210,8 @@ async def update_autostart(request: Request):
 		autostart = checkbox.lower() in ("on", "true", "1")
 	else:
 		autostart = False
-	if not camera_uuid:
-		raise HTTPException(status_code=400, detail="Missing camera_uuid")
+	if camera_uuid not in CAMERA_SETTINGS:
+		raise HTTPException(status_code=404, detail="Camera not found")
 	add_to_config({'camera_settings': {camera_uuid: {
 		"autostart": autostart}}})
 
@@ -271,38 +232,10 @@ async def update_autostart(request: Request):
 
 
 
-@router.post("/settings/update-countdown", include_in_schema=False)
-async def update_settings_countdown(request: Request,
-							countdown_action: str = Form(...),
-							countdown_time: int = Form(...),
-							countdown_control: str = Form(...)
-						  ):
-	"""Update countdown settings from the settings page."""
-	add_to_config({'countdown_settings': {
-							"countdown_action": countdown_action,
-							"countdown_time": countdown_time,
-							"countdown_control": countdown_control
-							}})
-	return RedirectResponse("/settings", status_code=303)
-
-
-# Replaced by mjpeg_source.fetch_snapshot_bytes - the JPEG is passed through without decoding
-# def fetch_snapshot_frame(snapshot_url: str):
-# 	"""Fetch a single frame from a camera's HTTP snapshot URL. Returns None on failure."""
-# 	try:
-# 		r = requests.get(snapshot_url, timeout=5)
-# 		r.raise_for_status()
-# 		frame = cv2.imdecode(np.frombuffer(r.content, dtype=np.uint8), cv2.IMREAD_COLOR)
-# 		if frame is None:
-# 			logger.warning("Snapshot URL %s did not return a decodable image", snapshot_url)
-# 		return frame
-# 	except requests.exceptions.RequestException as e:
-# 		logger.warning("Failed to fetch snapshot from %s: %s", snapshot_url, e)
-# 		return None
-
-
 @router.get('/camera/snapshot/{camera_uuid}', include_in_schema=False)
 async def camera_snapshot(camera_uuid: str):
+	if camera_uuid not in CAMERA_SETTINGS:
+		raise HTTPException(status_code=404, detail="Camera not found")
 	try:
 		# HTTP cameras: return the snapshot URL's JPEG as-is
 		snapshot_url = CAMERA_SETTINGS.get(camera_uuid, {}).get('snapshot')
@@ -327,21 +260,6 @@ async def camera_snapshot(camera_uuid: str):
 		frame = stream.get_frame()
 		if frame is None:
 			raise HTTPException(status_code=500, detail="Failed to read frame")
-
-		# Brightness, contrast and focus settings disabled
-		# # Apply camera settings (brightness/contrast/focus) so snapshot matches live feed
-		# try:
-			# cam_settings = CAMERA_SETTINGS.get(camera_uuid, {})
-			# contrast = cam_settings.get('contrast', 1.0)
-			# brightness = cam_settings.get('brightness', 1.0)
-			# focus = cam_settings.get('focus', 1.0)
-			# frame = cv2.convertScaleAbs(frame, alpha=contrast, beta=int((brightness - 1.0) * 255))
-			# if focus and focus != 1.0:
-				# blurred = cv2.GaussianBlur(frame, (0, 0), sigmaX=focus)
-				# frame = cv2.addWeighted(frame, 1.0 + focus, blurred, -focus, 0)
-		# except Exception:
-			# # If processing fails, fallback to raw frame
-			# pass
 
 		_, buffer = cv2.imencode('.jpg', frame)
 		return Response(content=buffer.tobytes(), media_type="image/jpeg")
@@ -368,13 +286,6 @@ async def camera_stream(camera_uuid: str):
 		raise HTTPException(status_code=404, detail="Camera not found")
 	return camera_live_stream(camera_uuid)
 
-
-# V4L (/dev/videoN) cameras disabled
-# @router.get("/camera/serial_devices")
-# async def get_serial_devices_ep():
-# 	"""Get a list of available serial devices."""
-# 	devices = find_available_serial_cameras()
-# 	return devices
 
 def generate_preview_frames(source: str, preview_uuid: str):
 	"""Generate frames for camera preview using shared video stream."""
@@ -506,11 +417,11 @@ async def remove_camera_config(request: Request):
 	if not camera_uuid or camera_uuid not in CAMERA_SETTINGS:
 		raise HTTPException(status_code=400, detail="Missing camera_uuid.")
 	try:
-		#first shutdown the camera feed if it's running
-		from utils.shared_video_stream import get_shared_stream_manager
-		manager = get_shared_stream_manager()
-		manager.cleanup_all()
-		logger.debug("Cleaned up camera resources successfully.")
+		# Stop detection and this camera's video stream (other cameras are not affected)
+		if CAMERA_STATES.get(camera_uuid, {}).get('live_detection_running') == 'yes':
+			await stop_live_detection(camera_uuid)
+		get_shared_stream_manager().release_stream(camera_uuid)
+		logger.debug("Released camera %s", camera_uuid)
 		delete_from_config({'camera_settings': camera_uuid})
 		if camera_uuid in CAMERA_STATES:
 			delete_from_config({'camera_states': camera_uuid})
@@ -583,7 +494,13 @@ async def update_countdown(request: Request,
 							countdown_time: int = Form(...),
 							countdown_control: str = Form(...)
 						  ):
-	"""Update countdown settings from config."""
+	"""Update countdown settings from the settings page."""
+	if countdown_action not in ('ignore', 'pause_print', 'cancel_print'):
+		raise HTTPException(status_code=400, detail=f"Unknown countdown action {countdown_action}")
+	if countdown_control not in ('any_camera', 'all_cameras'):
+		raise HTTPException(status_code=400, detail=f"Unknown camera choice {countdown_control}")
+	if countdown_time < 0:
+		raise HTTPException(status_code=400, detail="Countdown time must be 0 or more")
 	try:
 		add_to_config({'countdown_settings': {
 								"countdown_action": countdown_action,
@@ -624,45 +541,20 @@ class SSEManager:
 global managerSSE
 managerSSE = SSEManager()
 
-broadcast_task = None
-
-async def outbound_packet_fetch():
-	"""Async generator for outbound SSE packets.
-	
-	Currently unused as broadcasts are handled through direct calls to managerSSE.broadcast().
-	This exists to prevent NameError in start_broadcast_loop().
-	"""
-	while False:
-		yield  # This loop never executes, but makes this an async generator
-
-async def start_broadcast_loop():
-	global broadcast_task
-	if broadcast_task is not None:
-		return
-
-	async def loop():
-		async for packet in outbound_packet_fetch():
-			await managerSSE.broadcast(packet)
-
-	broadcast_task = asyncio.create_task(loop())
-
-
 @router.get("/sse")
 async def sse_connect(request: Request):
 	"""Establish Server-Sent Events connection for real-time updates."""
-	await start_broadcast_loop()
 	queue = await managerSSE.connect()
 
 	async def send_packet():
 		try:
 			# Send current countdown state to new client if one is active
 			if managerSSE.last_countdown_state is not None:
-				yield managerSSE.last_countdown_state
+				yield remaining_countdown(managerSSE.last_countdown_state)
 			
 			while True:
 				if await request.is_disconnected():
-					logger.warning('sse request disconnected')
-					logger.warning(f'{request}')
+					logger.debug('sse request disconnected')
 					break
 				packet = await queue.get()
 				yield packet
@@ -673,18 +565,25 @@ async def sse_connect(request: Request):
 
 
 
+def remaining_countdown(packet):
+	"""A countdown packet with the time left, for a browser that connects part way through it."""
+	data = json.loads(packet['data'])
+	ends_at = data.get('ends_at')
+	if ends_at and data.get('countdown_time', 0) > 0:
+		data['countdown_time'] = max(0, math.ceil(ends_at - time.time()))
+	return {**packet, 'data': json.dumps(data)}
+
+
 # detection_routes.py
 @router.post("/detect/live/start")
 async def starting_detection(request: Request, camera_uuid: str = Body(..., embed=True)):
 	"""Start continuous live detection on a specified camera."""
 	try:
 		save_app_state_request(request.app.state) # Save the request state for later use in start_live_detection
-		await start_live_detection(camera_uuid)
+		return await start_live_detection(camera_uuid)
 	except Exception as e:
 		logger.error("Error starting live detection for camera %s: %s", camera_uuid, e)
 		return {"success": False, "message": f"Failed to start live detection for camera {camera_uuid}"}
-
-	return {"success": True, "message": f"Live detection started for camera {camera_uuid}"}
 
 
 @router.post("/detect/live/stop")

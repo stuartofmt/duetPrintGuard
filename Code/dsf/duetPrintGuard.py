@@ -29,9 +29,24 @@ sys.path.append(os.path.dirname(__file__))
 from logger_module import (setup_logfile, set_log_level)
 from duet_config import get_DWC_config
 
+import json
+
+
+def _plugin_version():
+	"""The version from the plugin manifest - installed by DSF as plugins/<id>.json, or plugin.json in the source tree."""
+	here = os.path.dirname(os.path.abspath(__file__))
+	for manifest in (os.path.join(here, '..', '..', 'duetPrintGuard.json'), os.path.join(here, '..', 'plugin.json')):
+		try:
+			with open(manifest, encoding='utf-8') as f:
+				return json.load(f)['version']
+		except (OSError, ValueError, KeyError):
+			continue
+	return 'unknown'
+
+
 global progName, progVersion
 progName = 'duetPrintGuard'
-progVersion = '1.0.0'
+progVersion = _plugin_version()
 # Min python version
 pythonMajor = 3
 pythonMinor = 9

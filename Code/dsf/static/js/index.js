@@ -10,6 +10,7 @@ const DEFAULT_ICON = '/static/images/default_icon.png';
 const MAX_CONCURRENT_SNAPSHOTS = 2;
 
 const ACTION_NAMES = { pause_print: 'Pause', cancel_print: 'Cancel', ignore: 'Action' };
+const PRINTER_POLL_INTERVAL = 5000; // ms - keeps Pause / Resume in step with the printer
 
 // =========================
 // Snapshot queue - at most MAX_CONCURRENT_SNAPSHOTS loading at once
@@ -59,11 +60,18 @@ PG.mount({
 		const active = computed(() => PG.visibility.visible && !suspended.value);
 		let countdownTimer = null;
 		let closeSSE = null;
+		let printerTimer = null;
 
 		const countdownText = computed(() => ACTION_NAMES[countdown.action] ?? 'Action');
 
 		const findCamera = (uuid) => cameras.value.find((c) => c.uuid === uuid);
 		const isDetecting = (camera) => camera.state.live_detection_running === 'yes';
+		// 'paused' - detection stopped because the print was paused, and restarts when it is resumed
+		const statusChip = (camera) => isDetecting(camera)
+			? { text: 'Detecting', color: 'success' }
+			: camera.state.live_detection_running === 'paused'
+				? { text: 'Paused', color: 'warning' }
+				: { text: 'Inactive', color: 'error' };
 		const resultClass = (camera) => !camera.state.last_result
 			? 'text-medium-emphasis'
 			: (camera.state.last_result === 'success' ? 'text-success' : 'text-error');
@@ -149,19 +157,30 @@ PG.mount({
 			}
 		}
 
+		// The printer can be paused by the countdown, from DWC or from another browser, so Pause / Resume
+		// follows the printer's status rather than this page's clicks
+		async function refreshPrinterStatus() {
+			try {
+				const status = (await PG.api.get('/printer/get-status'))?.status;
+				if (status) paused.value = status === 'paused' || status === 'pausing';
+			} catch (err) {
+				console.warn('Error from /printer/get-status', err);
+			}
+		}
+
 		async function togglePause() {
 			if (paused.value) {
-				if (await PG.confirm('Are you sure you want to Resume the print?') && await runAction('resume_print')) {
-					paused.value = false;
-				}
-			} else if (await PG.confirm('Are you sure you want to Pause the print?', { color: 'warning' }) && await runAction('pause_print')) {
-				paused.value = true;
+				if (await PG.confirm('Are you sure you want to Resume the print?')) await runAction('resume_print');
+			} else if (await PG.confirm('Are you sure you want to Pause the print?', { color: 'warning' })) {
+				await runAction('pause_print');
 			}
+			refreshPrinterStatus();
 		}
 
 		async function cancelPrint() {
 			if (await PG.confirm('Are you sure you want to Cancel the print?', { color: 'error' })) {
-				runAction('cancel_print');
+				await runAction('cancel_print');
+				refreshPrinterStatus();
 			}
 		}
 
@@ -229,9 +248,9 @@ PG.mount({
 				const camera = findCamera(data?.camera_uuid);
 				if (camera && data.state) setState(camera, data.state);
 			},
-				autostart_updated: (data) => {
-					autostart.enabled = Boolean(data?.state);
-				},
+			autostart_updated: (data) => {
+				autostart.enabled = Boolean(data?.state);
+			},
 			autostart_running: (data) => {
 				autostart.running = Boolean(data?.state);
 				autostart.waiting = false;
@@ -241,6 +260,8 @@ PG.mount({
 		function connect() {
 			if (closeSSE) return;
 			closeSSE = PG.connectSSE(sseHandlers); // Sends the current countdown on connect
+			refreshPrinterStatus();
+			printerTimer = setInterval(refreshPrinterStatus, PRINTER_POLL_INTERVAL);
 			for (const camera of cameras.value) {
 				camera.streamFailed = false;
 				refreshState(camera);
@@ -251,6 +272,8 @@ PG.mount({
 		function disconnect() {
 			closeSSE?.();
 			closeSSE = null;
+			clearInterval(printerTimer);
+			printerTimer = null;
 		}
 
 		watch(() => PG.visibility.visible, (visible) => {
@@ -293,7 +316,7 @@ PG.mount({
 
 		return {
 			cameras, noCameras, paused, countdown, countdownText, autostart, settingsUrl,
-			isDetecting, resultClass, lastUpdate, cameraView, onViewError, toggleDetection, openStream,
+			isDetecting, statusChip, resultClass, lastUpdate, cameraView, onViewError, toggleDetection, openStream,
 			runAction, togglePause, cancelPrint, toggleAutostart, resetNotifications
 		};
 	}

@@ -35,8 +35,8 @@
 					<v-card-title class="d-flex align-center">
 						<span class="text-truncate">{{ camera.nickname }}</span>
 						<v-spacer></v-spacer>
-						<v-chip :color="isDetecting(camera) ? 'success' : 'error'" size="small" variant="tonal">
-							{{ isDetecting(camera) ? 'Detecting' : 'Inactive' }}
+						<v-chip :color="statusChip(camera).color" size="small" variant="tonal">
+							{{ statusChip(camera).text }}
 						</v-chip>
 					</v-card-title>
 					<v-list density="compact" class="bg-transparent">
