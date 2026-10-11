@@ -72,15 +72,22 @@ When `Add Camera` is pressed, the plugin checks that video can be read from the 
 
 Each camera card shows the camera nickname and stream URL, and has these settings:
 - `Auto-start` - see Autostart in [Basic Operation](Basic-Operation.md#bottom-control-section)
+- `Detection Sensitivity` - how readily a frame counts as a failure (see below)
 - `Vote Threshold` and `Vote Window` - see Defect Settings below
 
 The delete button (top right of the card) removes the camera.
 
 <img src="media/images/Settings2.png" style="width:50%; height:auto;">
 
-### Web Interface Port
+### Detection Sensitivity
 
-Below the `Add a Camera` button, the `Web Interface` card shows the `Port` setting and, underneath, the port currently in use. Type a new port and press Enter to save it. The new port is used after the plugin is restarted (if it is free) - until then the card shows which port will be used after the restart. Use 0 to pick a free port automatically at startup. The same setting is on the Configuration page.
+Every frame is compared with the model's examples of a failed print and a good print, and is called a failure if it looks more like the failed print. `Detection Sensitivity` shifts that balance for each camera:
+
+- The middle (`Normal`, the default) - the frame is whichever it looks more like.
+- Left (`Less sensitive`) - a frame has to look much more like a failure to count as one. At the far left, almost nothing counts as a failure.
+- Right (`More sensitive`) - frames that look only partly like a failure count as one. At the far right, almost everything counts as a failure.
+
+Each step changes the balance by about a quarter, and the ends are about ten times either way. Normal views typically look 5 to 8 times more like a good print than a failure, so the first few steps to the right only affect borderline frames (e.g. a partial mess or poor lighting). `Reset` returns the slider to the middle. Changes apply straight away, including while the camera is detecting.
 
 ## Defect Settings
 

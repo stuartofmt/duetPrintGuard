@@ -63,6 +63,26 @@
 				<v-card-text>
 					<v-switch v-model="camera.autostart" label="Auto-start" color="primary" density="compact"
 							  hide-details @update:model-value="saveAutostart(camera)"></v-switch>
+					<!-- Sensitivity: the middle is normal; log scale, so the ends are effectively fail nothing / fail everything -->
+					<div class="d-flex align-center mt-3">
+						<span>Detection Sensitivity</span>
+						<v-spacer></v-spacer>
+						<v-btn v-if="camera.sensitivity !== 0" variant="text" size="x-small" class="mr-1"
+							   @click.stop="resetSensitivity(camera)">Reset</v-btn>
+						<span class="text-no-wrap">{{ sensitivityText(camera.sensitivity) }}</span>
+					</div>
+					<v-slider v-model="camera.sensitivity" :min="-sensitivitySteps" :max="sensitivitySteps" :step="1"
+							  :ticks="{ 0: '' }" show-ticks="always" color="primary" track-fill-color="transparent" hide-details
+							  @end="saveCameraSettings(camera)"></v-slider>
+					<div class="d-flex text-body-small text-medium-emphasis mt-n1">
+						<span>Less sensitive</span>
+						<v-spacer></v-spacer>
+						<span>More sensitive</span>
+					</div>
+					<p class="text-body-small text-medium-emphasis mt-1 mb-2">
+						Left: fewer frames count as failures (far left, almost none). Right: more frames count as failures
+						(far right, almost all).
+					</p>
 					<v-slider v-model="camera.majority_vote_threshold" :min="1" :max="20" :step="1" color="primary"
 							  thumb-label hide-details class="mt-2" @update:model-value="keepWindowAboveThreshold(camera, 'threshold')"
 							  @end="saveCameraSettings(camera)">
@@ -91,26 +111,6 @@
 			</v-card>
 
 			<v-btn block color="primary" prepend-icon="mdi-plus" @click="openAddCamera">Add a Camera</v-btn>
-
-			<!-- Port for these pages - also on the Configuration page -->
-			<v-card class="mt-4">
-				<v-card-title>Web Interface</v-card-title>
-				<v-card-text>
-					<v-text-field v-model="port.value" label="Port" type="number" min="0" max="65535"
-								  variant="outlined" density="comfortable" :loading="port.saving"
-								  :error-messages="port.error" hint="0 picks a free port at startup. Press Enter to save."
-								  persistent-hint @change="savePort" @keyup.enter="savePort">
-						<template #append-inner>
-							<v-chip size="x-small" color="warning" variant="tonal" title="Takes effect after the plugin is restarted">restart</v-chip>
-						</template>
-					</v-text-field>
-					<p class="text-body-medium mt-3">In use: {{ port.inUse ?? '-' }}</p>
-					<p v-if="port.pending" class="text-body-small text-warning">
-						Port {{ port.saved }} will be used after the plugin is restarted, if it is free.
-					</p>
-					<p v-else-if="port.saved === 0" class="text-body-small text-medium-emphasis">Picked automatically at startup.</p>
-				</v-card-text>
-			</v-card>
 		</v-col>
 	</v-row>
 

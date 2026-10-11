@@ -1,36 +1,28 @@
 # ----------------------------
 # Web framework (stable stack)
 # ----------------------------
-fastapi==0.116.1
-starlette==0.46.2
-uvicorn[standard]==0.35.0
-sse-starlette==2.4.1
-python-multipart==0.0.20
+fastapi==0.141.1
+starlette==1.7.0
+uvicorn[standard]==0.54.0
+sse-starlette==3.4.11
+python-multipart==0.0.32
+# jinja2 renders the page templates (fastapi.templating) - it was only installed as a dependency of torch
+jinja2==3.1.6
 
 # ----------------------------
 # ML / inference stack
 # ----------------------------
-torch==2.7.0
-torchvision==0.22.0
-onnxruntime==1.22.1
+onnxruntime==1.30.0
 
 # ----------------------------
 # Image / CV
 # ----------------------------
-numpy==2.2.6
-pillow==11.3.0
-opencv-python-headless==4.12.0.88
-
-# ----------------------------
-# utilities
-# ----------------------------
-platformdirs==4.3.8
-huggingface_hub==0.33.4
+numpy==2.5.3
+pillow==12.3.0
+opencv-python-headless==4.14.0.94
 
 # ----------------------------
 # Duet3d
 # ----------------------------
-stdeb
 requests
-python-dateutil
 dsf-python==3.7.0.post1

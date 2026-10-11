@@ -15,9 +15,7 @@ from fastapi.templating import Jinja2Templates
 
 from duet_config import UI
 
-from utils.config import (get_prototypes_dir,
-						   get_model_path, get_model_options_path,
-						init_config,DEVICE_TYPE, SUCCESS_LABEL, PRINTER_POLL_SECONDS)
+from utils.config import init_config, PRINTER_POLL_SECONDS
 
 # The autostart monitor - a task in uvicorn's event loop, so the detection it starts shares that loop
 # (and the SSE connections) with the rest of the app
@@ -43,7 +41,7 @@ def init_routes_and_modules():
 	Separating this from appstartup to allow for config file imports in route definitions.
 	"""
 
-	from utils.inference_lib import get_inference_engine
+	from utils.detector import Detector
 
 	from routes.routes import router as app_router
 
@@ -53,43 +51,14 @@ def init_routes_and_modules():
 		"""
 		Lifespan event handler for FastAPI application.
 		
-		Initializes the device and model, sets up camera indices, and handles startup modes.
+		Loads the detection model at startup and releases camera streams on shutdown.
 		"""
 
-		inference_engine = get_inference_engine()
-
-		logger.debug("Setting up device...")
-		app_instance.state.device = inference_engine.setup_device(DEVICE_TYPE)
-		logger.debug("Using device: %s", app_instance.state.device)
 		try:
-			logger.debug("Loading model...")
-			app_instance.state.model, _ = inference_engine.load_model(get_model_path(),
-													get_model_options_path(),
-													app_instance.state.device)
-			app_instance.state.transform = inference_engine.get_transform()
-			logger.debug("Model loaded successfully.")
-			logger.debug("Building prototypes...")
-			try:
-				prototypes, class_names, defect_idx = inference_engine.compute_prototypes(
-					app_instance.state.model, get_prototypes_dir(), app_instance.state.transform,
-					app_instance.state.device, SUCCESS_LABEL
-				) # Last param optional use_cache defaults to True - tries to read model prototype from cache else download
-				app_instance.state.prototypes = prototypes
-				app_instance.state.class_names = class_names
-				app_instance.state.defect_idx = defect_idx
-				logger.debug("Prototypes built successfully.")
-			except NameError:
-				logger.error("Skipping prototype building - detection will not work.")
-			except ValueError as e:
-				logger.error("Error building prototypes - detection will not work: %s", e)
-		except RuntimeError as e:
-			logger.error("Error during startup: %s", e)
-			app_instance.state.model = None
-			raise
-		logger.debug("Camera indices set up successfully.")
-
-		# Run autostart_detection in a background daemon thread
-		# activate_autostart_detection()
+			app_instance.state.detector = Detector()
+		except Exception as e: # Missing or unreadable model / prototypes - the UI still runs, detection reports the problem
+			logger.error("Could not load the detection model - detection will not work: %s", e)
+			app_instance.state.detector = None
 
 		yield
 		logger.debug("Cleaning up resources on shutdown...")
@@ -117,12 +86,7 @@ def init_routes_and_modules():
 		allow_headers=["*"],
 	)
 
-	app.state.model = None
-	app.state.transform = None
-	app.state.device = None
-	app.state.prototypes = None
-	app.state.class_names = ['success', 'failure']
-	app.state.defect_idx = -1
+	app.state.detector = None
 	app.state.alerts = {}
 	app.state.outbound_queue = asyncio.Queue()
 	app.state.polling_tasks = {}

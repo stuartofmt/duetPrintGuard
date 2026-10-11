@@ -10,7 +10,7 @@ from PIL import Image
 from collections import deque
 from copy import deepcopy
 
-from .model_utils import _run_inference
+from .detector import CLASS_NAMES, DEFECT_IDX, sensitivity_factor
 
 from .shared_video_stream import get_shared_camera_frame
 from .mjpeg_source import fetch_snapshot_image
@@ -192,24 +192,15 @@ async def create_optimized_detection_loop(app_state, camera_uuid):
 				await asyncio.sleep(stream_optimizer.get_detection_interval())
 				continue
 
-			tensor = app_state.transform(image).unsqueeze(0).to(app_state.device)
-
-			# Run inference on the frame and map the numeric prediction to a label
+			# Run the model on the frame (in a thread - it takes a noticeable fraction of a second)
 			try:
-				prediction = await _run_inference(app_state.model,
-												tensor,
-												app_state.prototypes,
-												app_state.defect_idx,
-												app_state.device)
-				numeric = prediction[0] if isinstance(prediction, list) else prediction
+				factor = sensitivity_factor(CAMERA_SETTINGS[camera_uuid].get('sensitivity', 0))
+				numeric = await asyncio.to_thread(app_state.detector.predict, image, factor)
 			except Exception as e:
 				logger.warning("Detection inference error for camera %s: %s", camera_uuid, e)
 				numeric = None
 
-			if isinstance(numeric, int) and 0 <= numeric < len(app_state.class_names):
-				label = app_state.class_names[numeric]
-			else:
-				label = 'Error'
+			label = CLASS_NAMES[numeric] if numeric is not None else 'Error'
 
 			CAMERA_STATES[camera_uuid]['last_time'] = time.time()
 			CAMERA_STATES[camera_uuid]['last_result'] = label
@@ -217,7 +208,7 @@ async def create_optimized_detection_loop(app_state, camera_uuid):
 			# Every frame goes into the majority vote, so failures are counted within the last
 			# window frames. A defect is raised on a failure frame that brings the count up to the threshold.
 			settings = CAMERA_SETTINGS[camera_uuid]
-			is_failure = isinstance(numeric, int) and numeric == app_state.defect_idx
+			is_failure = numeric == DEFECT_IDX
 			failures_in_window = _record_vote(camera_uuid, settings['majority_vote_window'], is_failure)
 			passed_majority_vote = is_failure and failures_in_window >= settings['majority_vote_threshold']
 
@@ -470,7 +461,7 @@ async def start_live_detection(camera_uuid,request=None):
 
 	if camera_uuid not in CAMERA_SETTINGS:
 		return {"success": False, "message": f"Camera {camera_uuid} not found"}
-	if request is None or getattr(request, 'prototypes', None) is None:
+	if request is None or getattr(request, 'detector', None) is None:
 		logger.error("Cannot start detection - the detection model did not load (see earlier errors in the log)")
 		return {"success": False, "message": "The detection model is not loaded - see the plugin log"}
 

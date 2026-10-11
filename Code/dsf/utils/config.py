@@ -3,19 +3,12 @@ Nothing is run on import.
 All initialization is done through explicit function calls.
 """
 
-import os
 from copy import deepcopy
 
-import torch
-
 from logger_module import logger
-from .model_downloader import get_model_downloader
 
 from duet_config import (CAMERA_SECTION, COUNTDOWN_SECTION, DEFAULT_COUNTDOWN_SETTINGS,
 						 load_section, save_section)
-
-# The dsf directory (holds the model files)
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # The camera configuration that is accessed by other modules
 # Frequently updated and exist only in memory - not persisted to disk
@@ -30,7 +23,6 @@ DEFAULT_CAMERA_STATE = {
 # Defaults
 DETECTION_VOTING_WINDOW = 5
 DETECTION_VOTING_THRESHOLD = 2
-SENSITIVITY = 1.0 # Still used by the inference engine (model_utils)
 # BRIGHTNESS = 1.0
 # CONTRAST = 1.0
 # FOCUS = 1.0
@@ -38,13 +30,11 @@ AUTOSTART = False
 
 # Default but can be updated by user and persisted in config
 CAMERA_SETTINGS = {}
-PERSISTED_CAMERA_SETTINGS = set('nickname source snapshot majority_vote_window majority_vote_threshold autostart'.split())
+PERSISTED_CAMERA_SETTINGS = set('nickname source snapshot majority_vote_window majority_vote_threshold autostart sensitivity'.split())
 # Note nickname, source and snapshot are created with camera. Default settinga are added at that time
-DEFAULT_CAMERA_SETTINGS = {'majority_vote_window': DETECTION_VOTING_WINDOW,
+DEFAULT_CAMERA_SETTINGS = {'sensitivity': 0, # Slider position - 0 is normal (see detector.sensitivity_factor)
+						   'majority_vote_window': DETECTION_VOTING_WINDOW,
 						   'majority_vote_threshold': DETECTION_VOTING_THRESHOLD,
-						   # 'sensitivity': SENSITIVITY, 'brightness': BRIGHTNESS,
-						   # 'contrast': CONTRAST,
-						   # 'focus': FOCUS,
 						   'autostart': AUTOSTART}
 
 #Settings that determine if a defect should be declared
@@ -61,11 +51,7 @@ STREAM_MAX_WIDTH = 1280
 DETECTION_INTERVAL_MS = 1000 / DETECTIONS_PER_SECOND
 MIN_SSE_DISPATCH_DELAY_MS = 100 #100
 STANDARD_STAT_POLLING_RATE_MS = 250 #250
-SUCCESS_LABEL = "success"
 PRINTER_POLL_SECONDS = 10 
-
-DEVICE_TYPE = "cuda" if (torch.cuda.is_available()) else (
-	"mps" if (torch.backends.mps.is_available()) else "cpu")
 
 def _save_cameras():
 	"""Save the persisted camera settings to duetPrintGuard.json."""
@@ -159,25 +145,3 @@ def init_config():
 
 	logger.info(f'Loaded {len(CAMERA_SETTINGS)} camera(s) from the configuration')
 	logger.debug(f'{CAMERA_SETTINGS=} {COUNTDOWN_SETTINGS=}')
-
-
-def get_model_path() -> str:
-	"""Get the model path for the detected backend."""
-	try:
-		return get_model_downloader().get_model_path()
-	except ImportError:
-		return os.path.join(BASE_DIR, "model", "model.onnx")
-
-def get_model_options_path() -> str:
-	"""Get the model options path."""
-	try:
-		return get_model_downloader().get_options_path()
-	except ImportError:
-		return os.path.join(BASE_DIR, "model", "opt.json")
-
-def get_prototypes_dir() -> str:
-	"""Get the prototypes directory path."""
-	try:
-		return get_model_downloader().get_prototypes_path()
-	except ImportError:
-		return os.path.join(BASE_DIR, "model", "prototypes")

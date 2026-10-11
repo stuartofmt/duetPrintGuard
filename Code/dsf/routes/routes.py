@@ -30,6 +30,7 @@ from utils.config import (
 )
 from duet_config import get_config_for_ui, update_config
 from utils.shared_video_stream import get_shared_stream_manager
+from utils.detector import SENSITIVITY_STEPS
 from utils.mjpeg_source import is_http_source, check_mjpeg_stream, fetch_snapshot_bytes, stream_mjpeg
 from utils.stream_utils import (UI_countdown, default_notification_text, start_live_detection, stop_live_detection,
 								save_app_state_request, create_optimized_frame_generator,
@@ -80,9 +81,7 @@ async def alert_response(request: Request,
 async def serve_index(request: Request):
 	"""Serve the main index page."""
 	from app import templates
-	return templates.TemplateResponse("index.html", {
-		"request": request
-	})
+	return templates.TemplateResponse(request, "index.html")
 
 
 # settings_routes.py
@@ -90,9 +89,7 @@ async def serve_index(request: Request):
 async def serve_settings(request: Request):
 	"""Serve the settings page."""
 	from app import templates
-	return templates.TemplateResponse("settings.html", {
-		"request": request
-	})
+	return templates.TemplateResponse(request, "settings.html")
 
 
 # config_page_routes.py
@@ -100,9 +97,7 @@ async def serve_settings(request: Request):
 async def serve_config(request: Request):
 	"""Serve the application configuration page."""
 	from app import templates
-	return templates.TemplateResponse("config.html", {
-		"request": request
-	})
+	return templates.TemplateResponse(request, "config.html")
 
 
 @router.get("/config/get-app-config", include_in_schema=False)
@@ -150,8 +145,7 @@ async def serve_camera_stream(request: Request, nickname: str):
 	if not camera_uuid:
 		raise HTTPException(status_code=404, detail="Camera not found")
 	from app import templates
-	return templates.TemplateResponse("stream.html", {
-		"request": request,
+	return templates.TemplateResponse(request, "stream.html", {
 		"camera_uuid": camera_uuid,
 		"nickname": CAMERA_SETTINGS[camera_uuid].get('nickname', nickname),
 		"direct_url": direct_stream_url(CAMERA_SETTINGS[camera_uuid].get('source'), request)
@@ -180,11 +174,14 @@ def direct_stream_url(source, request):
 async def update_settings(request: Request,
 						  camera_uuid: str = Form(...),
 						  majority_vote_threshold: int = Form(...),
-						  majority_vote_window: int = Form(...)
+						  majority_vote_window: int = Form(...),
+						  sensitivity: int = Form(0)
 						  ):
 	"""Update camera settings from the settings page."""
 	if camera_uuid not in CAMERA_SETTINGS:
 		raise HTTPException(status_code=404, detail="Camera not found.")
+	if not -SENSITIVITY_STEPS <= sensitivity <= SENSITIVITY_STEPS:
+		raise HTTPException(status_code=400, detail=f"Sensitivity must be between -{SENSITIVITY_STEPS} and {SENSITIVITY_STEPS}.")
 	if majority_vote_threshold < 1:
 		raise HTTPException(status_code=400, detail="Majority vote threshold must be at least 1.")
 	# A defect needs at least threshold failures within the window, so a smaller window could never trigger
@@ -192,7 +189,8 @@ async def update_settings(request: Request,
 		raise HTTPException(status_code=400, detail="Majority vote window must be at least the threshold.")
 	add_to_config({'camera_settings': {camera_uuid: {
 		"majority_vote_threshold": majority_vote_threshold,
-		"majority_vote_window": majority_vote_window
+		"majority_vote_window": majority_vote_window,
+		"sensitivity": sensitivity
 	}}})
 	return {"success": True}
 
@@ -441,7 +439,8 @@ async def config_camera_list(request: Request):
 				"source": CAMERA_SETTINGS[camera_uuid].get("source", ""),
 				"autostart": CAMERA_SETTINGS[camera_uuid].get("autostart", False),
 				"majority_vote_threshold": CAMERA_SETTINGS[camera_uuid].get("majority_vote_threshold"),
-				"majority_vote_window": CAMERA_SETTINGS[camera_uuid].get("majority_vote_window")
+				"majority_vote_window": CAMERA_SETTINGS[camera_uuid].get("majority_vote_window"),
+				"sensitivity": CAMERA_SETTINGS[camera_uuid].get("sensitivity", 0)
 			}
 
 		return {"success": True, "list": camera_uuid_list}
