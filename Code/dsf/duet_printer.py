@@ -4,7 +4,6 @@ Sends actions to duet printer and calls the configuration service
 
 import time
 import requests
-import json
 import threading
 
 from logger_module import logger
@@ -85,52 +84,52 @@ def _send_duet_code(command):
 	finally:
 		command_connection.close()
 
-def _urlCall(url, cmd, post):
-	# If post is True then make a http post call
-	# Get commands need a leading /
-	# Set defaults for return codes
-	code = 0
-	error = ''
+# Retries for _urlCall - long enough to ride out a brief network drop-out (it runs in a background thread)
+RETRY_DELAYS = (2, 5)  # seconds to wait before the 2nd and 3rd attempts
+RETRY_STATUSES = (502, 503, 504)  # the server asks to try again later - the request was not processed
+URL_TIMEOUT = (3, 10)  # seconds to connect, seconds to wait for the reply
 
-	timelimit = 5  # timout for call to return
-	loop = 0
-	limit = 2  # seems good enough to catch transients
-	r = ''
-	if post is False:
-		url = url + cmd  # concatenate for GET
-	while loop < limit:
+
+def _urlCall(url, data=None, post=True, json_data=None, headers=None, timeout=URL_TIMEOUT):
+	"""Make an HTTP request (POST, or GET when post is False), retrying when it may not have got through.
+
+	data is sent as a form / raw body, json_data as a JSON body.
+	Retried: connection errors, timeouts and 502 / 503 / 504. Not retried: any other error status - e.g.
+	a bad token (4xx) or 429 (rate limit / quota), where asking again would get the same answer.
+	A retry after a reply timeout can occasionally repeat a request that had arrived - for an alert, a
+	duplicate is better than nothing.
+
+	Returns (status_code, text) - status_code is 0 if no response was received.
+	The request data is never logged, as it can contain credentials.
+	"""
+	method = 'POST' if post else 'GET'
+	attempts = len(RETRY_DELAYS) + 1
+	r = None
+	for attempt in range(1, attempts + 1):
+		r = None
 		try:
-			if post is False: # get includes the http command type in the url
-				r = requests.get(url, timeout=timelimit) # if using rr_ API
-			else: #post 
-				r = requests.post(url, timeout=timelimit, data=cmd)
-
+			r = requests.request(method, url, data=data, json=json_data, headers=headers, timeout=timeout)
+		except requests.exceptions.Timeout:
+			logger.warning(f'{method} {url} timed out - the destination may be unreachable (attempt {attempt}/{attempts})')
+		except requests.exceptions.ConnectionError as e:
+			logger.warning(f'{method} {url} could not connect (attempt {attempt}/{attempts}): {e}')
 		except requests.exceptions.RequestException as e:
-			logger.warning(f'''{type(e).__name__} , {e}''')		
-
-		except requests.ConnectionError as e:
-			msg = 'Cannot connect to url - maybe a network error'
-			logger.warning(msg)
-		except requests.exceptions.Timeout as e:
-			msg = 'Timed out - Is the printer turned on?'
-			logger.warning(msg)
-		except Exception as e:
-			logger.info(f'Connection failure this a valid url ==> {url}')
-			logger.warning(e)
-		finally:
-			if r and r.status_code in [200,204]: #204 is no content e.g. disconnect
+			logger.warning(f'{method} {url} failed: {type(e).__name__}: {e}')
+			break  # e.g. an invalid URL - retrying will not help
+		else:
+			if r.ok:
 				return r.status_code, r.text or ''
-			else:
-				time.sleep(1)
-				loop += 1 # Loop back and try again
-	if r:
-		msg = f'''Error - code = {r.status_code} payload = {r.text}'''
-		logger.info(msg)
+			if r.status_code not in RETRY_STATUSES:
+				break
+			logger.warning(f'{method} {url} returned {r.status_code} (attempt {attempt}/{attempts})')
+		if attempt < attempts:
+			time.sleep(RETRY_DELAYS[attempt - 1])
+
+	if r is not None:
+		logger.info(f'{method} {url} failed with {r.status_code}: {r.text[:200]}')
 		return r.status_code, r.text
-	else:
-		msg = f'''Error - Printer connection attempt failed url = {url} cmd = {cmd} post = {post}'''
-		logger.info(msg)
-		return 0, ''
+	logger.info(f'{method} {url} failed - no response')
+	return 0, ''
 
 
 def publish_ui_address(ip, port):
@@ -287,22 +286,20 @@ def _send_ntfy(alert):
 				else:
 					message = alert['body']
 
-				data=json.dumps({
-					"Topic": NTFY.TOPIC,
-					"Title": title,
-					"Priority": int(NTFY.PRIORITY),
-					"Message": message,
-					})
-				
-			
-				code, _ = _urlCall('https://ntfy.sh', data, True)
-				if code in [200,204]:
+				payload = {
+					"topic": NTFY.TOPIC,
+					"title": title,
+					"priority": int(NTFY.PRIORITY),
+					"message": message,
+				}
+
+				code, _ = _urlCall('https://ntfy.sh', json_data=payload)
+				if 200 <= code < 300:
 					NTFY_TIMES += 1
 					logger.info(f'NTFY with title {title} sent {NTFY_TIMES} time(s)')	
 					return True
 				else:
 					logger.info(f'NTFY send failed with code {code}')
-					logger.debug(f'\n{data}\n')
 					return False
 	except Exception as e:
 		logger.info(f'Error sending NTFY:  {e}')
@@ -334,14 +331,13 @@ def _send_pushover(alert):
 					"message": message,
 					}
 
-				code, _ = _urlCall("https://api.pushover.net/1/messages.json", data, True)
-				if code in [200,204]:
+				code, _ = _urlCall("https://api.pushover.net/1/messages.json", data)
+				if 200 <= code < 300:
 					PUSHOVER_TIMES += 1
 					logger.info(f'Pushover with title {title} sent {PUSHOVER_TIMES} time(s)')	
 					return True
 				else:
 					logger.info(f'PUSHOVER send failed with code {code}')
-					logger.debug(f'\n{data}\n')
 					return False
 	except Exception as e:
 		logger.info(f'Error sending PUSHOVER:  {e}')

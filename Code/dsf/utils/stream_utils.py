@@ -170,66 +170,68 @@ async def create_optimized_detection_loop(app_state, camera_uuid):
 		if CAMERA_STATES.get(camera_uuid, {}).get('live_detection_running') != 'yes':
 			break
 
-		if COUNTDOWN_SETTINGS['alert_status'] == 'inactive': # No point in burning CPU
-			# HTTP cameras: one snapshot per detection - no continuous stream decoding
-			# RTSP cameras: latest frame from the shared video stream
-			snapshot_url = CAMERA_SETTINGS[camera_uuid].get('snapshot')
-			try:
-				if snapshot_url:
-					image = await asyncio.to_thread(fetch_snapshot_image, snapshot_url)
-				else:
-					frame = await asyncio.to_thread(get_shared_camera_frame, camera_uuid)
-					image = None if frame is None else Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-			except Exception as e:
-				logger.warning("Failed to get frame from camera %s - stopping detection: %s", camera_uuid, e)
-				CAMERA_STATES[camera_uuid]['live_detection_running'] = 'no'
-				CAMERA_STATES[camera_uuid]['last_result'] = 'Failed to get frame'
-				await send_updateCamera_state(camera_uuid)
-				break
-
-			if image is None: # Camera did not respond - try again next interval
-				logger.warning("No image from camera %s - skipping this detection", camera_uuid)
-				await asyncio.sleep(stream_optimizer.get_detection_interval())
-				continue
-
-			# Run the model on the frame (in a thread - it takes a noticeable fraction of a second)
-			try:
-				factor = sensitivity_factor(CAMERA_SETTINGS[camera_uuid].get('sensitivity', 0))
-				numeric = await asyncio.to_thread(app_state.detector.predict, image, factor)
-			except Exception as e:
-				logger.warning("Detection inference error for camera %s: %s", camera_uuid, e)
-				numeric = None
-
-			label = CLASS_NAMES[numeric] if numeric is not None else 'Error'
-
-			CAMERA_STATES[camera_uuid]['last_time'] = time.time()
-			CAMERA_STATES[camera_uuid]['last_result'] = label
-
-			# Every frame goes into the majority vote, so failures are counted within the last
-			# window frames. A defect is raised on a failure frame that brings the count up to the threshold.
-			settings = CAMERA_SETTINGS[camera_uuid]
-			is_failure = numeric == DEFECT_IDX
-			failures_in_window = _record_vote(camera_uuid, settings['majority_vote_window'], is_failure)
-			passed_majority_vote = is_failure and failures_in_window >= settings['majority_vote_threshold']
-
-			# defect_active is used to display the defect in the UI - one camera is enough
-			CAMERA_STATES[camera_uuid]['defect_active'] = passed_majority_vote
-			if passed_majority_vote:
-				CAMERA_STATES[camera_uuid]['last_result'] = 'DEFECT'
+		# Detection carries on while an alert is active, so every camera's result stays current in the UI
+		# HTTP cameras: one snapshot per detection - no continuous stream decoding
+		# RTSP cameras: latest frame from the shared video stream
+		snapshot_url = CAMERA_SETTINGS[camera_uuid].get('snapshot')
+		try:
+			if snapshot_url:
+				image = await asyncio.to_thread(fetch_snapshot_image, snapshot_url)
+			else:
+				frame = await asyncio.to_thread(get_shared_camera_frame, camera_uuid)
+				image = None if frame is None else Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+		except Exception as e:
+			logger.warning("Failed to get frame from camera %s - stopping detection: %s", camera_uuid, e)
+			CAMERA_STATES[camera_uuid]['live_detection_running'] = 'no'
+			CAMERA_STATES[camera_uuid]['last_result'] = 'Failed to get frame'
 			await send_updateCamera_state(camera_uuid)
+			break
 
-			if passed_majority_vote:
-				logger.debug(f'{passed_majority_vote=} for camera {camera_uuid}')
-				# Check the cameras required by "Which Cameras" agree
-				passed_camera_combination = _passed_multi_camera_test(COUNTDOWN_SETTINGS['countdown_control'], camera_uuid)
-				logger.debug(f'{passed_camera_combination=}')
+		if image is None: # Camera did not respond - try again next interval
+			logger.warning("No image from camera %s - skipping this detection", camera_uuid)
+			await asyncio.sleep(stream_optimizer.get_detection_interval())
+			continue
 
-				if passed_camera_combination:
-					logger.debug('In Alert')
-					# reset tests
-					_MAJORITY_VOTE = {}
-					_CAMERA_AGREEMENT = []
-					await _raise_alert(camera_uuid)
+		# Run the model on the frame (in a thread - it takes a noticeable fraction of a second)
+		try:
+			factor = sensitivity_factor(CAMERA_SETTINGS[camera_uuid].get('sensitivity', 0))
+			numeric = await asyncio.to_thread(app_state.detector.predict, image, factor)
+		except Exception as e:
+			logger.warning("Detection inference error for camera %s: %s", camera_uuid, e)
+			numeric = None
+
+		label = CLASS_NAMES[numeric] if numeric is not None else 'Error'
+
+		CAMERA_STATES[camera_uuid]['last_time'] = time.time()
+		CAMERA_STATES[camera_uuid]['last_result'] = label
+
+		# Every frame goes into the majority vote, so failures are counted within the last
+		# window frames. A defect is raised on a failure frame that brings the count up to the threshold.
+		settings = CAMERA_SETTINGS[camera_uuid]
+		is_failure = numeric == DEFECT_IDX
+		failures_in_window = _record_vote(camera_uuid, settings['majority_vote_window'], is_failure)
+		passed_majority_vote = is_failure and failures_in_window >= settings['majority_vote_threshold']
+
+		# defect_active is used to display the defect in the UI - one camera is enough
+		CAMERA_STATES[camera_uuid]['defect_active'] = passed_majority_vote
+		if passed_majority_vote:
+			CAMERA_STATES[camera_uuid]['last_result'] = 'DEFECT'
+		await send_updateCamera_state(camera_uuid)
+
+		if passed_majority_vote:
+			logger.debug(f'{passed_majority_vote=} for camera {camera_uuid}')
+			# Check the cameras required by "Which Cameras" agree
+			passed_camera_combination = _passed_multi_camera_test(COUNTDOWN_SETTINGS['countdown_control'], camera_uuid)
+			logger.debug(f'{passed_camera_combination=}')
+
+			# Only one alert at a time - while one is active, cameras keep detecting (and showing DEFECT)
+			# but do not raise another
+			if passed_camera_combination and COUNTDOWN_SETTINGS['alert_status'] == 'inactive':
+				logger.debug('In Alert')
+				# reset tests
+				_MAJORITY_VOTE = {}
+				_CAMERA_AGREEMENT = []
+				await _raise_alert(camera_uuid)
 
 		await asyncio.sleep(stream_optimizer.get_detection_interval())
 
@@ -244,7 +246,11 @@ def _alert_still_active(alert_id):
 
 
 async def _raise_alert(camera_uuid):
-	"""Start the countdown and send notifications, then wait until the alert ends."""
+	"""Start the countdown, the action at the end of it, and the notifications. Returns straight away.
+
+	The alert ends when the user acts on it, or when _take_action_after_countdown runs the countdown action
+	(Ignore sets the alert back to inactive, Pause / Cancel to paused / cancelled).
+	"""
 	global _ALERT_ID
 	_ALERT_ID += 1
 	alert_id = _ALERT_ID
@@ -257,15 +263,6 @@ async def _raise_alert(camera_uuid):
 
 	# Notifications can take several seconds (network retries) - send them without holding up detection
 	_run_in_background(asyncio.to_thread(send_defect_notification, camera_uuid))
-
-	# Wait for the countdown, or until the user dismisses the alert (detection then resumes straight away)
-	end = time.time() + max(countdown_time, 0)
-	while time.time() < end and _alert_still_active(alert_id):
-		await asyncio.sleep(0.5)
-
-	# reset alert status
-	if _alert_still_active(alert_id): # Dont change if paused or cancelled
-		COUNTDOWN_SETTINGS['alert_status'] = 'inactive'
 
 
 # Background tasks are kept here until they finish - asyncio only keeps weak references to tasks

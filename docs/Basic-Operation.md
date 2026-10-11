@@ -68,6 +68,8 @@ The camera information is updated
  - The time of the last update [time]
  - A button to toggle Detecting on and off [Stop Detection]
 
+All cameras keep detecting during the countdown, so any other camera that also sees the failure shows DEFECT too. Only one countdown runs at a time - a new one can start once the current one has been dealt with.
+
 Pressing `Pause`, `Cancel` or `Ignore` during the countdown stops the countdown and takes that action immediately. `Ignore` dismisses the defect so that a new one can be raised.
 
 If the user does nothing within the configured `Countdown Time` - the `Countdown Action` will be sent to the printer as follows:
