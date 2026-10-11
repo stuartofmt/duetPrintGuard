@@ -113,7 +113,7 @@ When a defect is detected several things happen
 
 ## Configuration Page
 
-The Configuration page is accessible from the Configuration tab or via `http://<IP>:<PORT>/config`. Press `Save` at the bottom of the page to save changes. Settings marked `restart` take effect after the plugin is restarted. Other settings apply immediately.
+The Configuration page is accessible from the Configuration tab or via `http://<IP>:<PORT>/config`. Press `Save` at the bottom of any card to save changes - each Save button saves all the settings on the page. Settings marked `restart` take effect after the plugin is restarted. Other settings apply immediately.
 
 <img src="media/images/Config1.png" style="width:50%; height:auto;">
 

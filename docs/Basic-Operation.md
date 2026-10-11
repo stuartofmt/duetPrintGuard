@@ -35,7 +35,7 @@ In the middle section: each configured camera is shown separately with the follo
  - A snapshot of the camera's view, taken when the page was opened
  - A button to toggle Detecting on and off [Start Detection]
 
- Note that clicking on a camera view will open its live stream in a new browser tab.
+ Note that clicking on a camera view will open its live stream in a new browser tab. HTTP cameras are shown there directly from the camera, at the camera's own frame rate. RTSP cameras (which browsers cannot play directly) are shown through the plugin at up to 10 frames per second.
 
  To keep the number of connections to the plugin low, the Detection page closes its camera streams and stops updating while it is not shown (e.g. another browser tab or another DWC page is shown, or a camera stream has been opened in a new tab). It reconnects, and takes new snapshots, when it is shown again. The Settings page and the camera stream tab do the same. Detection carries on in the background regardless - closing or hiding a page never stops detection.
 
@@ -48,7 +48,7 @@ In the middle section: each configured camera is shown separately with the follo
  - Current detection status [Detecting]
  - Current detection result [success, failure]
  - The time of the last update [time]
- - The live camera stream, in place of the snapshot
+ - The live camera stream, in place of the snapshot (up to 10 frames per second)
  - A button to toggle Detecting on and off [Stop Detection]
 
  <img src="media/images/Plugin2.png" style="width:50%; height:auto;">

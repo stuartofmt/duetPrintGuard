@@ -7,6 +7,7 @@ import uuid
 import sys
 import glob
 import json
+from urllib.parse import urlsplit, urlunsplit
 from copy import deepcopy
 
 from fastapi import APIRouter, Body, Form, HTTPException, Request
@@ -187,8 +188,27 @@ async def serve_camera_stream(request: Request, nickname: str):
 	return templates.TemplateResponse("stream.html", {
 		"request": request,
 		"camera_uuid": camera_uuid,
-		"nickname": CAMERA_SETTINGS[camera_uuid].get('nickname', nickname)
+		"nickname": CAMERA_SETTINGS[camera_uuid].get('nickname', nickname),
+		"direct_url": direct_stream_url(CAMERA_SETTINGS[camera_uuid].get('source'), request)
 	})
+
+
+def direct_stream_url(source, request):
+	"""The camera's own stream URL for the browser to load directly, at the camera's frame rate.
+
+	Only HTTP (MJPEG) sources - browsers cannot play RTSP, so those return None and are shown
+	through the plugin (limited to STREAM_MAX_FPS). A localhost source is on this machine, so it is
+	given this machine's address as the browser sees it.
+	"""
+	if not is_http_source(source):
+		return None
+	url = urlsplit(source)
+	if url.hostname in ('localhost', '127.0.0.1', '::1'):
+		netloc = request.url.hostname + (f':{url.port}' if url.port else '')
+		if url.username:
+			netloc = url.netloc.rsplit('@', 1)[0] + '@' + netloc
+		url = url._replace(netloc=netloc)
+	return urlunsplit(url)
 
 
 @router.post("/settings/save-settings", include_in_schema=False)

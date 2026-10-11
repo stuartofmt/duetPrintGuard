@@ -126,11 +126,14 @@ PG.mount({
 			saving.value = true;
 			try {
 				const result = await PG.api.postJson('/config/save-app-config', data);
+				// The alert is at the top of the page, so the snackbar also reports the result when
+				// Save is pressed further down
 				if (result.restart_required.length) {
 					Object.assign(status, {
 						text: `Saved. Restart the plugin for these changes to take effect: ${result.restart_required.join(', ')}`,
 						type: 'warning'
 					});
+					PG.notify('Saved - restart the plugin for some changes to take effect.', 'warning', 6000);
 				} else {
 					status.text = '';
 					PG.notify('Saved.');
@@ -140,9 +143,11 @@ PG.mount({
 				if (err.status === 400 && err.data?.errors) {
 					setErrors(err.data.errors);
 					Object.assign(status, { text: 'Some settings are invalid - nothing was saved.', type: 'error' });
+					PG.notify('Some settings are invalid (marked in red) - nothing was saved.', 'error', 6000);
 				} else {
 					console.error('Failed to save configuration:', err);
 					Object.assign(status, { text: `Failed to save configuration: ${err.message}`, type: 'error' });
+					PG.notify(`Failed to save configuration: ${err.message}`, 'error', 6000);
 				}
 			} finally {
 				saving.value = false;

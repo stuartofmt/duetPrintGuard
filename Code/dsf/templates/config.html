@@ -40,15 +40,18 @@
 							<a :href="section.link" target="_blank" rel="noopener">ntfy message priority</a>.
 						</p>
 					</v-card-text>
+					<!-- Every card's Save button saves the whole page, so there is no need to scroll to the bottom -->
+					<v-card-actions class="px-4 pb-4 pt-0">
+						<v-spacer></v-spacer>
+						<v-btn type="submit" color="primary" variant="flat" prepend-icon="mdi-content-save" :loading="saving">Save</v-btn>
+					</v-card-actions>
 				</v-card>
 
-				<div class="d-flex flex-wrap align-center ga-4 mb-4">
-					<span class="text-body-small text-medium-emphasis flex-grow-1">
-						Settings marked <v-chip size="x-small" color="warning" variant="tonal">restart</v-chip>
-						take effect after the plugin is restarted. Other settings apply immediately.
-					</span>
-					<v-btn type="submit" color="primary" prepend-icon="mdi-content-save" :loading="saving">Save</v-btn>
-				</div>
+				<p class="text-body-small text-medium-emphasis mb-4">
+					Settings marked <v-chip size="x-small" color="warning" variant="tonal">restart</v-chip>
+					take effect after the plugin is restarted. Other settings apply immediately.
+					Each Save button saves all the settings on this page.
+				</p>
 			</v-form>
 		</v-col>
 	</v-row>

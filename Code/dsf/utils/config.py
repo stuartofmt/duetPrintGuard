@@ -55,7 +55,7 @@ COUNTDOWN_SETTINGS = {**DEFAULT_COUNTDOWN_SETTINGS, 'alert_status': ALERT_STATUS
 
 # Streaming and detection parameters
 DETECTIONS_PER_SECOND = 1 #15
-STREAM_MAX_FPS = 2 #30
+STREAM_MAX_FPS = 10 # Plugin streams (Detection page). The stream tab shows HTTP cameras directly, at the camera's own rate
 STREAM_JPEG_QUALITY = 85
 STREAM_MAX_WIDTH = 1280
 DETECTION_INTERVAL_MS = 1000 / DETECTIONS_PER_SECOND
