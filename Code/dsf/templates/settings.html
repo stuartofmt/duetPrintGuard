@@ -91,6 +91,26 @@
 			</v-card>
 
 			<v-btn block color="primary" prepend-icon="mdi-plus" @click="openAddCamera">Add a Camera</v-btn>
+
+			<!-- Port for these pages - also on the Configuration page -->
+			<v-card class="mt-4">
+				<v-card-title>Web Interface</v-card-title>
+				<v-card-text>
+					<v-text-field v-model="port.value" label="Port" type="number" min="0" max="65535"
+								  variant="outlined" density="comfortable" :loading="port.saving"
+								  :error-messages="port.error" hint="0 picks a free port at startup. Press Enter to save."
+								  persistent-hint @change="savePort" @keyup.enter="savePort">
+						<template #append-inner>
+							<v-chip size="x-small" color="warning" variant="tonal" title="Takes effect after the plugin is restarted">restart</v-chip>
+						</template>
+					</v-text-field>
+					<p class="text-body-medium mt-3">In use: {{ port.inUse ?? '-' }}</p>
+					<p v-if="port.pending" class="text-body-small text-warning">
+						Port {{ port.saved }} will be used after the plugin is restarted, if it is free.
+					</p>
+					<p v-else-if="port.saved === 0" class="text-body-small text-medium-emphasis">Picked automatically at startup.</p>
+				</v-card-text>
+			</v-card>
 		</v-col>
 	</v-row>
 

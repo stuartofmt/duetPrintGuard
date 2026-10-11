@@ -31,6 +31,8 @@ PG.mount({
 			preview: false, previewUrl: '', previewState: ''
 		});
 		let previewTimeout = null;
+		// Port setting (saved now, used after a restart) and the port these pages are served on
+		const port = reactive({ value: '', saved: null, inUse: null, pending: false, saving: false, error: '' });
 
 		// =========================
 		// Cameras
@@ -234,14 +236,57 @@ PG.mount({
 			loadSelectedSnapshot();
 		});
 
+		// =========================
+		// Port
+		// =========================
+		function setPortStatus(saved) {
+			port.saved = saved;
+			port.value = String(saved);
+			port.pending = saved !== 0 && saved !== port.inUse;
+		}
+
+		async function loadPort() {
+			try {
+				const data = await PG.api.get('/config/get-app-config');
+				port.inUse = data.ui_port_in_use;
+				setPortStatus(data.settings.UI.PORT.value);
+			} catch (err) {
+				console.error('Failed to load the port setting:', err);
+			}
+		}
+
+		async function savePort() {
+			const text = String(port.value ?? '').trim();
+			const value = text === '' ? 0 : Number(text); // Blank means 0 - pick a free port
+			port.error = '';
+			if (!Number.isInteger(value) || value < 0 || value > 65535) {
+				port.error = 'Must be a whole number from 0 to 65535 (0 picks a free port)';
+				return;
+			}
+			if (value === port.saved || port.saving) return;
+			port.saving = true;
+			try {
+				await PG.api.postJson('/config/save-app-config', { UI: { PORT: value } });
+				setPortStatus(value);
+				PG.notify(value === 0
+					? 'Port saved - a free port will be picked when the plugin is restarted.'
+					: `Port saved - restart the plugin to use port ${value}.`);
+			} catch (err) {
+				port.error = err.data?.errors?.['UI.PORT'] ? `Port ${err.data.errors['UI.PORT']}` : err.message;
+			} finally {
+				port.saving = false;
+			}
+		}
+
 		onMounted(() => {
 			loadCameras();
 			loadCountdown();
+			loadPort();
 		});
 
 		return {
 			cameras, selected, snapshot, countdown, countdownActions, countdownControls,
-			addForm, add, rules,
+			addForm, add, rules, port, savePort,
 			select, loadSelectedSnapshot, saveAutostart, keepWindowAboveThreshold, saveCameraSettings, removeCamera, saveCountdown,
 			openAddCamera, closeAddCamera, updatePreview, schedulePreview, addCamera
 		};

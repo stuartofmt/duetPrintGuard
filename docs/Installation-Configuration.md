@@ -78,6 +78,10 @@ The delete button (top right of the card) removes the camera.
 
 <img src="media/images/Settings2.png" style="width:50%; height:auto;">
 
+### Web Interface Port
+
+Below the `Add a Camera` button, the `Web Interface` card shows the `Port` setting and, underneath, the port currently in use. Type a new port and press Enter to save it. The new port is used after the plugin is restarted (if it is free) - until then the card shows which port will be used after the restart. Use 0 to pick a free port automatically at startup. The same setting is on the Configuration page.
+
 ## Defect Settings
 
 A DEFECT is raised when the camera detects a series of failure frames that satisfy this rule:
