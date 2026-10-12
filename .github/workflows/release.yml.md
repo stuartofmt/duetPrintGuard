@@ -6,6 +6,8 @@ These notes repeat the comments at the top of [`release.yml`](release.yml). If y
 
 It builds the installable plugin ZIP file on GitHub's servers, compiling the plugin against the DuetWebControl (DWC) source code. You do not need to build anything on your own computer.
 
+A plugin whose `plugin.json` has no `dwcVersion` has no DWC interface to compile, so it is simply zipped instead (as plugin_tools does) - see [Plugins without a DWC interface](#plugins-without-a-dwc-interface). Either way, files listed in `scripts/release-exclude.txt` are left out of the ZIP - see [Leaving files out of the ZIP](#leaving-files-out-of-the-zip).
+
 The workflow can be started in two different ways, and they produce different results:
 
 | | How it starts | What it produces | Use it to |
@@ -29,6 +31,8 @@ Create a tag on that commit, named `v` followed by exactly the same version numb
 git tag v1.2.3-dwc3.7
 git push origin v1.2.3-dwc3.7
 ```
+
+For a plugin with no `dwcVersion`, the tag is just `v` and the version, e.g. `v1.2.3`.
 
 Make sure the commit from step 1 is the one checked out when you run `git tag`, because the tag is attached to whatever commit you are currently on.
 
@@ -57,7 +61,7 @@ After approval the workflow builds the ZIP and publishes the GitHub Release auto
 
 - **Title:** taken from `scripts/release-titles.txt`, using the version's position among the `v*` tags with this branch's `-dwc<dwcVersion>` suffix (just the tag name if there is no titles file).
 - **Notes:** a list of changes generated from the commit messages since the previous tag (Conventional Commit messages such as `feat: …` and `fix: …` are grouped by type), plus install instructions.
-- **Files:** the plugin ZIP, named `<id>-<version>-<dwcVersion>.zip` using `plugin.json`'s `dwcVersion` (e.g. `MyPlugin-1.2.3-3.7.zip`; for DWC 3.7 and later also a small `-srcmap.zip` of source maps), plus any ZIP files in the `standalone-zip/` folder (renamed with a `standalone-` prefix).
+- **Files:** the plugin ZIP, named `<id>-<version>-<dwcVersion>.zip` using `plugin.json`'s `dwcVersion` (e.g. `MyPlugin-1.2.3-3.7.zip`; for DWC 3.7 and later also a small `-srcmap.zip` of source maps), or `<id>-<version>.zip` for a plugin with no `dwcVersion`, plus any ZIP files in the `standalone-zip/` folder (renamed with a `standalone-` prefix).
 
 No further action is needed. The Release is public as soon as the run finishes.
 
@@ -65,7 +69,7 @@ No further action is needed. The Release is public as soon as the run finishes.
 
 1. On GitHub, go to the **Actions** tab, select **Release** in the left-hand list, and click the **Run workflow** button.
 2. In the **Use workflow from** drop-down, choose the **branch** you want to build (e.g. `3.7.x`). Do not choose a tag here (see the note below).
-3. Optionally type a DWC version into the **dwc-ref** box (e.g. `v3.7.1`) to build against that exact DWC release. Leave it blank to use the default choice (see [Which DWC version is used](#which-dwc-version-is-used)). The version you type must still be compatible with `plugin.json`, or the run stops with an error.
+3. Optionally type a DWC version into the **dwc-ref** box (e.g. `v3.7.1`) to build against that exact DWC release. Leave it blank to use the default choice (see [Which DWC version is used](#which-dwc-version-is-used)). The version you type must still be compatible with `plugin.json`, or the run stops with an error. It is ignored (with a warning) for a plugin with no `dwcVersion`.
 4. Click **Run workflow**. The run pauses for approval just like the automatic one: open the run, click **Review deployments**, then **Approve and deploy**.
 5. When the run finishes, scroll to the **Artifacts** section at the bottom of the run's page and download the ZIP. No Release is created, no tag is needed and the version is not checked.
 
@@ -100,6 +104,28 @@ This applies to both automatic and manual runs. The `"dwcVersion"` value in `plu
 
 Unless you type a dwc-ref in a manual run, the newest compatible DWC release is used (pre-releases such as betas and release candidates are included).
 
+## Plugins without a DWC interface
+
+If `plugin.json` has no `dwcVersion` (or it is empty or `null`), the plugin has no DWC interface to compile - e.g. an SBC-only plugin. The workflow then works as plugin_tools does: it does not download or build DWC, and simply zips the folder holding `plugin.json` (without the files left out, below), with `plugin.json` at the top of the ZIP.
+
+- **Tag:** `v<version>`, e.g. `v1.2.3` (no `-dwc` suffix).
+- **ZIP:** `<id>-<version>.zip`, e.g. `MyPlugin-1.2.3.zip`.
+- **Release notes:** say the plugin works with any DWC version.
+
+## Leaving files out of the ZIP
+
+`scripts/release-exclude.txt` lists files and folders to leave out of the ZIP, one pattern per line, like `.gitignore` (the file itself explains the patterns). These are always left out too, as plugin_tools does: `__pycache__/`, `venv/`, `.git/`, `*.pyc` and `*.log`.
+
+The workflow copies the folder holding `plugin.json`, removes the listed files from the copy, and builds or zips the copy - the repository checkout is not changed. The **Leave out excluded files** step in the run lists what was left out, and warns about any pattern that matched nothing (probably a typo).
+
+To see what would be left out, run this from the repository folder (it changes nothing):
+
+```bash
+node scripts/prune-release.mjs --list
+```
+
+If `plugin.json` is at the repository root, the whole repository is the plugin folder, so list things such as `docs/`, `scripts/` and `.github/` in `scripts/release-exclude.txt`.
+
 ## Where `plugin.json` can be
 
 The workflow and the release scripts use the first `plugin.json` found: at the repository root, otherwise in a subfolder (e.g. `Code/plugin.json`). `.git`, `node_modules` and `venv` are skipped. If there is no `plugin.json` at the root and more than one in subfolders, the run stops with an error.
@@ -108,9 +134,9 @@ The scripts take the plugin's name, ZIP name and links from `plugin.json`, so th
 
 ## Order the jobs run in
 
-1. **resolve-dwc**: read `plugin.json`, check the tag matches its version and dwcVersion, see if a Release already exists, and choose the DWC version.
+1. **resolve-dwc**: read `plugin.json`, check the tag matches its version and dwcVersion, see if a Release already exists, and choose the DWC version (none for a plugin with no `dwcVersion`, which is zipped instead of built).
 2. **approval**: pause until someone approves at the `dwc-release-approval` environment.
-3. **build**: download DWC and build the ZIP with DWC's `scripts/build-plugin.js`. DWC 3.7 and later write the ZIP next to `plugin.json`; earlier versions write it to DWC's `dist/` folder.
+3. **build**: copy the folder holding `plugin.json` and leave out the excluded files, then download DWC and build the ZIP from the copy with DWC's `scripts/build-plugin.js` (DWC 3.7 and later write the ZIP next to `plugin.json`; earlier versions write it to DWC's `dist/` folder) - or, with no `dwcVersion`, zip the copy.
 4. **output**: automatic: publish the GitHub Release. Manual: provide the ZIP as an artifact.
 
 ## One-time setup for a repository

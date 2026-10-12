@@ -4,18 +4,19 @@
  * DuetWebControl version the ZIP was built against.
  *
  * Everything plugin-specific comes from plugin.json (found by ./manifest.mjs), so this works unchanged
- * for any plugin: the ZIP name from id + version + dwcVersion, the project link from homepage, and the SBC note from
+ * for any plugin: the ZIP name from id + version (+ dwcVersion when it is built), the project link from homepage, and the SBC note from
  * sbcRequired. A docs/Installation-Configuration.md in the repository is linked if present.
  * The DWC details come from the CI build environment (the release workflow sets these after it checks
  * out DuetWebControl), so it also reads sensibly when run locally.
  */
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { readManifest, repoRoot } from "./manifest.mjs";
+import { needsDwcBuild, readManifest, repoRoot } from "./manifest.mjs";
 
 const manifest = readManifest();
 const pkgVersion = manifest.version;
-const asset = `${manifest.id}-${pkgVersion}-${manifest.dwcVersion}.zip`;
+const built = needsDwcBuild(manifest);   // false: no DWC interface - the ZIP was made without a DWC build
+const asset = built ? `${manifest.id}-${pkgVersion}-${manifest.dwcVersion}.zip` : `${manifest.id}-${pkgVersion}.zip`;
 const ref = process.env.GITHUB_REF_NAME || "main";
 
 const dwcVersion = process.env.DWC_VERSION || "";
@@ -44,8 +45,13 @@ if (existsSync(join(repoRoot, guide))) {
 if (manifest.homepage) links.push(`[project page](${manifest.homepage})`);
 const seeAlso = links.length ? `\nSee the ${links.join(" and the ")} for setup details.\n` : "";
 
-const requirement = `Requires DuetWebControl ${requiredDwc || dwcVersion || "(see plugin.json)"}`
+const requirement = (built
+	? `Requires DuetWebControl ${requiredDwc || dwcVersion || "(see plugin.json)"}`
+	: "Works with any DuetWebControl version")
 	+ (manifest.sbcRequired ? " on a Duet running in SBC mode" : "");
+const buildNote = built
+	? `Built against ${dwcBuiltAgainst}.`
+	: "Packaged without a DWC build (this plugin has no DWC interface).";
 
 const out = `
 ---
@@ -56,7 +62,7 @@ const out = `
 3. Select the downloaded ZIP and accept the third-party-plugin prompt.
 4. Reload DWC if asked.
 ${seeAlso}
-> 🔧 Built against ${dwcBuiltAgainst}. ${requirement}.
+> 🔧 ${buildNote} ${requirement}.
 
 <!-- dwc-plugin-update ${JSON.stringify({ version: pkgVersion, dwcVersion: requiredDwc, asset })} -->
 `;
