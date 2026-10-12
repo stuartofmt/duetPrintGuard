@@ -43,7 +43,8 @@ export function readManifest() {
  * This branch's release channel, from scripts/release-channel.txt (default "latest"):
  *   latest      - the main line. Its Releases are marked Latest.
  *   maintenance - a line built for an older DWC. Its Releases are never marked Latest.
- * Tags are v<version>-dwc<dwcVersion> on both channels (see tagSuffix).
+ * Tags are v<version>-dwc<dwcVersion> on both channels (see tagSuffix), or v<version> for a plugin with
+ * no dwcVersion.
  */
 export function releaseChannel() {
 	const file = join(repoRoot, "scripts", "release-channel.txt");
@@ -57,9 +58,19 @@ export function releaseChannel() {
 }
 
 /**
+ * Whether the plugin is built with DWC's plugin builder: plugin.json has a dwcVersion (it has a DWC
+ * interface to compile). Without one the plugin is simply zipped, as plugin_tools does.
+ */
+export function needsDwcBuild(manifest = readManifest()) {
+	const value = manifest.dwcVersion;
+	return value !== undefined && value !== null && String(value).trim() !== "";
+}
+
+/**
  * The suffix after v<version> in release tags: "-dwc<dwcVersion>", e.g. "-dwc3.7". Every tag carries
- * the DWC version it is built for, so branches for different DWC versions never clash.
+ * the DWC version it is built for, so branches for different DWC versions never clash. A plugin with
+ * no dwcVersion is not tied to a DWC version, so its tags have no suffix ("").
  */
 export function tagSuffix(manifest = readManifest()) {
-	return `-dwc${manifest.dwcVersion}`;
+	return needsDwcBuild(manifest) ? `-dwc${manifest.dwcVersion}` : "";
 }
