@@ -3,6 +3,7 @@
 
 import asyncio
 import math
+import os
 import time
 import uuid
 import json
@@ -10,7 +11,7 @@ from urllib.parse import urlsplit, urlunsplit
 from copy import deepcopy
 
 from fastapi import APIRouter, Body, Form, HTTPException, Request
-from fastapi.responses import StreamingResponse, Response, JSONResponse
+from fastapi.responses import FileResponse, StreamingResponse, Response, JSONResponse
 from sse_starlette.sse import EventSourceResponse
 
 from logger_module import logger
@@ -76,28 +77,31 @@ async def alert_response(request: Request,
 	return {"success": True}
 
 
-# index_routes.py
+# The pages are built from ui/ (Vue + Vuetify, built with Vite) into static/app - see ui/vite.config.js
+APP_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static", "app")
+
+
+def serve_page(name):
+	"""A built page. The browser checks for a newer copy each time (the assets it loads have hashed names)."""
+	return FileResponse(os.path.join(APP_DIR, f"{name}.html"), headers={"Cache-Control": "no-cache"})
+
+
 @router.get("/index", include_in_schema=False)
-async def serve_index(request: Request):
-	"""Serve the main index page."""
-	from app import templates
-	return templates.TemplateResponse(request, "index.html")
+async def serve_index():
+	"""Serve the Detection page."""
+	return serve_page("index")
 
 
-# settings_routes.py
 @router.get("/settings", include_in_schema=False)
-async def serve_settings(request: Request):
-	"""Serve the settings page."""
-	from app import templates
-	return templates.TemplateResponse(request, "settings.html")
+async def serve_settings():
+	"""Serve the Settings page."""
+	return serve_page("settings")
 
 
-# config_page_routes.py
 @router.get("/config", include_in_schema=False)
-async def serve_config(request: Request):
-	"""Serve the application configuration page."""
-	from app import templates
-	return templates.TemplateResponse(request, "config.html")
+async def serve_config():
+	"""Serve the Configuration page."""
+	return serve_page("config")
 
 
 @router.get("/config/get-app-config", include_in_schema=False)
@@ -139,17 +143,24 @@ def get_camera_uuid_by_nickname(nickname: str):
 
 
 @router.get("/stream/{nickname}", include_in_schema=False)
-async def serve_camera_stream(request: Request, nickname: str):
-	"""Serve an HTML page for a named camera stream."""
+async def serve_camera_stream(nickname: str):
+	"""Serve the page for a named camera stream. It gets the camera's details from /stream-info/<nickname>."""
+	if not get_camera_uuid_by_nickname(nickname):
+		raise HTTPException(status_code=404, detail="Camera not found")
+	return serve_page("stream")
+
+
+@router.get("/stream-info/{nickname}", include_in_schema=False)
+async def camera_stream_info(request: Request, nickname: str):
+	"""What the stream page needs: the camera's id, nickname, and its own stream URL (None for RTSP)."""
 	camera_uuid = get_camera_uuid_by_nickname(nickname)
 	if not camera_uuid:
 		raise HTTPException(status_code=404, detail="Camera not found")
-	from app import templates
-	return templates.TemplateResponse(request, "stream.html", {
+	return {
 		"camera_uuid": camera_uuid,
 		"nickname": CAMERA_SETTINGS[camera_uuid].get('nickname', nickname),
 		"direct_url": direct_stream_url(CAMERA_SETTINGS[camera_uuid].get('source'), request)
-	})
+	}
 
 
 def direct_stream_url(source, request):

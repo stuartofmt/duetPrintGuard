@@ -11,7 +11,6 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 
 from duet_config import UI
 
@@ -93,10 +92,7 @@ def init_routes_and_modules():
 
 	base_dir = os.path.dirname(__file__)
 	static_dir = os.path.join(base_dir, "static")
-	templates_dir = os.path.join(base_dir, "templates")
 	app.mount("/static", RevalidatedStaticFiles(directory=static_dir), name="static")
-	global templates
-	templates = Jinja2Templates(directory=templates_dir)
 
 	app.include_router(app_router)
 

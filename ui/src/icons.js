@@ -1,0 +1,20 @@
+// The icons the pages use. Only these end up in the bundle (as SVG paths) - no icon font is loaded.
+export {
+	mdiAutorenew,
+	mdiAutorenewOff,
+	mdiBellOff,
+	mdiBellCheck,
+	mdiCameraOff,
+	mdiCctv,
+	mdiClose,
+	mdiCog,
+	mdiContentSave,
+	mdiDelete,
+	mdiEye,
+	mdiPause,
+	mdiPlay,
+	mdiPlus,
+	mdiRefresh,
+	mdiStop,
+	mdiTimerSand,
+} from "@mdi/js";

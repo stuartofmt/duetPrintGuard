@@ -6,8 +6,6 @@ starlette==1.7.0
 uvicorn[standard]==0.54.0
 sse-starlette==3.4.11
 python-multipart==0.0.32
-# jinja2 renders the page templates (fastapi.templating) - it was only installed as a dependency of torch
-jinja2==3.1.6
 
 # ----------------------------
 # ML / inference stack
