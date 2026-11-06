@@ -1,14 +1,16 @@
 # duetPrintGuard - Basic Operation
 
 
-The main page is accessible via `http://localhost:<PORT>` or `http://<IP>:<PORT>`  This is the page displayed in DWC
+The main page is accessible via `http://localhost:<PORT>` or `http://<IP>:<PORT>`  This is the page displayed in DWC when running as the plugin. With a standalone board, use this address directly (see [Standalone boards](Installation-Configuration.md#standalone-boards)).
 
 IP and PORT are those in use by the plugin. They are shown on the Configuration page and in the log file at startup.
 
 The tabs at the top of each page switch between the three pages:
 - Detection - the main page, described here
 - Settings - cameras and the defect countdown (see [Installation-Configuration](Installation-Configuration.md#camera-setup))
-- Configuration - printer commands, notifications and the web interface (see [Installation-Configuration](Installation-Configuration.md#configuration-page))
+- Configuration - the printer connection, printer commands, notifications and the web interface (see [Installation-Configuration](Installation-Configuration.md#configuration-page))
+
+A warning at the top of the Detection page shows if the printer is not connected, with a link to the printer settings.
 
 Broadly, there are three main states
 - Not Detecting

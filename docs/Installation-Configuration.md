@@ -7,7 +7,24 @@ duetPrintGuard is packaged as a DWC plugin and installed in the normal manner fr
 
 [3.7.x](..)
 
+The plugin needs a Duet in SBC mode, because DWC plugins with a program run on the SBC.
 
+### Standalone boards
+A standalone Duet can not run duetPrintGuard itself, so it runs on another computer on the same network - for example a Raspberry Pi - and connects to the board over the network. It needs Python 3 and a copy of this repository's `3.7.x` branch:
+
+```bash
+git clone -b 3.7.x https://github.com/stuartofmt/duetPrintGuard.git
+cd duetPrintGuard
+python3 -m venv venv
+venv/bin/pip install -r Code/dsf/requirements.txt
+venv/bin/python -u Code/dsf/duetPrintGuard.py /path/to/a/folder
+```
+
+The folder holds `duetPrintGuard.json` and `duetPrintGuard.log`. If it is left out, they are kept with the program in `Code/dsf`.
+
+The pages are then at `http://<COMPUTER_IP>:<PORT>` instead of inside DWC. The address and port are in the log file at startup. On the Configuration page, enter the board's address in the `Printer` card - see [Configuration Page](#configuration-page).
+
+The same way of running also works with an SBC, from another computer or from the SBC without installing the plugin.
 
 
 ## Configuration
@@ -20,7 +37,7 @@ The file is stored compressed and base64 encoded, with a checksum. Edit settings
 
 Settings are changed from the Settings page (cameras and the defect countdown) and the Configuration page (everything else) - see below.
 
-The IP address is detected automatically and the address in use is saved to `duetPrintGuard.json` and passed to DWC, so the plugin page always connects to the right address.
+The IP address is detected automatically and the address in use is saved to `duetPrintGuard.json`. When running as the plugin it is also passed to DWC, so the plugin page always connects to the right address.
 
 If `Port` is 0 or already in use, a free port is chosen at startup. The configured `Port` value is not changed, so a value of 0 picks a free port on every startup, and a busy port is tried again on the next startup. The Configuration page shows the port currently in use, and whether a different configured port will be used after a restart.
 
@@ -123,6 +140,13 @@ When a defect is detected several things happen
 The Configuration page is accessible from the Configuration tab or via `http://<IP>:<PORT>/config`. Press `Save` at the bottom of any card to save changes - each Save button saves all the settings on the page. Settings marked `restart` take effect after the plugin is restarted. Other settings apply immediately.
 
 <img src="media/images/Config1.png" style="width:50%; height:auto;">
+
+`Printer` - how to reach the printer. Changes apply immediately. Whether the board is in SBC mode or standalone is found when connecting, and the first field shows the connection and the printer's status.
+- `Printer Address` - IP address or name of the printer. Leave blank if it is on this computer. Not used when running as a DWC plugin, which is always on the same computer as its printer
+- `Printer Port` - the port DWC uses, normally 80
+- `Printer Password` - only if a password is set on the printer
+
+If the printer can not be reached, or does not accept the password, the Detection page shows a warning. The pages and detection keep running and the connection is tried again automatically, but pause, resume, cancel and macro alerts can not reach the printer until it is connected. ntfy and Pushover alerts do not go through the printer.
 
 `Web Interface`
 - `IP Address` - detected automatically at startup (read only)

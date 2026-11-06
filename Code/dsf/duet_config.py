@@ -23,6 +23,7 @@ import base64
 import binascii
 import json
 import os
+import re
 import zlib
 import threading
 
@@ -32,6 +33,11 @@ CONFIGFILENAME = 'duetPrintGuard.json'
 
 # section -> key -> (type, default, restart_required)
 CONFIG_SCHEMA = {
+	'DUET': {
+		'IP': (str, '', False),  # Blank = this computer
+		'PORT': (int, 80, False),
+		'PASSWORD': (str, '', False),
+	},
 	'UI': {
 		'PORT': (int, 0, True),
 		'IP' : (str,'',False)
@@ -80,7 +86,7 @@ class ConfigSection:
 
 
 DUET, UI, LOGGING, ACTION, MACRO, NTFY, PUSHOVER = (ConfigSection() for _ in range(7))
-_SECTIONS = {'UI': UI, 'LOGGING': LOGGING, 'ACTION': ACTION,
+_SECTIONS = {'DUET': DUET, 'UI': UI, 'LOGGING': LOGGING, 'ACTION': ACTION,
 			 'MACRO': MACRO, 'NTFY': NTFY, 'PUSHOVER': PUSHOVER}
 
 _config_file = None
@@ -111,6 +117,8 @@ def _validate(section, key, value):
 			raise ValueError('must be between 0 and 65535')
 	elif key == 'PORT' and not 1 <= value <= 65535:
 		raise ValueError('must be between 1 and 65535')
+	if section == 'DUET' and key == 'IP' and not re.fullmatch(r'[A-Za-z0-9.\-:]*', value):
+		raise ValueError('must be an address such as 192.168.1.5 or printer.local')
 	if key == 'MAXTIMES' and value < 0:
 		raise ValueError('must be 0 or more')
 	if section == 'NTFY' and key == 'PRIORITY' and not 1 <= value <= 5:

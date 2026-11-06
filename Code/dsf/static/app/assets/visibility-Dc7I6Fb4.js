@@ -1,0 +1,1 @@
+import{Kr as e,it as t}from"./VAlert-CnANQl89.js";var n=e({visible:!document.hidden}),r=!0;function i(){n.visible=!document.hidden&&r}document.addEventListener(`visibilitychange`,i),t&&window.addEventListener(`message`,e=>{let t=e.data;e.source===window.parent&&t?.source===`duetPrintGuard`&&t.type===`visibility`&&(r=!!t.visible,i())});export{n as t};

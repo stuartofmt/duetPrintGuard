@@ -58,6 +58,8 @@ function loadSnapshot(camera) {
 const cameras = ref([]);
 const noCameras = ref(false);
 const paused = ref(false);
+const printer = ref(null);
+const configUrl = pageUrl("/config");
 const countdown = reactive({ active: false, seconds: 0, action: null });
 const autostart = reactive({ enabled: false, running: false, waiting: false });
 const settingsUrl = pageUrl("/settings");
@@ -167,8 +169,9 @@ async function runAction(action) {
 // follows the printer's status rather than this page's clicks
 async function refreshPrinterStatus() {
 	try {
-		const status = (await api.get("/printer/get-status"))?.status;
-		if (status) paused.value = status === "paused" || status === "pausing";
+		const data = await api.get("/printer/get-status");
+		printer.value = data;
+		if (data?.status) paused.value = data.status === "paused" || data.status === "pausing";
 	} catch (err) {
 		console.warn("Error from /printer/get-status", err);
 	}
@@ -321,6 +324,12 @@ onBeforeUnmount(() => {
 
 <template>
 	<PgPage>
+		<!-- The printer can not be reached: detection still runs, but it can not pause or cancel the print -->
+		<v-alert v-if="printer && !printer.connected" type="warning" variant="tonal" density="compact" class="mb-4">
+			{{ printer.error || `Connecting to the printer at ${printer.address}` }}. Check the
+			<a :href="configUrl">printer settings</a>.
+		</v-alert>
+
 		<!-- Print controls and the defect countdown -->
 		<v-card class="mb-4">
 			<v-card-text class="d-flex flex-wrap align-center ga-2">

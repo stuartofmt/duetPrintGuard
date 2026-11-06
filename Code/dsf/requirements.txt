@@ -23,4 +23,4 @@ opencv-python-headless==4.14.0.94
 # Duet3d
 # ----------------------------
 requests
-dsf-python==3.7.0.post1
+websocket-client==1.8.0

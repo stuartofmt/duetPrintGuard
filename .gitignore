@@ -23,3 +23,7 @@ call_graph_pyan.py
 x*.py
 *.copy
 *.git/
+
+# Standalone ZIP: commit the launchers, not the ZIPs built locally (added by Prep_and_Package)
+standalone/*.zip
+!standalone/run.sh

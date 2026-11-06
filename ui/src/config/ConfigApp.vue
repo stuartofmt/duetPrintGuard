@@ -1,6 +1,6 @@
 <!-- Configuration page: web interface, printer commands and notifications. Every card's Save saves the whole page. -->
 <script setup>
-import { onMounted, reactive, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import PgPage from "../components/PgPage.vue";
 import { api } from "../api.js";
 import { notify } from "../notify.js";
@@ -11,6 +11,18 @@ const SYSTEM_DEFAULT_HINT = "Leave blank to use the system text shown, which fol
 
 // Field names are SECTION.KEY, matching /config/get-app-config and /config/save-app-config
 const sections = [
+	{
+		title: "Printer",
+		help: "Works with a Duet in SBC mode or standalone - which one is found when connecting.",
+		fields: [
+			{
+				name: "DUET.IP", label: "Printer Address", placeholder: "This computer",
+				hint: "IP address or name of the printer. Leave blank if it is on this computer. Not used when running as a DWC plugin.",
+			},
+			{ name: "DUET.PORT", label: "Printer Port", type: "number", min: 1, max: 65535, hint: "The port DWC uses - normally 80." },
+			{ name: "DUET.PASSWORD", label: "Printer Password", type: "password", hint: "Only if a password is set on the printer." },
+		],
+	},
 	{
 		title: "Web Interface",
 		fields: [
@@ -76,9 +88,29 @@ const portStatus = ref("");
 const status = reactive({ text: "", type: "success" });
 const saving = ref(false);
 
-const fieldHint = (field) => (field.name === "UI.PORT" && portStatus.value)
-	? `${portStatus.value}. ${field.hint}`
-	: field.hint;
+const printer = ref(null);
+let printerTimer = null;
+
+const API_NAMES = { SBC: "SBC mode", standalone: "standalone" };
+const printerStatus = computed(() => {
+	if (!printer.value) return "";
+	const p = printer.value;
+	return p.connected ? `Connected to ${p.address} (${API_NAMES[p.api] || p.api}), status ${p.status}` : (p.error || `Connecting to ${p.address}`);
+});
+
+const fieldHint = (field) => {
+	if (field.name === "UI.PORT" && portStatus.value) return `${portStatus.value}. ${field.hint}`;
+	if (field.name === "DUET.IP" && printerStatus.value) return `${printerStatus.value}. ${field.hint}`;
+	return field.hint;
+};
+
+async function refreshPrinter() {
+	try {
+		printer.value = await api.get("/printer/get-status");
+	} catch (err) {
+		console.warn("Error from /printer/get-status", err);
+	}
+}
 
 function setErrors(newErrors = {}) {
 	Object.keys(errors).forEach((key) => delete errors[key]);
@@ -140,6 +172,7 @@ async function save() {
 			notify("Saved.");
 		}
 		await load();
+		refreshPrinter();
 	} catch (err) {
 		if (err.status === 400 && err.data?.errors) {
 			setErrors(err.data.errors);
@@ -155,7 +188,12 @@ async function save() {
 	}
 }
 
-onMounted(load);
+onMounted(() => {
+	load();
+	refreshPrinter();
+	printerTimer = setInterval(refreshPrinter, 3000);
+});
+onBeforeUnmount(() => clearInterval(printerTimer));
 </script>
 
 <template>

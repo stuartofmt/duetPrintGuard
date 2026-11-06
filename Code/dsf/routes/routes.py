@@ -16,7 +16,7 @@ from sse_starlette.sse import EventSourceResponse
 
 from logger_module import logger
 
-from duet_printer import suspend_print_job, get_duet_printer_status, reset_notification_counters
+from printer_control import suspend_print_job, printer_info, printer_settings_changed, reset_notification_counters
 
 import cv2
 
@@ -29,7 +29,7 @@ from utils.config import (
 	add_to_config,
 	delete_from_config
 )
-from duet_config import get_config_for_ui, update_config
+from duet_config import DUET, get_config_for_ui, update_config
 from utils.shared_video_stream import get_shared_stream_manager
 from utils.detector import SENSITIVITY_STEPS
 from utils.mjpeg_source import is_http_source, check_mjpeg_stream, fetch_snapshot_bytes, stream_mjpeg
@@ -118,6 +118,7 @@ async def get_app_config():
 async def save_app_config(request: Request):
 	"""Validate and save the application configuration."""
 	data = await request.json()
+	printer_before = (DUET.IP, DUET.PORT, DUET.PASSWORD)
 	try:
 		errors, restart_keys = update_config(data)
 	except OSError as e:
@@ -126,6 +127,8 @@ async def save_app_config(request: Request):
 	if errors:
 		return JSONResponse(status_code=400, content={"success": False, "errors": errors})
 	logger.info("Configuration updated from config page")
+	if (DUET.IP, DUET.PORT, DUET.PASSWORD) != printer_before:
+		printer_settings_changed()
 	return {"success": True, "restart_required": restart_keys}
 
 
@@ -611,8 +614,7 @@ async def stopping_detection(request: Request, camera_uuid: str = Body(..., embe
 async def get_printer_status(request: Request):
 	"""Get the status of the printer."""
 	try:
-		status = get_duet_printer_status()
-		return {"success": True, "status": status}
+		return {"success": True, **printer_info()}
 	except Exception as e:
 		logger.error("Error getting printer status: %s", e)
 		return {"success": False, "message": "Failed to get printer status"}

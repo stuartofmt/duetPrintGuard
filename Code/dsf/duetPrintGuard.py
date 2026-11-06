@@ -120,25 +120,25 @@ def start(file_path):
 	# Set logging level
 	logger = set_log_level(LOGGING.LEVEL,logger)
 
-	from duet_printer import _loginPrinter, publish_ui_address
+	from duet_printer import publishUiAddress
+	from printer_control import running_as_plugin, start_printer_monitor
 
-	if _loginPrinter():
-		logger.info(f'Successful login to printer')
-	else:
-		logger.critical(f'Failed to login to printer - check printer is turned on')
-		force_quit(1)
-
-	# Allocate a port on this SBC
+	# Allocate a port on this computer
 
 	save_ui_address(*validate_port(UI.PORT))
-	publish_ui_address(UI.IP, UI.PORT)
+	if running_as_plugin():
+		publishUiAddress(UI.IP, UI.PORT)  # First, so the DWC page opens even if the printer can not be reached
+
+	# Connects in the background, and keeps trying - the printer's address and password are set on the Configuration page
+	start_printer_monitor()
  
 	from app import appstartup
 	appstartup()
 
 
 if __name__ == '__main__':
-	file_path = sys.argv[1]
+	# The folder for the settings and log: the plugin is given one, otherwise it is this program's folder
+	file_path = sys.argv[1] if len(sys.argv) > 1 else os.path.dirname(os.path.abspath(__file__))
 	if not os.path.exists(file_path):
 		print(f'File path {file_path} could not be found - Exiting')
 		sys.exit(1)

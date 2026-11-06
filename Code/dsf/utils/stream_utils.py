@@ -22,7 +22,7 @@ from .config import (STREAM_MAX_FPS,
 from .config import (CAMERA_SETTINGS,CAMERA_STATES,COUNTDOWN_SETTINGS, DEFAULT_CAMERA_STATE)
 
 
-from duet_printer import suspend_print_job, duet_send_notification
+from printer_control import suspend_print_job, duet_send_notification
 
 
 class StreamOptimizer:

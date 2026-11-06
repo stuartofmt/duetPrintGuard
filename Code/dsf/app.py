@@ -154,7 +154,7 @@ async def autostart_detection(cameras, app_state):
 	# Stops detection when printer goes to idle after processing
 	# Finishes after idle state (or when cancelled by activate_autostart_detection(False))
 
-	from duet_printer import get_duet_printer_status
+	from printer_control import get_duet_printer_status
 	from utils.stream_utils import start_live_detection, stop_live_detection,save_app_state_request
 
 	autostart_pending = True
@@ -163,7 +163,7 @@ async def autostart_detection(cameras, app_state):
 	try:
 		while True:
 			logger.debug(f'Waiting for printer before autostarting detection loop for cameras: {list(cameras.keys())}')
-			printer_status = await asyncio.to_thread(get_duet_printer_status)
+			printer_status = get_duet_printer_status()
 			if printer_status == 'processing' and autostart_pending:
 				try:
 					logger.info(f'Autostarting detection loop for cameras: {list(cameras.keys())}')

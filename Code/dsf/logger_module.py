@@ -13,6 +13,10 @@ import os
 
 global logger, file_path, logfilename
 
+def current_func_name(n=0):
+	return sys._getframe(n + 1).f_code.co_name
+
+
 def setup_logfile(path, name, progName="duetPrintGuard"):
 	global logger, file_path, logfilename
 	file_path = path
