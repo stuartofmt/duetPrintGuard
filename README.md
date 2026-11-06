@@ -2,7 +2,7 @@ Here's what changes for a user going from 3.6.x to 3.7.x.
 
 **Setup and configuration**
 - **No configuration file to prepare.** In 3.6.x you copied `duetPrintGuard.config.example`, then entered the printer's IP address and a port. 3.7.x starts with working defaults and finds the printer by itself.
-- **Standalone boards are supported:** duetPrintGuard runs on another computer on the network and connects to the board. The plugin form still needs an SBC. See [Standalone boards](docs/Installation-Configuration.md#standalone-boards).
+- **Standalone boards are supported:** duetPrintGuard runs on another computer on the network and connects to the board. This can be Linux or Windows. The plugin form still needs an SBC. See [Standalone boards](docs/Installation-Configuration.md#standalone-boards).
 - **A new Configuration UI** covers the printer connection, port, logging, printer commands, macro, ntfy and Pushover. Cameras and the countdown are on the Settings UI.
 - **The port is chosen automatically** unless you set one, and the Configuration UI shows which port is in use.
 - **Settings survive damage:** a corrupted settings file is reset to defaults automatically, instead of stopping the plugin from starting.

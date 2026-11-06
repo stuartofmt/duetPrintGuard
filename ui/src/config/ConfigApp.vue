@@ -17,7 +17,7 @@ const sections = [
 		fields: [
 			{
 				name: "DUET.IP", label: "Printer Address", placeholder: "This computer",
-				hint: "IP address or name of the printer. Leave blank if it is on this computer. Not used when running as a DWC plugin.",
+				hint: "IP address or name of the printer. Leave blank only if this computer is the printer's SBC. Not used when running as a DWC plugin.",
 			},
 			{ name: "DUET.PORT", label: "Printer Port", type: "number", min: 1, max: 65535, hint: "The port DWC uses - normally 80." },
 			{ name: "DUET.PASSWORD", label: "Printer Password", type: "password", hint: "Only if a password is set on the printer." },
@@ -163,10 +163,10 @@ async function save() {
 		// Save is pressed further down
 		if (result.restart_required.length) {
 			Object.assign(status, {
-				text: `Saved. Restart the plugin for these changes to take effect: ${result.restart_required.join(", ")}`,
+				text: `Saved. Restart duetPrintGuard for these changes to take effect: ${result.restart_required.join(", ")}`,
 				type: "warning",
 			});
-			notify("Saved - restart the plugin for some changes to take effect.", "warning", 6000);
+			notify("Saved - restart duetPrintGuard for some changes to take effect.", "warning", 6000);
 		} else {
 			status.text = "";
 			notify("Saved.");
@@ -244,7 +244,7 @@ onBeforeUnmount(() => clearInterval(printerTimer));
 
 					<p class="text-body-small text-medium-emphasis mb-4">
 						Settings marked <v-chip size="x-small" color="warning" variant="tonal">restart</v-chip>
-						take effect after the plugin is restarted. Other settings apply immediately.
+						take effect after duetPrintGuard is restarted. Other settings apply immediately.
 						Each Save button saves all the settings on this page.
 					</p>
 				</v-form>

@@ -24,12 +24,15 @@ import binascii
 import json
 import os
 import re
+import time
 import zlib
 import threading
 
 global DUET, UI, LOGGING, ACTION, MACRO, NTFY, PUSHOVER
 
 CONFIGFILENAME = 'duetPrintGuard.json'
+SAVE_TRIES = 5  # Windows refuses to replace a file while e.g. antivirus or a backup has it open for a moment
+SAVE_RETRY_SECONDS = 0.2
 
 # section -> key -> (type, default, restart_required)
 CONFIG_SCHEMA = {
@@ -190,7 +193,14 @@ def _save(config):
 		tmp_file = _config_file + '.tmp'
 		with open(tmp_file, 'w', encoding='ascii') as f:
 			f.write(_encode(config))
-		os.replace(tmp_file, _config_file)
+		for attempt in range(SAVE_TRIES):
+			try:
+				os.replace(tmp_file, _config_file)
+				return
+			except PermissionError:
+				if attempt == SAVE_TRIES - 1:
+					raise
+				time.sleep(SAVE_RETRY_SECONDS)
 
 
 def _apply(config):

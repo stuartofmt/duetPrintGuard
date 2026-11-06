@@ -49,7 +49,7 @@ progName = 'duetPrintGuard'
 progVersion = _plugin_version()
 # Min python version
 pythonMajor = 3
-pythonMinor = 9
+pythonMinor = 12  # numpy in requirements.txt needs this
 
 LOGFILENAME = 'duetPrintGuard.log'
 
@@ -97,6 +97,16 @@ def validate_port(port=0, start_port=17800, max_tries=100):
 	return this_ip_address, port
 
 
+def default_folder():
+	"""The folder for the settings and log when none is given: the program's folder, or on Windows the user's
+	application data, as the program's folder may not be writable (e.g. in Program Files)."""
+	folder = os.path.dirname(os.path.abspath(__file__))
+	if os.name == 'nt' and os.environ.get('APPDATA'):
+		folder = os.path.join(os.environ['APPDATA'], progName)
+		os.makedirs(folder, exist_ok=True)
+	return folder
+
+
 def force_quit(code):
 	logger.critical(f'''Terminating the program with exit code {code}''')
 	sys.exit(code)
@@ -137,8 +147,11 @@ def start(file_path):
 
 
 if __name__ == '__main__':
-	# The folder for the settings and log: the plugin is given one, otherwise it is this program's folder
-	file_path = sys.argv[1] if len(sys.argv) > 1 else os.path.dirname(os.path.abspath(__file__))
+	if sys.version_info < (pythonMajor, pythonMinor):
+		print(f'{progName} needs Python {pythonMajor}.{pythonMinor} or later - this is {sys.version.split()[0]} - Exiting')
+		sys.exit(1)
+	# The folder for the settings and log: the plugin is given one
+	file_path = sys.argv[1] if len(sys.argv) > 1 else default_folder()
 	if not os.path.exists(file_path):
 		print(f'File path {file_path} could not be found - Exiting')
 		sys.exit(1)

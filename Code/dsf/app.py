@@ -4,8 +4,11 @@ from logger_module import logger
 import os
 from contextlib import asynccontextmanager
 import json
+import mimetypes
 
-
+# Windows takes these from the registry, where .js may be text/plain - the browser then refuses to run the pages' scripts
+mimetypes.add_type('text/javascript', '.js')
+mimetypes.add_type('text/css', '.css')
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware

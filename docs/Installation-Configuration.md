@@ -10,7 +10,7 @@ duetPrintGuard is packaged as a DWC plugin and installed in the normal manner fr
 The plugin needs a Duet in SBC mode, because DWC plugins with a program run on the SBC.
 
 ### Standalone boards
-A standalone Duet can not run duetPrintGuard itself, so it runs on another computer on the same network - for example a Raspberry Pi - and connects to the board over the network. It needs Python 3 and a copy of this repository's `3.7.x` branch:
+A standalone Duet can not run duetPrintGuard itself, so it runs on another computer on the same network - for example a Raspberry Pi - and connects to the board over the network. It needs Python 3.12 or later and a copy of this repository's `3.7.x` branch:
 
 ```bash
 git clone -b 3.7.x https://github.com/stuartofmt/duetPrintGuard.git
@@ -20,11 +20,22 @@ venv/bin/pip install -r Code/dsf/requirements.txt
 venv/bin/python -u Code/dsf/duetPrintGuard.py /path/to/a/folder
 ```
 
-The folder holds `duetPrintGuard.json` and `duetPrintGuard.log`. If it is left out, they are kept with the program in `Code/dsf`.
+The folder holds `duetPrintGuard.json` and `duetPrintGuard.log`. If it is left out, they are kept with the program in `Code/dsf` (on Windows, in `%APPDATA%\duetPrintGuard`).
 
 The pages are then at `http://<COMPUTER_IP>:<PORT>` instead of inside DWC. The address and port are in the log file at startup. On the Configuration page, enter the board's address in the `Printer` card - see [Configuration Page](#configuration-page).
 
 The same way of running also works with an SBC, from another computer or from the SBC without installing the plugin.
+
+### Windows
+duetPrintGuard can run on a 64-bit Intel or AMD Windows computer in the same way. Windows on ARM is not supported, because a required package is not available for it.
+
+1. Install Python 3.12 or later from [python.org](https://www.python.org/downloads/), ticking "Add python.exe to PATH".
+2. Get a copy of this repository's `3.7.x` branch, as above or as a zip file.
+3. Double-click `run.bat`. The first run creates a `venv` folder and installs the requirements, which takes a few minutes.
+
+To keep the settings and log in a particular folder, start it with `run.bat C:\path\to\a\folder`.
+
+When Windows Firewall asks, allow Python to communicate on your network, otherwise other devices can not open the pages. If detection fails with a "DLL load failed" error, install the [Microsoft Visual C++ Redistributable](https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist).
 
 
 ## Configuration
@@ -137,12 +148,12 @@ When a defect is detected several things happen
 
 ## Configuration Page
 
-The Configuration page is accessible from the Configuration tab or via `http://<IP>:<PORT>/config`. Press `Save` at the bottom of any card to save changes - each Save button saves all the settings on the page. Settings marked `restart` take effect after the plugin is restarted. Other settings apply immediately.
+The Configuration page is accessible from the Configuration tab or via `http://<IP>:<PORT>/config`. Press `Save` at the bottom of any card to save changes - each Save button saves all the settings on the page. Settings marked `restart` take effect after duetPrintGuard is restarted. Other settings apply immediately.
 
 <img src="media/images/Config1.png" style="width:50%; height:auto;">
 
 `Printer` - how to reach the printer. Changes apply immediately. Whether the board is in SBC mode or standalone is found when connecting, and the first field shows the connection and the printer's status.
-- `Printer Address` - IP address or name of the printer. Leave blank if it is on this computer. Not used when running as a DWC plugin, which is always on the same computer as its printer
+- `Printer Address` - IP address or name of the printer. Leave blank only if this computer is the printer's SBC. Not used when running as a DWC plugin, which is always on the same computer as its printer
 - `Printer Port` - the port DWC uses, normally 80
 - `Printer Password` - only if a password is set on the printer
 
