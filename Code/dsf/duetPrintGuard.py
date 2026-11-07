@@ -23,6 +23,9 @@ Version 1.0.0 - Initial release
 import sys
 import os
 import socket
+import threading
+import time
+import webbrowser
 
 sys.path.append(os.path.dirname(__file__))
 
@@ -107,6 +110,40 @@ def default_folder():
 	return folder
 
 
+BROWSER_WAIT_SECONDS = 30  # For the web server to start
+
+
+def can_open_browser():
+	"""True if there is a desktop to open a browser on.  Without one (e.g. over ssh), Linux would use a text browser in the terminal."""
+	if os.name == 'nt' or sys.platform == 'darwin':
+		return True
+	return bool(os.environ.get('DISPLAY') or os.environ.get('WAYLAND_DISPLAY'))
+
+
+def open_browser_when_ready(port):
+	"""Open the pages in this computer's default browser, once the web server answers."""
+	url = f'http://localhost:{port}'
+	if not can_open_browser():
+		logger.info(f'No desktop to open a browser on - open {url} (or this computer\'s address) in a browser')
+		return
+
+	def wait_and_open():
+		deadline = time.time() + BROWSER_WAIT_SECONDS
+		while not port_in_use('127.0.0.1', port):
+			if time.time() > deadline:
+				logger.warning(f'The web server did not start within {BROWSER_WAIT_SECONDS} seconds - not opening a browser')
+				return
+			time.sleep(0.5)
+		try:
+			opened = webbrowser.open(url)
+		except Exception as e:  # e.g. no browser installed
+			logger.debug(f'Could not open a browser: {e}')
+			opened = False
+		logger.info(f'Opened {url} in the default browser' if opened else f'Could not open a browser - open {url} in a browser')
+
+	threading.Thread(name='openBrowser', target=wait_and_open, daemon=True).start()
+
+
 def force_quit(code):
 	logger.critical(f'''Terminating the program with exit code {code}''')
 	sys.exit(code)
@@ -141,6 +178,10 @@ def start(file_path):
 
 	# Connects in the background, and keeps trying - the printer's address and password are set on the Configuration page
 	start_printer_monitor()
+
+	# Run by hand (remote SBC or standalone, or the SBC itself) - DWC shows the pages of the plugin
+	if UI.OPENBROWSER and not running_as_plugin():
+		open_browser_when_ready(UI.PORT)
  
 	from app import appstartup
 	appstartup()

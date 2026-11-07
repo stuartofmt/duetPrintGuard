@@ -43,7 +43,8 @@ CONFIG_SCHEMA = {
 	},
 	'UI': {
 		'PORT': (int, 0, True),
-		'IP' : (str,'',False)
+		'IP' : (str,'',False),
+		'OPENBROWSER': (bool, True, False),  # Open the pages in this computer's browser at startup - not as the plugin
 	},
 	'LOGGING': {
 		'LEVEL': (str, 'INFO', False),

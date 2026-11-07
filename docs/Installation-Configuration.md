@@ -173,6 +173,7 @@ If the printer can not be reached, or does not accept the password, the Detectio
 `Web Interface`
 - `IP Address` - detected automatically at startup (read only)
 - `Port` - the port for the Detection, Settings and Configuration pages. Must not conflict with DWC or other plugins. Use 0 to pick a free port automatically (see Configuration above)
+- `Open Browser at Startup` - opens these pages in the computer's default browser when duetPrintGuard starts. On by default. Not used when running as a DWC plugin, or on Linux without a desktop (e.g. over ssh)
 - `Logging Level` - INFO or DEBUG
 
 `Printer Actions` - the commands sent to the printer for Pause (default `M25`), Resume (default `M24`) and Cancel (default `M2`). Leave blank to use the default.

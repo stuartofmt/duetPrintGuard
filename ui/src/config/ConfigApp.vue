@@ -31,6 +31,10 @@ const sections = [
 				name: "UI.PORT", label: "Port", type: "number", min: 0, max: 65535, restart: true,
 				hint: "Port for the Detection, Settings and Configuration pages. Must not conflict with DWC or other plugins. Use 0 to pick a free port automatically at startup. If the chosen port is in use, a free port is picked instead.",
 			},
+			{
+				name: "UI.OPENBROWSER", label: "Open Browser at Startup", type: "switch",
+				hint: "Open these pages in this computer's browser when duetPrintGuard starts. Not used when running as a DWC plugin, or without a desktop.",
+			},
 			{ name: "LOGGING.LEVEL", label: "Logging Level", type: "select" },
 		],
 	},
@@ -215,6 +219,10 @@ onBeforeUnmount(() => clearInterval(printerTimer));
 											  readonly variant="outlined" density="comfortable" class="mb-3"
 											  hint="IP address of this machine, detected automatically at startup."
 											  persistent-hint></v-text-field>
+
+								<v-switch v-else-if="field.type === 'switch'" v-model="values[field.name]" :label="field.label"
+										  :hint="field.hint" persistent-hint :error-messages="errors[field.name]"
+										  color="primary" density="comfortable" inset class="mb-3"></v-switch>
 
 								<v-select v-else-if="field.type === 'select'" v-model="values[field.name]"
 										  :label="field.label" :items="logLevels" :error-messages="errors[field.name]"
