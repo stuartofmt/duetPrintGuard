@@ -1,10 +1,13 @@
-<!-- Page layout: navigation tabs, the page content, then the snackbar and confirm dialog -->
+<!-- Page layout: navigation tabs, the printer banner (while it is not connected), the page content, then the snackbar and confirm dialog -->
 <script setup>
 import { closeConfirm, confirmState, snackbar } from "../notify.js";
 import { currentPage, pageUrl, pages } from "../pages.js";
+import { startPrinterPolling } from "../printer.js";
+import PrinterConnect from "./PrinterConnect.vue";
 import { mdiClose } from "../icons.js";
 
 const current = currentPage();
+startPrinterPolling();
 </script>
 
 <template>
@@ -16,6 +19,7 @@ const current = currentPage();
 			</v-tabs>
 			<v-divider></v-divider>
 			<v-container fluid class="pa-2 pa-sm-4">
+				<PrinterConnect></PrinterConnect>
 				<slot></slot>
 			</v-container>
 		</v-main>

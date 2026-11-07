@@ -11,6 +11,7 @@ export {
 	mdiContentSave,
 	mdiDelete,
 	mdiEye,
+	mdiEyeOff,
 	mdiPause,
 	mdiPlay,
 	mdiPlus,

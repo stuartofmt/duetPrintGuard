@@ -621,6 +621,29 @@ async def get_printer_status(request: Request):
 	
 	
 
+@router.post("/printer/connect", include_in_schema=False)
+async def connect_printer(request: Request):
+	"""New printer settings from the page while the printer is not connected: save them and connect at once.
+
+	Takes {ip, port, password}: a blank port is 80 and a blank password keeps the saved one.
+	"""
+	if printer_info()["connected"]:
+		return JSONResponse(status_code=409, content={"success": False, "errors": {}, "message": "Already connected to the printer"})
+	data = await request.json()
+	settings = {"IP": data.get("ip") or "", "PORT": data.get("port") if str(data.get("port") or "").strip() else 80}
+	if data.get("password"):
+		settings["PASSWORD"] = data["password"]
+	try:
+		errors, _ = update_config({"DUET": settings})
+	except OSError as e:
+		logger.error("Failed to save the printer settings: %s", e)
+		raise HTTPException(status_code=500, detail=f"Failed to save the printer settings: {e}")
+	if errors:
+		return JSONResponse(status_code=400, content={"success": False, "errors": errors, "message": "Not saved - check the marked settings"})
+	printer_settings_changed()  # Connects again even if nothing changed, e.g. after the printer was switched on
+	return {"success": True, "message": f"Saved - connecting to the printer at {printer_info()['address']}"}
+
+
 @router.get("/printer/enableautostart", include_in_schema=False)
 async def enable_autostart(request: Request):
 	"""Eenable autostart"""

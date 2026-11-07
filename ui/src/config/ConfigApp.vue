@@ -1,9 +1,10 @@
 <!-- Configuration page: web interface, printer commands and notifications. Every card's Save saves the whole page. -->
 <script setup>
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref } from "vue";
 import PgPage from "../components/PgPage.vue";
 import { api } from "../api.js";
 import { notify } from "../notify.js";
+import { printer, refreshPrinter } from "../printer.js";
 import { mdiContentSave } from "../icons.js";
 
 // Blank ntfy / Pushover titles and messages use the system text, shown as the placeholder
@@ -92,8 +93,6 @@ const portStatus = ref("");
 const status = reactive({ text: "", type: "success" });
 const saving = ref(false);
 
-const printer = ref(null);
-let printerTimer = null;
 
 const MODE_NAMES = { plugin: "plugin, through DSF", remoteSBC: "remote SBC", remoteStandalone: "remote standalone" };
 const printerStatus = computed(() => {
@@ -107,14 +106,6 @@ const fieldHint = (field) => {
 	if (field.name === "DUET.IP" && printerStatus.value) return `${printerStatus.value}. ${field.hint}`;
 	return field.hint;
 };
-
-async function refreshPrinter() {
-	try {
-		printer.value = await api.get("/printer/get-status");
-	} catch (err) {
-		console.warn("Error from /printer/get-status", err);
-	}
-}
 
 function setErrors(newErrors = {}) {
 	Object.keys(errors).forEach((key) => delete errors[key]);
@@ -194,10 +185,7 @@ async function save() {
 
 onMounted(() => {
 	load();
-	refreshPrinter();
-	printerTimer = setInterval(refreshPrinter, 3000);
 });
-onBeforeUnmount(() => clearInterval(printerTimer));
 </script>
 
 <template>

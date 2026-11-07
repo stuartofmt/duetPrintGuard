@@ -202,6 +202,9 @@ def printer_info():
 		'mode': MODES.get(state.apiModel, ''),
 		'plugin': bool(state.plugin),
 		'error': _error,
+		'retrying': not _passwordRefused,  # False - no more tries until the printer settings change
+		'ip': DUET.IP,  # The printer settings, for the page's connect form (not the password)
+		'port': DUET.PORT,
 	}
 
 

@@ -9,6 +9,7 @@ import PgPage from "../components/PgPage.vue";
 import { api } from "../api.js";
 import { confirm, notify } from "../notify.js";
 import { pageUrl, streamPageUrl } from "../pages.js";
+import { printer, refreshPrinter } from "../printer.js";
 import { connectSSE } from "../sse.js";
 import { visibility } from "../visibility.js";
 import {
@@ -18,7 +19,6 @@ import {
 const DEFAULT_ICON = "/static/images/default_icon.png";
 const MAX_CONCURRENT_SNAPSHOTS = 2;
 const ACTION_NAMES = { pause_print: "Pause", cancel_print: "Cancel", ignore: "Action" };
-const PRINTER_POLL_INTERVAL = 5000; // ms - keeps Pause / Resume in step with the printer
 
 // =========================
 // Snapshot queue - at most MAX_CONCURRENT_SNAPSHOTS loading at once
@@ -58,8 +58,6 @@ function loadSnapshot(camera) {
 const cameras = ref([]);
 const noCameras = ref(false);
 const paused = ref(false);
-const printer = ref(null);
-const configUrl = pageUrl("/config");
 const countdown = reactive({ active: false, seconds: 0, action: null });
 const autostart = reactive({ enabled: false, running: false, waiting: false });
 const settingsUrl = pageUrl("/settings");
@@ -68,7 +66,6 @@ const suspended = ref(false);
 const active = computed(() => visibility.visible && !suspended.value);
 let countdownTimer = null;
 let closeSSE = null;
-let printerTimer = null;
 
 const countdownText = computed(() => ACTION_NAMES[countdown.action] ?? "Action");
 
@@ -166,16 +163,10 @@ async function runAction(action) {
 }
 
 // The printer can be paused by the countdown, from DWC or from another browser, so Pause / Resume
-// follows the printer's status rather than this page's clicks
-async function refreshPrinterStatus() {
-	try {
-		const data = await api.get("/printer/get-status");
-		printer.value = data;
-		if (data?.status) paused.value = data.status === "paused" || data.status === "pausing";
-	} catch (err) {
-		console.warn("Error from /printer/get-status", err);
-	}
-}
+// follows the printer's status (polled by printer.js) rather than this page's clicks
+watch(() => printer.value?.status, (status) => {
+	if (status) paused.value = status === "paused" || status === "pausing";
+}, { immediate: true });
 
 async function togglePause() {
 	if (paused.value) {
@@ -183,13 +174,13 @@ async function togglePause() {
 	} else if (await confirm("Are you sure you want to Pause the print?", { color: "warning" })) {
 		await runAction("pause_print");
 	}
-	refreshPrinterStatus();
+	refreshPrinter();
 }
 
 async function cancelPrint() {
 	if (await confirm("Are you sure you want to Cancel the print?", { color: "error" })) {
 		await runAction("cancel_print");
-		refreshPrinterStatus();
+		refreshPrinter();
 	}
 }
 
@@ -267,8 +258,6 @@ const sseHandlers = {
 function connect() {
 	if (closeSSE) return;
 	closeSSE = connectSSE(sseHandlers); // Sends the current countdown on connect
-	refreshPrinterStatus();
-	printerTimer = setInterval(refreshPrinterStatus, PRINTER_POLL_INTERVAL);
 	for (const camera of cameras.value) {
 		camera.streamFailed = false;
 		refreshState(camera);
@@ -279,8 +268,6 @@ function connect() {
 function disconnect() {
 	closeSSE?.();
 	closeSSE = null;
-	clearInterval(printerTimer);
-	printerTimer = null;
 }
 
 watch(() => visibility.visible, (visible) => {
@@ -324,12 +311,6 @@ onBeforeUnmount(() => {
 
 <template>
 	<PgPage>
-		<!-- The printer can not be reached: detection still runs, but it can not pause or cancel the print -->
-		<v-alert v-if="printer && !printer.connected" type="warning" variant="tonal" density="compact" class="mb-4">
-			{{ printer.error || `Connecting to the printer at ${printer.address}` }}. Check the
-			<a :href="configUrl">printer settings</a>.
-		</v-alert>
-
 		<!-- Print controls and the defect countdown -->
 		<v-card class="mb-4">
 			<v-card-text class="d-flex flex-wrap align-center ga-2">
