@@ -30,7 +30,7 @@ import webbrowser
 sys.path.append(os.path.dirname(__file__))
 
 from logger_module import (setup_logfile, set_log_level)
-from duet_config import get_DWC_config
+from duet_config import CONFIGFILENAME, get_DWC_config
 
 import json
 
@@ -100,13 +100,60 @@ def validate_port(port=0, start_port=17800, max_tries=100):
 	return this_ip_address, port
 
 
+_folder_notes = []  # What default_folder found out, logged once the log is set up
+
+
+def _packaged_python():
+	"""True on Windows if this Python runs as a packaged app (e.g. from the Microsoft Store, started through
+	...\\WindowsApps\\python.exe).  Windows then quietly redirects files it writes under AppData to a private folder of
+	the package, which Explorer and other programs do not see."""
+	if os.name != 'nt':
+		return False
+	try:
+		import ctypes
+		length = ctypes.c_uint32(0)
+		# 15700 (APPMODEL_ERROR_NO_PACKAGE) = not packaged; 122 (ERROR_INSUFFICIENT_BUFFER) = packaged
+		return ctypes.windll.kernel32.GetCurrentPackageFullName(ctypes.byref(length), None) != 15700
+	except (AttributeError, OSError):
+		return False
+
+
+def _writable(folder):
+	try:
+		test = os.path.join(folder, f'.{progName}-write-test')
+		with open(test, 'w') as f:
+			f.write('')
+		os.remove(test)
+		return True
+	except OSError:
+		return False
+
+
 def default_folder():
 	"""The folder for the settings and log when none is given: the program's folder, or on Windows the user's
-	application data, as the program's folder may not be writable (e.g. in Program Files)."""
+	application data, as the program's folder may not be writable (e.g. in Program Files).  A packaged Python
+	(Microsoft Store) would hide files in application data, so it uses the program's folder if it can write
+	there, else Documents\\duetPrintGuard - bringing over the settings already saved in the hidden folder."""
 	folder = os.path.dirname(os.path.abspath(__file__))
-	if os.name == 'nt' and os.environ.get('APPDATA'):
-		folder = os.path.join(os.environ['APPDATA'], progName)
+	if os.name != 'nt' or not os.environ.get('APPDATA'):
+		return folder
+	appdata = os.path.join(os.environ['APPDATA'], progName)
+	if not _packaged_python():
+		os.makedirs(appdata, exist_ok=True)
+		return appdata
+	if not _writable(folder):
+		folder = os.path.join(os.path.expanduser('~'), 'Documents', progName)
 		os.makedirs(folder, exist_ok=True)
+	_folder_notes.append('This Python is a packaged app (e.g. from the Microsoft Store), which hides files in AppData from '
+						 'other programs - so the settings and log are kept in ' + folder)
+	old, new = os.path.join(appdata, CONFIGFILENAME), os.path.join(folder, CONFIGFILENAME)
+	if os.path.isfile(old) and not os.path.exists(new):
+		try:
+			import shutil
+			shutil.copy2(old, new)  # Read through the package's view of AppData
+			_folder_notes.append(f'Copied the settings saved before from {old} (hidden from Explorer)')
+		except OSError as e:
+			_folder_notes.append(f'Could not copy the settings saved before from {old}: {e}')
 	return folder
 
 
@@ -156,6 +203,9 @@ def start(file_path):
 	logger = setup_logfile(file_path,LOGFILENAME,progName)
 	# from logger_module import logger # Need to import after setup_logging is called
 	logger.info(f'''{progName} -- {progVersion}''')
+	logger.info(f'Settings and log folder: {file_path}')
+	for note in _folder_notes:
+		logger.info(note)
 
 	if not get_DWC_config(file_path, logger):
 		print(f"Failed to load configuration from {file_path}.")
