@@ -30,7 +30,7 @@ import webbrowser
 sys.path.append(os.path.dirname(__file__))
 
 from logger_module import (setup_logfile, set_log_level)
-from duet_config import CONFIGFILENAME, get_DWC_config
+from duet_config import get_DWC_config
 
 import json
 
@@ -133,9 +133,7 @@ def default_folder():
 	"""The folder for the settings and log when none is given: this program's folder.  If it can not be written to
 	(e.g. in Program Files) on Windows: the user's application data - or Documents\\duetPrintGuard with a packaged
 	Python (Microsoft Store), which would hide files in application data.  The same as duetLapse3 and multiCam.
-
-	Earlier versions kept the settings in application data on Windows: if the folder chosen has none, they are
-	copied from there (read through a packaged Python's view of it, so hidden ones are found too)."""
+	No settings in the folder chosen = a new install: they are made from the defaults."""
 	folder = os.path.dirname(os.path.abspath(__file__))
 	if os.name != 'nt':
 		return folder
@@ -149,15 +147,6 @@ def default_folder():
 			folder = appdata
 			_folder_notes.append('The program folder can not be written to - so ' + folder + ' is used')
 		os.makedirs(folder, exist_ok=True)
-	if appdata and os.path.normcase(folder) != os.path.normcase(appdata):
-		old, new = os.path.join(appdata, CONFIGFILENAME), os.path.join(folder, CONFIGFILENAME)
-		if os.path.isfile(old) and not os.path.exists(new):
-			try:
-				import shutil
-				shutil.copy2(old, new)
-				_folder_notes.append(f'Copied the settings saved by an earlier version from {old}')
-			except OSError as e:
-				_folder_notes.append(f'Could not copy the settings saved by an earlier version from {old}: {e}')
 	return folder
 
 
