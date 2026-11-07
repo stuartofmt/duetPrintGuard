@@ -13,7 +13,7 @@ const SYSTEM_DEFAULT_HINT = "Leave blank to use the system text shown, which fol
 const sections = [
 	{
 		title: "Printer",
-		help: "Works with a Duet in SBC mode or standalone - which one is found when connecting.",
+		help: "Works with an SBC on this computer (plugin), or a Duet in SBC mode or standalone on the network - which one is found when connecting.",
 		fields: [
 			{
 				name: "DUET.IP", label: "Printer Address", placeholder: "This computer",
@@ -91,11 +91,11 @@ const saving = ref(false);
 const printer = ref(null);
 let printerTimer = null;
 
-const API_NAMES = { SBC: "SBC mode", standalone: "standalone" };
+const MODE_NAMES = { plugin: "plugin, through DSF", remoteSBC: "remote SBC", remoteStandalone: "remote standalone" };
 const printerStatus = computed(() => {
 	if (!printer.value) return "";
 	const p = printer.value;
-	return p.connected ? `Connected to ${p.address} (${API_NAMES[p.api] || p.api}), status ${p.status}` : (p.error || `Connecting to ${p.address}`);
+	return p.connected ? `Connected to ${p.address} (${MODE_NAMES[p.mode] || p.mode}), status ${p.status}` : (p.error || `Connecting to ${p.address}`);
 });
 
 const fieldHint = (field) => {

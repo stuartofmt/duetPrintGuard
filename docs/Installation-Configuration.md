@@ -26,6 +26,17 @@ The pages are then at `http://<COMPUTER_IP>:<PORT>` instead of inside DWC. The a
 
 The same way of running also works with an SBC, from another computer or from the SBC without installing the plugin.
 
+### How the printer is reached
+This is found automatically when connecting, and shown on the Configuration page:
+
+| Mode | When | How |
+|---|---|---|
+| plugin | The printer address is this computer, and it is an SBC running DSF | Directly through DSF (dsf-python) |
+| remote SBC | An SBC on another computer | The SBC's web api, with a WebSocket for live status |
+| remote standalone | A standalone board | The board's `rr_` web api, checked every 5 seconds |
+
+If DSF on this computer can not be used - e.g. no permission for its socket - the SBC's web api is used instead.
+
 ### Windows
 duetPrintGuard can run on a 64-bit Intel or AMD Windows computer in the same way. Windows on ARM is not supported, because a required package is not available for it.
 
@@ -152,7 +163,7 @@ The Configuration page is accessible from the Configuration tab or via `http://<
 
 <img src="media/images/Config1.png" style="width:50%; height:auto;">
 
-`Printer` - how to reach the printer. Changes apply immediately. Whether the board is in SBC mode or standalone is found when connecting, and the first field shows the connection and the printer's status.
+`Printer` - how to reach the printer. Changes apply immediately. How the printer is reached is found when connecting (see [How the printer is reached](#how-the-printer-is-reached)), and the first field shows the connection and the printer's status.
 - `Printer Address` - IP address or name of the printer. Leave blank only if this computer is the printer's SBC. Not used when running as a DWC plugin, which is always on the same computer as its printer
 - `Printer Port` - the port DWC uses, normally 80
 - `Printer Password` - only if a password is set on the printer

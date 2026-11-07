@@ -130,7 +130,7 @@ def start(file_path):
 	# Set logging level
 	logger = set_log_level(LOGGING.LEVEL,logger)
 
-	from duet_printer import publishUiAddress
+	from dsf_printer import publishUiAddress
 	from printer_control import running_as_plugin, start_printer_monitor
 
 	# Allocate a port on this computer

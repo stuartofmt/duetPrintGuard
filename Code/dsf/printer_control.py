@@ -2,22 +2,26 @@
 What duetPrintGuard does with the printer: keeps the connection and status up to date, pauses / resumes /
 cancels the print, and sends the defect notifications.
 
-The communication itself is in duet_printer.py - the same module as duetLapse3 - which works with a standalone
-board (rr_ api) or an SBC (/machine api and WebSocket), found out when logging in.
+There are three ways to reach the printer, found out when connecting:
+  plugin            the printer's SBC is this computer - DSF's socket, with dsf-python (dsf_printer.py)
+  remoteSBC         an SBC on another computer - the /machine http api and WebSocket (duet_printer.py)
+  remoteStandalone  a standalone board - the rr_ http api, polled (duet_printer.py, as used by duetLapse3)
 """
 
 import os
+import socket
 import threading
 import time
 import urllib.parse
 
 import requests
 
+import dsf_printer
 import duet_printer
 import state  # Shared state - always use state.<name>
 from duet_printer import forgetPrinter, getDuet, getDuetVersion, getStatus, loginPrinter, printerAddress, sendDuetGcode
 from logger_module import logger
-from duet_config import ACTION, DUET, MACRO, NTFY, PUSHOVER
+from duet_config import ACTION, DUET, MACRO, NTFY, PUSHOVER, UI
 
 global MACRO_TIMES, NTFY_TIMES, PUSHOVER_TIMES
 MACRO_TIMES = 0
@@ -28,6 +32,8 @@ POLL_SECONDS = 5  # Between status checks - a standalone board drops a session a
 RECONNECT_SECONDS = 10  # Between attempts to connect
 STATUS_WAIT_SECONDS = 60  # How long to wait for the printer to reach a state after a pause / resume (e.g. finishing the current move)
 DSF_PLUGIN_DIR = '/opt/dsf/plugins/'
+DSF = 'DSF'  # state.apiModel for the plugin mode - duet_printer uses 'SBC' and 'rr_model'
+MODES = {DSF: 'plugin', 'SBC': 'remoteSBC', 'rr_model': 'remoteStandalone'}
 
 _status = 'disconnected'
 _connected = False
@@ -64,7 +70,8 @@ def start_printer_monitor():
 	state.lastStatusCall = 0
 	state.lastMessageSeq = None
 	_apply_printer_settings()
-	duet_printer.onChange = _wake.set  # SBC - the WebSocket brought a change
+	duet_printer.onChange = _wake.set  # remoteSBC - the WebSocket brought a change
+	dsf_printer.onChange = _wake.set  # plugin - the status changed, or DSF was lost
 	threading.Thread(name='printerMonitor', target=_monitor, daemon=True).start()
 
 
@@ -76,6 +83,7 @@ def printer_settings_changed():
 	_passwordRefused = False
 	_settingsChanges += 1
 	forgetPrinter()
+	dsf_printer.disconnect()
 	_set_status('disconnected', False, '')
 	logger.info(f'Printer settings changed - connecting to {printerAddress()}')
 	_wake.set()
@@ -90,11 +98,40 @@ def _set_status(status, connected, error=''):
 	_status, _connected, _error = status, connected, error
 
 
+def _is_this_computer(host):
+	"""True if host is an address of this computer."""
+	if host in ('', 'localhost'):
+		return True
+	try:
+		addresses = {info[4][0] for info in socket.getaddrinfo(host, None)}
+	except OSError:
+		return False
+	local = {'::1', UI.IP}
+	try:
+		local |= {info[4][0] for info in socket.getaddrinfo(socket.gethostname(), None)}
+	except OSError:
+		pass
+	return any(address.startswith('127.') or address in local for address in addresses)
+
+
+def _login():
+	"""Log in - through DSF if the printer is this computer (plugin), otherwise over the network. Returns (model, code)."""
+	if _is_this_computer(state.duet):
+		try:
+			dsf_printer.connect()
+			return DSF, 200
+		except Exception as e:  # e.g. not an SBC, or no permission to use DSF's socket
+			logger.info(f'Could not connect to DSF on this computer ({e}) - trying the network')
+	return loginPrinter()
+
+
 def _connect():
 	global _passwordRefused
 	changes = _settingsChanges
-	model, code = loginPrinter()
+	model, code = _login()
 	if changes != _settingsChanges:
+		if model == DSF:
+			dsf_printer.disconnect()
 		return  # The answer is from the old printer - the monitor connects again with the new settings
 	if model == '':
 		if code == 403:
@@ -104,17 +141,30 @@ def _connect():
 			_set_status('disconnected', False, f'The printer at {printerAddress()} is not responding')
 		return
 	state.apiModel = model
-	logger.info(f'Connected to printer at {printerAddress()} using {model} - firmware {getDuetVersion(model)}')
+	version = dsf_printer.getVersion() if model == DSF else getDuetVersion(model)
+	logger.info(f'Connected to printer at {printerAddress()} as {MODES[model]} - firmware {version}')
 	_poll()
+
+
+def _current_status():
+	"""The printer's status now, asked for (or from the subscription / WebSocket) - 'disconnected' if it does not answer."""
+	if state.apiModel == DSF:
+		return dsf_printer.getStatus()[0]
+	if state.apiModel:
+		return getStatus()[0]
+	return 'disconnected'
 
 
 def _poll():
 	global _passwordRefused
-	status = getDuet(getStatus)[0]
+	status = dsf_printer.getStatus()[0] if state.apiModel == DSF else getDuet(getStatus)[0]
 	if status != 'disconnected':
 		_set_status(status, True)
 		return
 	_set_status('disconnected', False, f'The printer at {printerAddress()} is not responding')
+	if state.apiModel == DSF:
+		state.apiModel = ''  # Connect again from the start
+		return
 	model, code = loginPrinter(state.apiModel)  # A new session for when it answers again
 	if code == 403:
 		state.apiModel = ''
@@ -149,7 +199,7 @@ def printer_info():
 		'status': _status,
 		'connected': _connected,
 		'address': printerAddress() if state.duet else '',
-		'api': {'SBC': 'SBC', 'rr_model': 'standalone'}.get(state.apiModel, ''),
+		'mode': MODES.get(state.apiModel, ''),
 		'plugin': bool(state.plugin),
 		'error': _error,
 	}
@@ -164,7 +214,10 @@ def _send_duet_code(command):
 	if not state.apiModel:
 		logger.error(f'Could not send {command} - the printer is not connected')
 		return
-	sendDuetGcode(state.apiModel, command)
+	if state.apiModel == DSF:
+		dsf_printer.sendGcode(command)
+	else:
+		sendDuetGcode(state.apiModel, command)
 	logger.debug(f'Sent {command} to the printer')
 
 
@@ -173,7 +226,7 @@ def _wait_for_status(wanted, timeout=STATUS_WAIT_SECONDS):
 	deadline = time.time() + timeout
 	status = _status
 	while time.time() < deadline:
-		status = getStatus()[0]
+		status = _current_status()
 		if status == wanted:
 			return True
 		time.sleep(0.5)
@@ -218,7 +271,7 @@ def suspend_print_job(action):
 	Commands are only sent if the printer is in the right state, so requests from more than
 	one camera (or the UI) do not send the same command twice.
 	"""
-	status = getStatus()[0] if state.apiModel else 'disconnected'
+	status = _current_status()
 	if status == 'disconnected':
 		logger.error(f'Could not {action} - the printer is not connected')
 		return

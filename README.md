@@ -32,7 +32,7 @@ Here's what changes for a user going from 3.6.x to 3.7.x.
 **Install and performance**
 - **Uses about 70% less memory,** with a much smaller and faster install.
 - **Works offline:** the detection model ships with the plugin, so nothing is downloaded when it starts.
-- **No longer needs dsf-python,** and uses the same printer communication as duetLapse3.
+- **Three ways to reach the printer,** found automatically: through DSF on the SBC itself (the plugin), or over the network to a remote SBC or standalone board, using the same network code as duetLapse3.
 
 **Unchanged from 3.6.x:**
 - autostart and autostop of detection with the print;

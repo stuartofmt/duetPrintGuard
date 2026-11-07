@@ -1,27 +1,24 @@
 """
 Communication with the printer
 
-All the requests to the Duet - the standalone rr_ api or the SBC /machine api, chosen by
-state.apiModel - and publishing the page address to the DSF plugin data.
-For an SBC, the object model is kept up to date by DSF's WebSocket, with http used whenever it is not connected.
+All the requests to a remote Duet - the standalone rr_ api or the SBC /machine api, chosen by
+state.apiModel.  For an SBC, the object model is kept up to date by DSF's WebSocket, with http used whenever
+it is not connected.  When the SBC is this computer (the plugin), dsf_printer.py is used instead.
 
 The program sets the hooks below at startup, so this module does not depend on the rest of the program.
-The same module as duetLapse3 - only the plugin name and publishUiAddress differ.
+The same module as duetLapse3, except for the plugin name - and the plugin data is published by dsf_printer.py.
 """
 import json
-import socket
 import threading
 import time
 import urllib.parse
 
 import requests
-import websocket  # websocket-client
 
 import state  # Shared state - always use state.<name>
 from logger_module import logger, current_func_name
 
 PLUGIN_ID = 'duetPrintGuard'
-DSF_SOCKET = '/run/dsf/dcs.sock'
 
 
 def printerAddress():
@@ -105,7 +102,7 @@ def urlCall(url, post):
 
         if error == '':  # call returned something
             code = r.status_code
-            if code == 200:
+            if r.ok:  # Any 2xx - e.g. /machine/disconnect answers 204 No Content
                 return r
             elif code == 401:  # Dropped session
                 loginRetry += 1
@@ -116,6 +113,8 @@ def urlCall(url, post):
                 else:  # cannot login
                     if loginRetry > 1:  # Failed to get new key
                         break
+            elif 400 <= code < 500:  # e.g. 404 - asking again gives the same answer, so do not wait and retry
+                return r
             # any other http error codes are to be handled by caller
         time.sleep(1)
         loop += 1      # Try again
@@ -129,68 +128,87 @@ def urlCall(url, post):
 
 
 def loginPrinter(model=''):
+    # Log in to the printer.  With a model (after a dropped session) only that kind is tried.  Otherwise SBC is tried
+    # first and then standalone.  Returns (model, code): model is 'SBC', 'rr_model' or '' if not connected
     state.urlHeaders = {}
     logger.info('Logging in to Printer')
-    standalone = False  # The board answered as standalone - so it is not an SBC
 
-    if model == '' or model == 'rr_model':
-        URL = ('http://' + printerAddress() + '/rr_disconnect')  # Close any open session
-        r = urlCall(URL,  False)
-        URL = ('http://' + printerAddress() + '/rr_connect?password=' + state.duet_password)  # Connect with password
-        r = urlCall(URL,  False)
-        code = r.status_code
-        if code == 200:
+    if model == 'SBC':
+        return loginSBC()
+    if model == 'rr_model':
+        return loginStandalone()
+
+    model, code = loginSBC()
+    if model != '' or code in (403, 502, 503):  # Connected, or it is an SBC that refused - standalone will not help
+        return model, code
+    return loginStandalone()
+
+
+def loginSBC():
+    # Returns ('SBC', 200) if connected, otherwise ('', code)
+    URL = ('http://' + printerAddress() + '/machine/disconnect')  # Close any open session
+    r = urlCall(URL,  False)
+    URL = ('http://' + printerAddress() + '/machine/connect?password=' + state.duet_password)  # Connect with password
+    r = urlCall(URL,  False)
+    code = r.status_code
+    if code == 200:
+        try:
+            sessionKey = json.loads(r.text)['sessionKey']
+        except (ValueError, KeyError, TypeError):  # Something answered, but not DSF
+            logger.debug('!!!!! Not an SBC - no session key !!!!!')
+            return '', 404
+        logger.debug('!!!!! Connected to SBC printer !!!!!')
+        state.urlHeaders = {'X-Session-Key': sessionKey}
+        startWebSocket()
+        return 'SBC', code
+
+    #  Could not connect to printer
+    if code == 403:
+        logger.info('!!!!! SBC Password is invalid !!!!!')
+    elif code == 503:
+        logger.info('!!!!! No more SBC connections available !!!!!')
+    elif code == 502:
+        logger.info('!!!!!  Incorrect DCS version  !!!!!')
+    elif code == 404:  # Ignore as it indicates SBC was not there
+        logger.debug('!!!!! No SBC found !!!!!')
+    else:
+        logger.info('!!!!!  Could not connect to SBC.  Error code = ' + str(code) + ' !!!!!')
+    return '', code
+
+
+def loginStandalone():
+    # Returns ('rr_model', 200) if connected, otherwise ('', code)
+    URL = ('http://' + printerAddress() + '/rr_disconnect')  # Close any open session
+    r = urlCall(URL,  False)
+    URL = ('http://' + printerAddress() + '/rr_connect?password=' + state.duet_password)  # Connect with password
+    r = urlCall(URL,  False)
+    code = r.status_code
+    if code == 200:
+        try:
             j = json.loads(r.text)
             err = j['err']
-            standalone = j.get('apiLevel') != 1  # apiLevel 1 = SBC emulation
-            if err == 0:
-                if j['apiLevel'] is not None:  # Check to see if in SBC emulation mode
-                    if j['apiLevel'] == 1:
-                        logger.debug('Emulation mode detected - Disconnect and try SBC')
-                        URL = ('http://' + printerAddress() + '/rr_disconnect')  # Close any open session
-                        r = urlCall(URL,  False)
-                    else:  # in case standalone returns apiLevel: False in future
-                        logger.debug('!!!!! Connected to printer Standalone !!!!!')
-                        model = 'rr_model'
-                else:
-                    logger.debug('!!!!! Connected to printer Standalone !!!!!')
-                    model = 'rr_model'
-            elif err == 1:
-                logger.info('!!!!! Standalone Password is invalid !!!!!')
-                code = 403  # mimic SBC codes
-            elif err == 2:
-                logger.info('!!!!! No more Standalone connections available !!!!!')
-                code = 503  # mimic SBC codes
-        elif code == 404:  # Ignore as it indicated Standalone was not there
-            pass
-        else:
-            logger.info('!!!!!  Could not connect. code = ' + str(code) + ' reason = ' + r.reason + ' !!!!!')
-
-    if (model == '' or model == 'SBC') and not standalone:
-        URL = ('http://' + printerAddress() + '/machine/disconnect')  # Close any open session
-        r = urlCall(URL,  False)
-        URL = ('http://' + printerAddress() + '/machine/connect?password=' + state.duet_password)  # Connect with password
-        r = urlCall(URL,  False)
-        code = r.status_code
-        if code == 200:
-            logger.debug('!!!!! Connected to SBC printer !!!!!')
-            j = json.loads(r.text)
-            sessionKey = j['sessionKey']
-            state.urlHeaders = {'X-Session-Key': sessionKey}
-            model = 'SBC'
-            startWebSocket()
-
-            #  Could not connect to printer
-        elif code == 403:
-            logger.info('!!!!! SBC Password is invalid !!!!!')
-        elif code == 503:
-            logger.info('!!!!! No more SBC connections available !!!!!')
-        elif code == 502:
-            logger.info('!!!!!  Incorrect DCS version  !!!!!')
-        else:
-            logger.info('!!!!!  Could not connect.  Error code = ' + str(code) + ' !!!!!')
-
-    return model, code
+        except (ValueError, KeyError, TypeError):  # Something answered, but not RepRapFirmware
+            logger.info('!!!!! Not a standalone printer - unexpected reply to rr_connect !!!!!')
+            return '', 404
+        if err == 0:
+            if j.get('apiLevel') == 1:  # SBC emulation - the SBC login should have connected
+                logger.debug('Emulation mode detected - Disconnect')
+                URL = ('http://' + printerAddress() + '/rr_disconnect')  # Close any open session
+                r = urlCall(URL,  False)
+                return '', 404
+            logger.debug('!!!!! Connected to printer Standalone !!!!!')
+            return 'rr_model', code
+        if err == 1:
+            logger.info('!!!!! Standalone Password is invalid !!!!!')
+            return '', 403  # mimic SBC codes
+        if err == 2:
+            logger.info('!!!!! No more Standalone connections available !!!!!')
+            return '', 503  # mimic SBC codes
+        logger.info('!!!!! Standalone connect failed - err = ' + str(err) + ' !!!!!')
+        return '', code
+    if code != 404:  # 404 = no standalone printer there
+        logger.info('!!!!!  Could not connect. code = ' + str(code) + ' reason = ' + str(r.reason) + ' !!!!!')
+    return '', code
 
 
 def getDuetVersion(model):
@@ -359,6 +377,8 @@ _ws = None            # The open WebSocket, or None
 _wsModel = None       # The object model kept up to date by the WebSocket - None when not connected
 _wsThread = None
 _wsLock = threading.Lock()
+websocket = None      # websocket-client - only imported for an SBC, the first time the WebSocket is started
+_wsUnavailable = False  # websocket-client is not installed - http is used
 
 
 def wsModel():
@@ -370,8 +390,17 @@ def wsModel():
 
 def startWebSocket():
     # Called after an SBC login.  The reader keeps running and reconnects by itself (with the latest session key)
-    global _wsThread
+    global _wsThread, _wsUnavailable, websocket
     with _wsLock:
+        if websocket is None:
+            if _wsUnavailable:
+                return
+            try:
+                import websocket  # websocket-client - sets the module's websocket
+            except ImportError:
+                _wsUnavailable = True
+                logger.info('websocket-client is not installed - the SBC is read over http instead of a WebSocket')
+                return
         if _wsThread is not None and _wsThread.is_alive():
             return
         _wsThread = threading.Thread(name='webSocket', target=_wsReader, daemon=True)
@@ -577,38 +606,3 @@ def stopPlugin(model, command):
     else:
         logger.info('Stop Plugin ignored - only valid for SBC')
     return
-
-
-def publishUiAddress(ip, port):
-    # The DWC page reads these from the object model to build its iframe url.  This needs DSF's socket - only a
-    # process that DSF started as the plugin may set its own plugin data, and the http api does not allow it for a
-    # plugin with an executable.  The messages are the small part of DSF's api needed here (no dsf-python)
-    def receive(sock):
-        data = b''
-        while True:
-            chunk = sock.recv(4096)
-            if not chunk:
-                raise OSError('DSF closed the connection')
-            data += chunk
-            try:
-                return json.loads(data)
-            except ValueError:
-                continue  # Not all here yet
-
-    def perform(sock, command):
-        sock.sendall(json.dumps(command).encode())
-        reply = receive(sock)
-        if not reply.get('success'):
-            raise OSError(str(reply.get('errorType')) + ': ' + str(reply.get('errorMessage')))
-
-    try:
-        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
-            sock.settimeout(5)
-            sock.connect(DSF_SOCKET)
-            server = receive(sock)
-            perform(sock, {'mode': 'Command', 'version': server['version']})
-            for key, value in (('ip', ip), ('port', port)):
-                perform(sock, {'command': 'SetPluginData', 'plugin': PLUGIN_ID, 'key': key, 'value': value})
-        logger.info('Published UI address ' + ip + ':' + str(port) + ' to plugin data')
-    except (OSError, ValueError, KeyError, AttributeError) as e:
-        logger.warning('Could not publish UI address to plugin data: ' + str(e))
