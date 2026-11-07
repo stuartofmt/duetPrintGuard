@@ -57,6 +57,12 @@ function loadSnapshot(camera) {
 
 const cameras = ref([]);
 const noCameras = ref(false);
+// The "no cameras" prompt waits until the printer is connected, so the printer banner comes first
+const noCamerasDismissed = ref(false);
+const showNoCameras = computed({
+	get: () => noCameras.value && !noCamerasDismissed.value && Boolean(printer.value?.connected),
+	set: (open) => { if (!open) noCamerasDismissed.value = true; },
+});
 const paused = ref(false);
 const countdown = reactive({ active: false, seconds: 0, action: null });
 const autostart = reactive({ enabled: false, running: false, waiting: false });
@@ -388,13 +394,13 @@ onBeforeUnmount(() => {
 		</div>
 
 		<!-- No cameras configured -->
-		<v-dialog v-model="noCameras" max-width="420">
+		<v-dialog v-model="showNoCameras" max-width="420">
 			<v-card>
 				<v-card-title>No Cameras Configured</v-card-title>
 				<v-card-text>Add a camera on the Settings page.</v-card-text>
 				<v-card-actions>
 					<v-spacer></v-spacer>
-					<v-btn @click="noCameras = false">Close</v-btn>
+					<v-btn @click="showNoCameras = false">Close</v-btn>
 					<v-btn color="primary" variant="flat" :href="settingsUrl">Settings</v-btn>
 				</v-card-actions>
 			</v-card>
