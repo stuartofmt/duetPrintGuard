@@ -130,30 +130,34 @@ def _writable(folder):
 
 
 def default_folder():
-	"""The folder for the settings and log when none is given: the program's folder, or on Windows the user's
-	application data, as the program's folder may not be writable (e.g. in Program Files).  A packaged Python
-	(Microsoft Store) would hide files in application data, so it uses the program's folder if it can write
-	there, else Documents\\duetPrintGuard - bringing over the settings already saved in the hidden folder."""
+	"""The folder for the settings and log when none is given: this program's folder.  If it can not be written to
+	(e.g. in Program Files) on Windows: the user's application data - or Documents\\duetPrintGuard with a packaged
+	Python (Microsoft Store), which would hide files in application data.  The same as duetLapse3 and multiCam.
+
+	Earlier versions kept the settings in application data on Windows: if the folder chosen has none, they are
+	copied from there (read through a packaged Python's view of it, so hidden ones are found too)."""
 	folder = os.path.dirname(os.path.abspath(__file__))
-	if os.name != 'nt' or not os.environ.get('APPDATA'):
+	if os.name != 'nt':
 		return folder
-	appdata = os.path.join(os.environ['APPDATA'], progName)
-	if not _packaged_python():
-		os.makedirs(appdata, exist_ok=True)
-		return appdata
+	appdata = os.path.join(os.environ['APPDATA'], progName) if os.environ.get('APPDATA') else ''
 	if not _writable(folder):
-		folder = os.path.join(os.path.expanduser('~'), 'Documents', progName)
+		if _packaged_python() or not appdata:
+			folder = os.path.join(os.path.expanduser('~'), 'Documents', progName)
+			_folder_notes.append('The program folder can not be written to, and this Python is a packaged app (e.g. from the '
+								 'Microsoft Store), which hides files in AppData from other programs - so ' + folder + ' is used')
+		else:
+			folder = appdata
+			_folder_notes.append('The program folder can not be written to - so ' + folder + ' is used')
 		os.makedirs(folder, exist_ok=True)
-	_folder_notes.append('This Python is a packaged app (e.g. from the Microsoft Store), which hides files in AppData from '
-						 'other programs - so the settings and log are kept in ' + folder)
-	old, new = os.path.join(appdata, CONFIGFILENAME), os.path.join(folder, CONFIGFILENAME)
-	if os.path.isfile(old) and not os.path.exists(new):
-		try:
-			import shutil
-			shutil.copy2(old, new)  # Read through the package's view of AppData
-			_folder_notes.append(f'Copied the settings saved before from {old} (hidden from Explorer)')
-		except OSError as e:
-			_folder_notes.append(f'Could not copy the settings saved before from {old}: {e}')
+	if appdata and os.path.normcase(folder) != os.path.normcase(appdata):
+		old, new = os.path.join(appdata, CONFIGFILENAME), os.path.join(folder, CONFIGFILENAME)
+		if os.path.isfile(old) and not os.path.exists(new):
+			try:
+				import shutil
+				shutil.copy2(old, new)
+				_folder_notes.append(f'Copied the settings saved by an earlier version from {old}')
+			except OSError as e:
+				_folder_notes.append(f'Could not copy the settings saved by an earlier version from {old}: {e}')
 	return folder
 
 
