@@ -3,7 +3,7 @@
 import { computed, reactive, ref, watch } from "vue";
 import { api } from "../api.js";
 import { notify } from "../notify.js";
-import { printer, refreshPrinter } from "../printer.js";
+import { printer, printerSettingsSaved, refreshPrinter } from "../printer.js";
 import { mdiEye, mdiEyeOff, mdiRefresh } from "../icons.js";
 
 const p = computed(() => printer.value);
@@ -41,6 +41,7 @@ async function connect() {
 		const reply = await api.postJson("/printer/connect", { ...form });
 		notify(reply.message, "success");
 		form.password = "";
+		printerSettingsSaved.value++;
 		await refreshPrinter();
 	} catch (err) {
 		const errs = err.data?.errors || {};

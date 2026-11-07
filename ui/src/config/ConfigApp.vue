@@ -1,10 +1,10 @@
 <!-- Configuration page: web interface, printer commands and notifications. Every card's Save saves the whole page. -->
 <script setup>
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import PgPage from "../components/PgPage.vue";
 import { api } from "../api.js";
 import { notify } from "../notify.js";
-import { printer, refreshPrinter } from "../printer.js";
+import { printer, printerSettingsSaved, refreshPrinter } from "../printer.js";
 import { mdiContentSave } from "../icons.js";
 
 // Blank ntfy / Pushover titles and messages use the system text, shown as the placeholder
@@ -112,12 +112,15 @@ function setErrors(newErrors = {}) {
 	Object.assign(errors, newErrors);
 }
 
-async function load() {
+// Loads the saved settings into the page. With a section (e.g. "DUET"), only that section's fields - the rest keep
+// any changes not saved yet
+async function load(section = "") {
 	try {
 		const data = await api.get("/config/get-app-config");
 		logLevels.value = data.log_levels;
 
 		for (const field of editableFields) {
+			if (section && !field.name.startsWith(`${section}.`)) continue;
 			const [section, key] = field.name.split(".");
 			const setting = data.settings?.[section]?.[key];
 			if (!setting) continue;
@@ -141,6 +144,12 @@ async function load() {
 		Object.assign(status, { text: "Failed to load configuration.", type: "error" });
 	}
 }
+
+// The printer banner saved new printer settings: show them, so Save here does not put the old ones back
+watch(printerSettingsSaved, () => {
+	["DUET.IP", "DUET.PORT", "DUET.PASSWORD"].forEach((name) => delete errors[name]);
+	load("DUET");
+});
 
 async function save() {
 	setErrors();

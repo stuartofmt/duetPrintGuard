@@ -7,6 +7,8 @@ import { visibility } from "./visibility.js";
 const POLL_INTERVAL = 5000; // ms - keeps Pause / Resume and the banner in step with the printer
 
 export const printer = ref(null); // {connected, status, address, mode, plugin, error, retrying, ip, port}
+// Counts saves of the printer settings from the banner, so a page showing them can load them again
+export const printerSettingsSaved = ref(0);
 
 export async function refreshPrinter() {
 	try {
