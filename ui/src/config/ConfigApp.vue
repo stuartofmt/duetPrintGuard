@@ -1,4 +1,5 @@
-<!-- Configuration page: web interface, printer commands and notifications. Every card's Save saves the whole page. -->
+<!-- Configuration page, in tabs: General (printer, web interface), Actions (printer commands) and Alerts (macro, ntfy,
+     Pushover). Every card's Save saves the settings on all the tabs. -->
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import PgPage from "../components/PgPage.vue";
@@ -10,10 +11,19 @@ import { mdiContentSave } from "../icons.js";
 // Blank ntfy / Pushover titles and messages use the system text, shown as the placeholder
 const SYSTEM_DEFAULT_HINT = "Leave blank to use the system text shown, which follows the camera and countdown settings.";
 
+// The tabs of the page; each section names its tab
+const tabs = [
+	{ value: "general", title: "General" },
+	{ value: "actions", title: "Actions" },
+	{ value: "alerts", title: "Alerts" },
+];
+const tab = ref("general");
+
 // Field names are SECTION.KEY, matching /config/get-app-config and /config/save-app-config
 const sections = [
 	{
 		title: "Printer",
+		tab: "general",
 		help: "Works with an SBC on this computer (plugin), or a Duet in SBC mode or standalone on the network - which one is found when connecting.",
 		fields: [
 			{
@@ -26,6 +36,7 @@ const sections = [
 	},
 	{
 		title: "Web Interface",
+		tab: "general",
 		fields: [
 			{ name: "UI.IP" },
 			{
@@ -41,6 +52,7 @@ const sections = [
 	},
 	{
 		title: "Printer Actions",
+		tab: "actions",
 		help: "Commands sent to the printer when a defect is detected and nobody intervenes. Leave blank to use the default.",
 		fields: [
 			{ name: "ACTION.PAUSE", label: "Pause Command", placeholder: "M25" },
@@ -50,6 +62,7 @@ const sections = [
 	},
 	{
 		title: "Macro Alert",
+		tab: "alerts",
 		fields: [
 			{
 				name: "MACRO.MACRO", label: "Macro", placeholder: "e.g. 0:/sys/duetPrintGuard/macros/Notify.g",
@@ -60,6 +73,7 @@ const sections = [
 	},
 	{
 		title: "ntfy Alert",
+		tab: "alerts",
 		link: "https://docs.ntfy.sh/publish/#message-priority",
 		fields: [
 			{ name: "NTFY.TOPIC", label: "Topic", hint: "The ntfy topic you subscribe to. Required to send ntfy alerts." },
@@ -71,6 +85,7 @@ const sections = [
 	},
 	{
 		title: "Pushover Alert",
+		tab: "alerts",
 		help: "Both the API token and user key are required to send Pushover alerts.",
 		fields: [
 			{ name: "PUSHOVER.API", label: "API Token" },
@@ -83,6 +98,7 @@ const sections = [
 ];
 
 const editableFields = sections.flatMap((s) => s.fields).filter((f) => f.label);
+const tabOfField = Object.fromEntries(sections.flatMap((s) => s.fields.map((f) => [f.name, s.tab])));
 
 const values = reactive({});
 const placeholders = reactive({});
@@ -111,6 +127,10 @@ function setErrors(newErrors = {}) {
 	Object.keys(errors).forEach((key) => delete errors[key]);
 	Object.assign(errors, newErrors);
 }
+
+// Tabs holding a setting that was refused - marked, so an error on another tab is not missed
+const tabsWithErrors = computed(() => new Set(Object.keys(errors).filter((name) => errors[name]?.length)
+	.map((name) => tabOfField[name])));
 
 // Loads the saved settings into the page. With a section (e.g. "DUET"), only that section's fields - the rest keep
 // any changes not saved yet
@@ -180,6 +200,10 @@ async function save() {
 	} catch (err) {
 		if (err.status === 400 && err.data?.errors) {
 			setErrors(err.data.errors);
+			// Show the first tab with a refused setting, unless this one has one
+			if (!tabsWithErrors.value.has(tab.value)) {
+				tab.value = tabs.find((t) => tabsWithErrors.value.has(t.value))?.value ?? tab.value;
+			}
 			Object.assign(status, { text: "Some settings are invalid - nothing was saved.", type: "error" });
 			notify("Some settings are invalid (marked in red) - nothing was saved.", "error", 6000);
 		} else {
@@ -206,8 +230,13 @@ onMounted(() => {
 					{{ status.text }}
 				</v-alert>
 
+				<v-tabs v-model="tab" color="primary" grow class="mb-4">
+					<v-tab v-for="t in tabs" :key="t.value" :value="t.value"
+						   :class="{ 'text-error': tabsWithErrors.has(t.value) }">{{ t.title }}</v-tab>
+				</v-tabs>
+
 				<v-form @submit.prevent="save">
-					<v-card v-for="section in sections" :key="section.title" class="mb-4">
+					<v-card v-for="section in sections.filter((s) => s.tab === tab)" :key="section.title" class="mb-4">
 						<v-card-title>{{ section.title }}</v-card-title>
 						<v-card-subtitle v-if="section.help" class="text-wrap">{{ section.help }}</v-card-subtitle>
 						<v-card-text>
@@ -250,7 +279,7 @@ onMounted(() => {
 					<p class="text-body-small text-medium-emphasis mb-4">
 						Settings marked <v-chip size="x-small" color="warning" variant="tonal">restart</v-chip>
 						take effect after duetPrintGuard is restarted. Other settings apply immediately.
-						Each Save button saves all the settings on this page.
+						Each Save button saves the settings on all the tabs.
 					</p>
 				</v-form>
 			</v-col>
