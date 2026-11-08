@@ -4,6 +4,8 @@
 import asyncio
 import math
 import os
+import signal
+import threading
 import time
 import uuid
 import json
@@ -16,7 +18,7 @@ from sse_starlette.sse import EventSourceResponse
 
 from logger_module import logger
 
-from printer_control import suspend_print_job, printer_info, printer_settings_changed, reset_notification_counters
+from printer_control import running_as_plugin, suspend_print_job, printer_info, printer_settings_changed, reset_notification_counters
 
 import cv2
 
@@ -684,6 +686,29 @@ async def send_autostartUpdated_state(state):
 		logger.debug(f"Broadcast autostart_updated to {state}")
 	except Exception as e:
 		logger.error("Failed to broadcast autostartUpdated SSE event =  %s: %s", state, e)
+
+TERMINATE_FORCE_SECONDS = 10  # Exits anyway if a clean stop has not finished by then
+
+
+def _terminate():
+	"""Stop the program as Ctrl+C does - uvicorn shuts down cleanly - and exit anyway if that hangs."""
+	def force():
+		time.sleep(TERMINATE_FORCE_SECONDS)
+		logger.warning('The program did not stop cleanly - forcing it to exit')
+		os._exit(0)
+	threading.Thread(name='forceExit', target=force, daemon=True).start()
+	signal.raise_signal(signal.SIGINT)
+
+
+@router.post("/terminate", include_in_schema=False)
+async def terminate_program():
+	"""Terminate the program - not as the plugin, which DWC's plugin manager starts and stops."""
+	if running_as_plugin():
+		raise HTTPException(status_code=403, detail="Running as a plugin - stop it from DWC's plugin manager")
+	logger.info('Terminate the Program was pressed - stopping')
+	threading.Timer(0.5, _terminate).start()  # After this reply has been sent
+	return {"success": True, "message": "duetPrintGuard is stopping"}
+
 
 @router.get("/printer/resetnotifications", include_in_schema=False)
 async def reset_notifications(request: Request):

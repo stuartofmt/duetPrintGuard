@@ -13,7 +13,7 @@ import { printer, refreshPrinter } from "../printer.js";
 import { connectSSE } from "../sse.js";
 import { visibility } from "../visibility.js";
 import {
-	mdiAutorenew, mdiAutorenewOff, mdiBellCheck, mdiBellOff, mdiPause, mdiPlay, mdiStop, mdiTimerSand,
+	mdiAutorenew, mdiAutorenewOff, mdiBellCheck, mdiBellOff, mdiPause, mdiPlay, mdiPower, mdiStop, mdiTimerSand,
 } from "../icons.js";
 
 const DEFAULT_ICON = "/static/images/default_icon.png";
@@ -243,6 +243,22 @@ async function resetNotifications() {
 	}
 }
 
+// Only when not the plugin - DWC's plugin manager starts and stops that
+const canTerminate = computed(() => printer.value != null && !printer.value.plugin);
+const terminated = ref(false);
+
+async function terminateProgram() {
+	if (!await confirm("Terminate duetPrintGuard? Detection stops, and the program has to be started again by hand.",
+		{ title: "Terminate the Program", color: "error" })) return;
+	try {
+		const reply = await api.postJson("/terminate", {});
+		terminated.value = true;
+		notify(reply.message || "duetPrintGuard is stopping", "warning", -1);
+	} catch (err) {
+		notify(`Failed to terminate the program: ${err.data?.detail || err.message}`, "error", 6000);
+	}
+}
+
 // =========================
 // Connections - open only while the page is active
 // =========================
@@ -386,6 +402,8 @@ onBeforeUnmount(() => {
 		<!-- Bottom controls -->
 		<div class="d-flex flex-wrap ga-2 mt-4">
 			<v-btn :prepend-icon="mdiBellCheck" @click="resetNotifications">Reset Notification</v-btn>
+			<v-btn v-if="canTerminate" color="error" variant="tonal" :prepend-icon="mdiPower" :disabled="terminated"
+				   @click="terminateProgram">Terminate the Program</v-btn>
 			<v-btn v-if="autostart.enabled" :color="autostart.waiting ? 'warning' : (autostart.running ? 'error' : 'success')"
 				   :loading="autostart.waiting" :prepend-icon="autostart.running ? mdiAutorenewOff : mdiAutorenew"
 				   @click="toggleAutostart">

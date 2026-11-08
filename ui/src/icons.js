@@ -15,6 +15,7 @@ export {
 	mdiPause,
 	mdiPlay,
 	mdiPlus,
+	mdiPower,
 	mdiRefresh,
 	mdiStop,
 	mdiTimerSand,
