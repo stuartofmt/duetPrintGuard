@@ -121,8 +121,8 @@ async function load(section = "") {
 
 		for (const field of editableFields) {
 			if (section && !field.name.startsWith(`${section}.`)) continue;
-			const [section, key] = field.name.split(".");
-			const setting = data.settings?.[section]?.[key];
+			const [group, key] = field.name.split(".");
+			const setting = data.settings?.[group]?.[key];
 			if (!setting) continue;
 			values[field.name] = setting.value;
 			placeholders[field.name] = field.placeholder
