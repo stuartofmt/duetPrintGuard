@@ -189,9 +189,7 @@ def start(file_path):
 
     global logger
 
-    # Create a logfile
-    logger = setup_logfile(file_path, LOGFILENAME, progName)
-    # from logger_module import logger # Need to import after setup_logging is called
+    # Still logging to the console and the startup log - the log file is started once the startup checks are done
     logger.info(f'''{progName} -- {progVersion}''')
     logger.info(f'Settings and log folder: {file_path}')
     for note in _folder_notes:
@@ -213,6 +211,10 @@ def start(file_path):
     # Allocate a port on this computer
 
     save_ui_address(*validate_port(UI.PORT))
+
+    # The startup checks are done: from here on, the log file (which starts with the startup log)
+    logger = setup_logfile(file_path, LOGFILENAME, progName)
+
     if running_as_plugin():
         publishUiAddress(UI.IP, UI.PORT)  # First, so the DWC page opens even if the printer can not be reached
 
