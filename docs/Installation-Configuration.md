@@ -10,7 +10,7 @@ duetPrintGuard is packaged as a DWC plugin and installed in the normal manner fr
 The plugin needs a Duet in SBC mode, because DWC plugins with a program run on the SBC.
 
 ### Standalone boards
-A standalone Duet can not run duetPrintGuard itself, so it runs on another computer on the same network - for example a Raspberry Pi - and connects to the board over the network. It needs Python 3.12 or later and a copy of this repository's `3.7.x` branch:
+A standalone Duet can not run duetPrintGuard itself, so it runs on another computer on the same network - for example a Raspberry Pi - and connects to the board over the network. It needs Python 3.11 or later and a copy of this repository's `3.7.x` branch:
 
 ```bash
 git clone -b 3.7.x https://github.com/stuartofmt/duetPrintGuard.git
@@ -40,7 +40,7 @@ If DSF on this computer can not be used - e.g. no permission for its socket - th
 ### Windows
 duetPrintGuard can run on a 64-bit Intel or AMD Windows computer in the same way. Windows on ARM is not supported, because a required package is not available for it.
 
-1. Install Python 3.12 or later from [python.org](https://www.python.org/downloads/), ticking "Add python.exe to PATH".
+1. Install Python 3.11 or later from [python.org](https://www.python.org/downloads/), ticking "Add python.exe to PATH".
 2. Get a copy of this repository's `3.7.x` branch, as above or as a zip file.
 3. Double-click `run.bat`. The first run creates a `venv` folder and installs the requirements, which takes a few minutes.
 
