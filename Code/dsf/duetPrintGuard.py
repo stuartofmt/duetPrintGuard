@@ -29,7 +29,7 @@ import webbrowser
 
 sys.path.append(os.path.dirname(__file__))
 
-from logger_module import (setup_logfile, set_log_level)
+from logger_module import (setup_console_logger, setup_logfile, set_log_level)
 from duet_config import get_DWC_config
 
 import json
@@ -201,7 +201,7 @@ def start(file_path):
 		logger.info(note)
 
 	if not get_DWC_config(file_path, logger):
-		print(f"Failed to load configuration from {file_path}.")
+		logger.info(f"Failed to load configuration from {file_path}.")
 		force_quit(1)
 
 	# Can now get config parameters
@@ -231,12 +231,13 @@ def start(file_path):
 
 
 if __name__ == '__main__':
+	logger = setup_console_logger(progName)  # Console only until the settings folder is known - start() adds the log file
 	if sys.version_info < (pythonMajor, pythonMinor):
-		print(f'{progName} needs Python {pythonMajor}.{pythonMinor} or later - this is {sys.version.split()[0]} - Exiting')
+		logger.info(f'{progName} needs Python {pythonMajor}.{pythonMinor} or later - this is {sys.version.split()[0]} - Exiting')
 		sys.exit(1)
 	# The folder for the settings and log: the plugin is given one
 	file_path = sys.argv[1] if len(sys.argv) > 1 else default_folder()
 	if not os.path.exists(file_path):
-		print(f'File path {file_path} could not be found - Exiting')
+		logger.info(f'File path {file_path} could not be found - Exiting')
 		sys.exit(1)
 	start(file_path)
