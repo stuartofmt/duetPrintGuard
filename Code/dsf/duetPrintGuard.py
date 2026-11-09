@@ -48,7 +48,7 @@ progName = 'duetPrintGuard'
 progVersion = _plugin_version()
 # Min python version
 pythonMajor = 3
-pythonMinor = 12  # numpy in requirements.txt needs this
+pythonMinor = 11  # onnxruntime and dsf-python in requirements.txt need this (numpy is pinned to 2.4.x, the last for 3.11)
 
 LOGFILENAME = 'duetPrintGuard.log'
 
