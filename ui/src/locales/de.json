@@ -11,7 +11,8 @@
 		"title": "duetPrintGuard {page}",
 		"detection": "Erkennung",
 		"settings": "Einstellungen",
-		"configuration": "Konfiguration"
+		"configuration": "Konfiguration",
+		"log": "Protokoll"
 	},
 	"printer": {
 		"connecting": "Verbindung zum Drucker unter {printer} wird hergestellt",
@@ -228,6 +229,17 @@
 		"invalidShort": "Einige Einstellungen sind ungültig (rot markiert) - es wurde nichts gespeichert.",
 		"saveFailed": "Die Konfiguration konnte nicht gespeichert werden: {error}"
 	},
+	"log": {
+		"filter": "Nur Zeilen anzeigen mit",
+		"follow": "Mitlaufen",
+		"reload": "Protokoll neu laden",
+		"download": "Protokoll herunterladen",
+		"couldNotRead": "Die Protokolldatei konnte nicht gelesen werden: {error}",
+		"noFile": "Es gibt noch keine Protokolldatei.",
+		"truncated": "Das Ende der Protokolldatei wird angezeigt - laden Sie sie herunter, um alles zu sehen.",
+		"noMatch": "Keine Zeile enthält „{filter}“",
+		"empty": "Die Protokolldatei ist leer"
+	},
 	"values": {
 		"result": {
 			"success": "Erfolg",
@@ -289,7 +301,8 @@
 		"unknownAction": "Unbekannte Aktion: {action}",
 		"unknownCameraChoice": "Unbekannte Kameraauswahl: {choice}",
 		"countdownTimeMin": "Die Countdown-Zeit muss 0 oder größer sein",
-		"detectionNotStarted": "Die Erkennung für Kamera {camera} konnte nicht gestartet werden"
+		"detectionNotStarted": "Die Erkennung für Kamera {camera} konnte nicht gestartet werden",
+		"noLogFile": "Es gibt noch keine Protokolldatei"
 	},
 	"alerts": {
 		"titleAll": "duetPrintGuard: Alle Kameras",

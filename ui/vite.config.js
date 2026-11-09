@@ -1,7 +1,7 @@
 // Builds the duetPrintGuard web interface into the plugin's static folder.
 //
 //   npm install      once, to install Vue / Vuetify / Vite
-//   npm run build    writes the four pages and assets/ to Code/dsf/static/app
+//   npm run build    writes the five pages and assets/ to Code/dsf/static/app
 //   npm run dev      live-reload server at http://localhost:5173/static/app/index.html - set PRINTGUARD_URL
 //                    to a running duetPrintGuard (default http://localhost:17800) for the API, events and streams
 //
@@ -45,7 +45,7 @@ export default defineConfig({
 		outDir,
 		emptyOutDir: true,
 		rollupOptions: {
-			input: { index: page("index"), settings: page("settings"), config: page("config"), stream: page("stream") },
+			input: { index: page("index"), settings: page("settings"), config: page("config"), log: page("log"), stream: page("stream") },
 		},
 	},
 	server: {

@@ -11,7 +11,8 @@
 		"title": "duetPrintGuard {page}",
 		"detection": "Detección",
 		"settings": "Ajustes",
-		"configuration": "Configuración"
+		"configuration": "Configuración",
+		"log": "Registro"
 	},
 	"printer": {
 		"connecting": "Conectando con la impresora en {printer}",
@@ -228,6 +229,17 @@
 		"invalidShort": "Algunos ajustes no son válidos (marcados en rojo) - no se ha guardado nada.",
 		"saveFailed": "No se pudo guardar la configuración: {error}"
 	},
+	"log": {
+		"filter": "Mostrar solo las líneas que contienen",
+		"follow": "Seguir",
+		"reload": "Recargar el registro",
+		"download": "Descargar el registro",
+		"couldNotRead": "No se pudo leer el archivo de registro: {error}",
+		"noFile": "Todavía no hay archivo de registro.",
+		"truncated": "Se muestra el final del archivo de registro: descárguelo para verlo completo.",
+		"noMatch": "Ninguna línea contiene «{filter}»",
+		"empty": "El archivo de registro está vacío"
+	},
 	"values": {
 		"result": {
 			"success": "Correcto",
@@ -289,7 +301,8 @@
 		"unknownAction": "Acción desconocida: {action}",
 		"unknownCameraChoice": "Selección de cámaras desconocida: {choice}",
 		"countdownTimeMin": "La duración de la cuenta atrás debe ser 0 o más",
-		"detectionNotStarted": "No se pudo iniciar la detección para la cámara {camera}"
+		"detectionNotStarted": "No se pudo iniciar la detección para la cámara {camera}",
+		"noLogFile": "Todavía no hay archivo de registro"
 	},
 	"alerts": {
 		"titleAll": "duetPrintGuard: todas las cámaras",

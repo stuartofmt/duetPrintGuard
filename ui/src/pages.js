@@ -1,5 +1,5 @@
 // Navigation between the pages, keeping ?mobile / ?theme (added by the DWC plugin) in the address.
-import { mdiCctv, mdiCog, mdiEye } from "./icons.js";
+import { mdiCctv, mdiCog, mdiEye, mdiTextBoxOutline } from "./icons.js";
 
 export const query = new URLSearchParams(window.location.search);
 export const embedded = window.parent !== window;
@@ -9,10 +9,11 @@ export const pages = [
 	{ key: "detection", path: "/index", icon: mdiEye },
 	{ key: "settings", path: "/settings", icon: mdiCctv },
 	{ key: "configuration", path: "/config", icon: mdiCog },
+	{ key: "log", path: "/log", icon: mdiTextBoxOutline },
 ];
 
 // The Vite dev server serves the pages as /static/app/<page>.html; the plugin serves them as /<page>
-const DEV_PAGES = { "/index": "index", "/settings": "settings", "/config": "config" };
+const DEV_PAGES = { "/index": "index", "/settings": "settings", "/config": "config", "/log": "log" };
 
 export function pageUrl(path) {
 	if (import.meta.env.DEV && DEV_PAGES[path]) {

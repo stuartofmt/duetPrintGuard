@@ -1,8 +1,8 @@
 # duetPrintGuard web interface
 
-The Detection, Settings, Configuration and camera stream pages, written as Vue 3 single-file components with Vuetify 4 and built with Vite (the same setup as multiCam's `ui/`).
+The Detection, Settings, Configuration, Log and camera stream pages, written as Vue 3 single-file components with Vuetify 4 and built with Vite (the same setup as multiCam's `ui/`).
 
-`npm run build` writes the pages and their assets to `Code/dsf/static/app/`, which the plugin serves (`/index`, `/settings`, `/config`, `/stream/<nickname>`). The built files are committed, so the plugin needs no Node.js or internet access. **After changing anything in `ui/`, run `npm run build` and commit `Code/dsf/static/app/` with the change.**
+`npm run build` writes the pages and their assets to `Code/dsf/static/app/`, which the plugin serves (`/index`, `/settings`, `/config`, `/log`, `/stream/<nickname>`). The built files are committed, so the plugin needs no Node.js or internet access. **After changing anything in `ui/`, run `npm run build` and commit `Code/dsf/static/app/` with the change.**
 
 ## Building
 
@@ -26,8 +26,8 @@ and open http://localhost:5173/static/app/index.html. Changes show as soon as th
 
 | | |
 |---|---|
-| `index.html`, `settings.html`, `config.html`, `stream.html` | One entry per page |
-| `src/detection/`, `src/settings/`, `src/config/`, `src/stream/` | Each page's component (`settings/CameraCard.vue` is one camera's card) |
+| `index.html`, `settings.html`, `config.html`, `log.html`, `stream.html` | One entry per page |
+| `src/detection/`, `src/settings/`, `src/config/`, `src/log/`, `src/stream/` | Each page's component (`settings/CameraCard.vue` is one camera's card) |
 | `src/components/PgPage.vue` | Layout shared by the pages: navigation tabs, the message bar and the confirm dialog |
 | `src/vuetify.js` | Vuetify set up as DWC 3.7 does, and following DWC's theme when shown inside DWC |
 | `src/visibility.js` | Whether the page is being shown - pages close their streams while hidden |

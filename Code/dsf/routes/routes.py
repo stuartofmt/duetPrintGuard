@@ -16,7 +16,7 @@ from fastapi import APIRouter, Body, Form, HTTPException, Request
 from fastapi.responses import FileResponse, StreamingResponse, Response, JSONResponse
 from sse_starlette.sse import EventSourceResponse
 
-from logger_module import logger
+from logger_module import current_log_file, logger
 
 from messages import CodedHTTPException, Message, coded, coded_errors
 from alert_text import alert_text
@@ -106,6 +106,50 @@ async def serve_settings():
 async def serve_config():
     """Serve the Configuration page."""
     return serve_page("config")
+
+
+@router.get("/log", include_in_schema=False)
+async def serve_log():
+    """Serve the Log page."""
+    return serve_page("log")
+
+
+LOG_TAIL = 256 * 1024  # The most of the log file sent to the Log page at once (bytes)
+
+
+@router.get("/log/text", include_in_schema=False)
+def log_text(offset: int = -1):
+    """The log file from offset (bytes) - whole lines only. offset -1, or one that can't be carried on from (e.g. a
+    new log file after a restart, or too much is new), gives the end of the log file instead, with reset true."""
+    log_file = current_log_file()
+    if not log_file:
+        return {'file': '', 'text': '', 'offset': 0, 'reset': True, 'truncated': False}
+    try:
+        size = os.path.getsize(log_file)
+        reset = offset < 0 or offset > size or size - offset > LOG_TAIL
+        start = max(0, size - LOG_TAIL) if reset else offset
+        with open(log_file, 'rb') as f:
+            f.seek(start)
+            data = f.read(size - start)
+    except OSError as e:
+        return {'file': log_file, 'error': str(e)}
+    truncated = reset and start > 0
+    if truncated:  # Starts part way through a line
+        skip = data.find(b'\n') + 1
+        start, data = start + skip, data[skip:]
+    data = data[:data.rfind(b'\n') + 1]  # A line still being written comes next time
+    return {'file': log_file, 'offset': start + len(data), 'reset': reset, 'truncated': truncated,
+            'text': data.decode('utf-8', errors='replace').replace('\r\n', '\n')}
+
+
+@router.get("/log/download", include_in_schema=False)
+def log_download():
+    """The whole log file, as a download."""
+    log_file = current_log_file()
+    if not log_file or not os.path.isfile(log_file):
+        raise CodedHTTPException(404, Message("noLogFile", "There is no log file yet"))
+    return FileResponse(log_file, filename=os.path.basename(log_file), media_type='text/plain',
+                        headers={"Cache-Control": "no-cache"})
 
 
 @router.get("/config/get-app-config", include_in_schema=False)

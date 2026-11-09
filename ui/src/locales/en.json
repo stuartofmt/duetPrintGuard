@@ -11,7 +11,8 @@
 		"title": "duetPrintGuard {page}",
 		"detection": "Detection",
 		"settings": "Settings",
-		"configuration": "Configuration"
+		"configuration": "Configuration",
+		"log": "Log"
 	},
 	"printer": {
 		"connecting": "Connecting to the printer at {printer}",
@@ -228,6 +229,17 @@
 		"invalidShort": "Some settings are invalid (marked in red) - nothing was saved.",
 		"saveFailed": "Failed to save configuration: {error}"
 	},
+	"log": {
+		"filter": "Show only lines containing",
+		"follow": "Follow",
+		"reload": "Reload the log",
+		"download": "Download the log",
+		"couldNotRead": "Could not read the log file: {error}",
+		"noFile": "There is no log file yet.",
+		"truncated": "Showing the end of the log file - download it to see all of it.",
+		"noMatch": "No lines contain \"{filter}\"",
+		"empty": "The log file is empty"
+	},
 	"values": {
 		"result": {
 			"success": "Success",
@@ -289,7 +301,8 @@
 		"unknownAction": "Unknown action {action}",
 		"unknownCameraChoice": "Unknown camera choice {choice}",
 		"countdownTimeMin": "Countdown time must be 0 or more",
-		"detectionNotStarted": "Failed to start live detection for camera {camera}"
+		"detectionNotStarted": "Failed to start live detection for camera {camera}",
+		"noLogFile": "There is no log file yet"
 	},
 	"alerts": {
 		"titleAll": "duetPrintGuard: All cameras",

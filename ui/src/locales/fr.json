@@ -11,7 +11,8 @@
 		"title": "duetPrintGuard {page}",
 		"detection": "Détection",
 		"settings": "Paramètres",
-		"configuration": "Configuration"
+		"configuration": "Configuration",
+		"log": "Journal"
 	},
 	"printer": {
 		"connecting": "Connexion à l'imprimante {printer}",
@@ -228,6 +229,17 @@
 		"invalidShort": "Certains paramètres ne sont pas valides (en rouge) - rien n'a été enregistré.",
 		"saveFailed": "Impossible d'enregistrer la configuration : {error}"
 	},
+	"log": {
+		"filter": "Afficher seulement les lignes contenant",
+		"follow": "Suivre",
+		"reload": "Recharger le journal",
+		"download": "Télécharger le journal",
+		"couldNotRead": "Impossible de lire le fichier journal : {error}",
+		"noFile": "Il n'y a pas encore de fichier journal.",
+		"truncated": "Affichage de la fin du fichier journal - téléchargez-le pour le voir en entier.",
+		"noMatch": "Aucune ligne ne contient « {filter} »",
+		"empty": "Le fichier journal est vide"
+	},
 	"values": {
 		"result": {
 			"success": "Réussite",
@@ -289,7 +301,8 @@
 		"unknownAction": "Action inconnue : {action}",
 		"unknownCameraChoice": "Choix de caméras inconnu : {choice}",
 		"countdownTimeMin": "La durée du compte à rebours doit être 0 ou plus",
-		"detectionNotStarted": "Impossible de démarrer la détection pour la caméra {camera}"
+		"detectionNotStarted": "Impossible de démarrer la détection pour la caméra {camera}",
+		"noLogFile": "Il n'y a pas encore de fichier journal"
 	},
 	"alerts": {
 		"titleAll": "duetPrintGuard : toutes les caméras",

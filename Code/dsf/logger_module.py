@@ -100,6 +100,14 @@ def create_log_file(console_logger):
     return logger
 
 
+def current_log_file():
+    """The log file in use - '' until setup_logfile has switched to it."""
+    try:
+        return os.path.join(file_path, logfilename)
+    except NameError:
+        return ''
+
+
 def set_log_level(log_level, logger):
     logger.info(f'Log level changed to {log_level}')
 
