@@ -228,7 +228,7 @@ def start(file_path):
 
 
 if __name__ == '__main__':
-    logger = setup_console_logger(progName)  # Console only until the settings folder is known - start() adds the log file
+    logger = setup_console_logger(progName)  # Console and <program name>.startup.log until start() switches to the log file
     if sys.version_info < (pythonMajor, pythonMinor):
         logger.info(f'{progName} needs Python {pythonMajor}.{pythonMinor} or later - this is {sys.version.split()[0]} - Exiting')
         sys.exit(1)
