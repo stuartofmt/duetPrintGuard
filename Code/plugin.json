@@ -2,7 +2,7 @@
     "id": "duetPrintGuard",
     "name": "duetPrintGuard",
     "author": "Stuartofmt",
-    "version": "2.1.0-rc.7",
+    "version": "2.1.0",
     "license": "GPL-2.0-or-later",
     "homepage": "https://github.com/stuartofmt/duetPrintGuard",
 	"sbcRequired": true,
