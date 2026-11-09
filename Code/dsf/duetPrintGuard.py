@@ -16,10 +16,6 @@ Venv python install e.g.
 # This plugin removed much of the code to streamline
 # and make itmore suited to the DWC environment
 
-"""
-Version 1.0.0 - Initial release
-"""
-
 import sys
 import os
 import socket
