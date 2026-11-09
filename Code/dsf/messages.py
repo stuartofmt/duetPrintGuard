@@ -12,31 +12,32 @@ from fastapi.responses import JSONResponse
 
 
 class Message(str):
-	def __new__(cls, code, text, **params):
-		message = super().__new__(cls, text)
-		message.code = code
-		message.params = params
-		return message
+    def __new__(cls, code, text, **params):
+        message = super().__new__(cls, text)
+        message.code = code
+        message.params = params
+        return message
 
 
 def coded(text):
-	"""{code, params} for the page - None for plain text."""
-	if isinstance(text, Message):
-		return {'code': text.code, 'params': {k: str(v) for k, v in text.params.items()}}
-	return None
+    """{code, params} for the page - None for plain text."""
+    if isinstance(text, Message):
+        return {'code': text.code, 'params': {k: str(v) for k, v in text.params.items()}}
+    return None
 
 
 def coded_errors(errors):
-	"""{field: {code, params}} for a dict of {field: message} - the fields with a Message."""
-	return {field: coded(message) for field, message in errors.items() if coded(message)}
+    """{field: {code, params}} for a dict of {field: message} - the fields with a Message."""
+    return {field: coded(message) for field, message in errors.items() if coded(message)}
 
 
 class CodedHTTPException(HTTPException):
-	"""An error reply whose detail is a Message."""
-	def __init__(self, status_code, message):
-		super().__init__(status_code=status_code, detail=str(message))
-		self.message = message
+    """An error reply whose detail is a Message."""
+
+    def __init__(self, status_code, message):
+        super().__init__(status_code=status_code, detail=str(message))
+        self.message = message
 
 
 async def coded_http_exception_handler(request, exc):
-	return JSONResponse(status_code=exc.status_code, content={'detail': exc.detail, 'code': coded(exc.message)})
+    return JSONResponse(status_code=exc.status_code, content={'detail': exc.detail, 'code': coded(exc.message)})

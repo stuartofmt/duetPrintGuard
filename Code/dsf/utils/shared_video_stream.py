@@ -5,7 +5,7 @@ from typing import Dict, Optional, List, Callable
 import cv2
 import numpy as np
 
-from .config import (CAMERA_SETTINGS,CAMERA_STATES,COUNTDOWN_SETTINGS)
+from .config import (CAMERA_SETTINGS, CAMERA_STATES, COUNTDOWN_SETTINGS)
 
 
 # Stop capturing if nothing has asked for a frame for this long - restarted on demand
@@ -104,7 +104,7 @@ class SharedVideoStream:
                 if not ret:
                     consecutive_failures += 1
                     logger.warning("Failed to read frame from camera %s (failure %d/%d)",
-                                  self.camera_uuid, consecutive_failures, max_consecutive_failures)
+                                   self.camera_uuid, consecutive_failures, max_consecutive_failures)
                     if consecutive_failures >= max_consecutive_failures:
                         logger.error(
                             "Too many consecutive failures for camera %s, stopping stream",
@@ -170,7 +170,7 @@ class SharedVideoStreamManager:
                 existing_stream = self.streams[camera_uuid]
                 if (not existing_stream.is_running
                     or not existing_stream.thread
-                    or not existing_stream.thread.is_alive()):
+                        or not existing_stream.thread.is_alive()):
                     logger.info("Restarting shared video stream for camera %s", camera_uuid)
                     existing_stream.stop()
                     self.streams[camera_uuid] = SharedVideoStream(camera_uuid, source)
@@ -200,11 +200,14 @@ class SharedVideoStreamManager:
                 return self.streams[camera_uuid].get_frame_info()
             return {'is_running': False, 'is_healthy': False, 'has_frame': False}
 
+
 _shared_stream_manager = SharedVideoStreamManager()
+
 
 def get_shared_stream_manager() -> SharedVideoStreamManager:
     """Get the global shared stream manager."""
     return _shared_stream_manager
+
 
 def get_shared_camera_frame(camera_uuid: str) -> Optional[np.ndarray]:
     """Get a frame from the shared camera stream."""
