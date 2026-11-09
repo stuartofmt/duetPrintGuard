@@ -15,7 +15,7 @@ onnxruntime==1.30.0
 # ----------------------------
 # Image / CV
 # ----------------------------
-numpy==2.4.6  # The last numpy for Python 3.11 - 2.5 needs 3.12
+numpy==2.4.6
 pillow==12.3.0
 opencv-python-headless==4.14.0.94
 
