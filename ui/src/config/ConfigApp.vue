@@ -6,7 +6,7 @@ import PgPage from "../components/PgPage.vue";
 import { api } from "../api.js";
 import { notify } from "../notify.js";
 import { printer, printerSettingsSaved, refreshPrinter } from "../printer.js";
-import { mdiContentSave } from "../icons.js";
+import { mdiContentSave, mdiEye, mdiEyeOff } from "../icons.js";
 import { optional, serverText, t, valueText } from "../i18n.js";
 
 // The tabs of the page; each section names its tab
@@ -70,8 +70,8 @@ const sections = [
 		id: "pushover",
 		tab: "alerts",
 		fields: [
-			{ name: "PUSHOVER.API" },
-			{ name: "PUSHOVER.USER" },
+			{ name: "PUSHOVER.API", type: "password" },
+			{ name: "PUSHOVER.USER", type: "password" },
 			{ name: "PUSHOVER.TITLE", systemDefault: "title" },
 			{ name: "PUSHOVER.MESSAGE", systemDefault: "message" },
 			{ name: "PUSHOVER.MAXTIMES", type: "number", min: 0 },
@@ -95,6 +95,7 @@ const ipInUse = ref("");
 const portStatus = ref("");
 const status = reactive({ text: "", type: "success" });
 const saving = ref(false);
+const shown = reactive({});  // Password fields shown as text - by their eye button
 
 
 const printerStatus = computed(() => {
@@ -248,7 +249,10 @@ onMounted(() => {
 										  variant="outlined" density="comfortable" class="mb-3"></v-select>
 
 								<v-text-field v-else v-model="values[field.name]" :label="fieldLabel(field.name)"
-											  :type="field.type || 'text'" :min="field.min" :max="field.max"
+											  :type="field.type === 'password' && shown[field.name] ? 'text' : field.type || 'text'"
+											  :min="field.min" :max="field.max"
+											  :append-inner-icon="field.type === 'password' ? (shown[field.name] ? mdiEyeOff : mdiEye) : undefined"
+											  @click:append-inner="shown[field.name] = !shown[field.name]"
 											  :placeholder="placeholders[field.name]" persistent-placeholder
 											  :error-messages="errors[field.name]" :hint="fieldHint(field)" persistent-hint
 											  variant="outlined" density="comfortable" class="mb-3">
