@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from duet_config import UI
+from duet_config import UI, set_alert_language
 from messages import CodedHTTPException, coded_http_exception_handler
 
 from utils.config import init_config, PRINTER_POLL_SECONDS
@@ -120,6 +120,7 @@ def init_routes_and_modules():
             elif request.url.path.startswith("/settings"):
                 logger.debug(f'Settings connection recieved {request.url} from {request.client}')
 
+        set_alert_language(request.headers.get('X-PrintGuard-Language'))  # Alerts follow the pages' language
         response = await call_next(request)
         return response
 

@@ -23,6 +23,7 @@ from .config import (CAMERA_SETTINGS, CAMERA_STATES, COUNTDOWN_SETTINGS, DEFAULT
 
 
 from printer_control import suspend_print_job, duet_send_notification
+from alert_text import alert_text
 
 
 class StreamOptimizer:
@@ -402,30 +403,31 @@ async def _live_detection_loop(app_state, camera_uuid):
 
 
 def default_notification_text(camera_name):
-    """Title and message sent when no ntfy / Pushover title or message is configured.
+    """Title and message sent when no ntfy / Pushover title or message is configured - in the alert language.
 
     Also shown on the config page as the placeholder for those fields.
     """
     if COUNTDOWN_SETTINGS['countdown_control'] == 'all_cameras':
-        title_msg = "duetPrintguard: All cameras"
+        title_msg = alert_text('titleAll', 'duetPrintGuard: All cameras')
     else:
-        title_msg = f"duetPrintguard: {camera_name}"
+        title_msg = alert_text('titleCamera', 'duetPrintGuard: {camera}', camera=camera_name)
 
-    countdown_time = COUNTDOWN_SETTINGS['countdown_time']
+    seconds = COUNTDOWN_SETTINGS['countdown_time']
     action = COUNTDOWN_SETTINGS['countdown_action']
-    if countdown_time <= 0:  # The action is taken straight away
+    if seconds <= 0:  # The action is taken straight away
         if action == 'pause_print':
-            action_msg = "Print has been paused."
+            action_msg = alert_text('paused', 'Print has been paused.')
         elif action == 'cancel_print':
-            action_msg = "Print has been cancelled."
+            action_msg = alert_text('cancelled', 'Print has been cancelled.')
         else:
-            action_msg = "Alert has been dismissed automatically."
+            action_msg = alert_text('dismissed', 'Alert has been dismissed automatically.')
     elif action == 'pause_print':
-        action_msg = f"Print will be paused if not dismissed within {countdown_time} seconds."
+        action_msg = alert_text('pauseIn', 'Print will be paused if not dismissed within {seconds} seconds.', seconds=seconds)
     elif action == 'cancel_print':
-        action_msg = f"Print will be cancelled if not dismissed within {countdown_time} seconds."
+        action_msg = alert_text('cancelIn', 'Print will be cancelled if not dismissed within {seconds} seconds.', seconds=seconds)
     else:
-        action_msg = f"Alert will be dismissed automatically in {countdown_time} seconds if not dismissed manually."
+        action_msg = alert_text('dismissIn', 'Alert will be dismissed automatically in {seconds} seconds if not dismissed manually.',
+                                seconds=seconds)
     return title_msg, action_msg
 
 

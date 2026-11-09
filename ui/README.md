@@ -38,4 +38,4 @@ and open http://localhost:5173/static/app/index.html. Changes show as soon as th
 
 ## Translating
 
-Copy `src/locales/en.json` to `src/locales/<code>.json` (the browser's language code, e.g. `de` or `pt-br`), translate the texts - not the keys, and keep `{names}` in braces as they are - then `npm run build` and commit. Try it with `?lang=<code>` on any page's address. The ntfy / Pushover alert texts are sent from duetPrintGuard itself, so they stay in English unless set on the Configuration page.
+Copy `src/locales/en.json` to `src/locales/<code>.json` (the browser's language code, e.g. `de` or `pt-br`), translate the texts - not the keys, and keep `{names}` in braces as they are - then `npm run build` and commit. Try it with `?lang=<code>` on any page's address. The `alerts` group is sent by duetPrintGuard itself - the default ntfy / Pushover title and message, and the messages shown on the printer. The build also writes it to `Code/dsf/static/app/locales/`, and duetPrintGuard uses the language the pages were last shown in. A title or message set on the Configuration page is sent as it is.

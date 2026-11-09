@@ -290,5 +290,19 @@
 		"unknownCameraChoice": "Unknown camera choice {choice}",
 		"countdownTimeMin": "Countdown time must be 0 or more",
 		"detectionNotStarted": "Failed to start live detection for camera {camera}"
+	},
+	"alerts": {
+		"titleAll": "duetPrintGuard: All cameras",
+		"titleCamera": "duetPrintGuard: {camera}",
+		"cameraPlaceholder": "<camera nickname>",
+		"paused": "Print has been paused.",
+		"cancelled": "Print has been cancelled.",
+		"dismissed": "Alert has been dismissed automatically.",
+		"pauseIn": "Print will be paused if not dismissed within {seconds} seconds.",
+		"cancelIn": "Print will be cancelled if not dismissed within {seconds} seconds.",
+		"dismissIn": "Alert will be dismissed automatically in {seconds} seconds if not dismissed manually.",
+		"printerPaused": "Paused Printing",
+		"printerResumed": "Resumed Printing",
+		"printerCancelled": "Cancelled Printing"
 	}
 }

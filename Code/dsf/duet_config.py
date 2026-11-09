@@ -26,11 +26,12 @@ import os
 import re
 
 from messages import Message
+from alert_text import languages
 import time
 import zlib
 import threading
 
-global DUET, UI, LOGGING, ACTION, MACRO, NTFY, PUSHOVER
+global DUET, UI, LOGGING, ACTION, MACRO, NTFY, PUSHOVER, ALERTS
 
 CONFIGFILENAME = 'duetPrintGuard.json'
 SAVE_TRIES = 5  # Windows refuses to replace a file while e.g. antivirus or a backup has it open for a moment
@@ -74,10 +75,13 @@ CONFIG_SCHEMA = {
                 'MESSAGE': (str, '', False),
                 'MAXTIMES': (int, 3, False),
         },
+        'ALERTS': {
+                'LANGUAGE': (str, 'en', False),  # The language the pages were last shown in - for the alerts, see alert_text.py
+        },
 }
 
 # Set by the program at startup - not shown on, or editable from, the config page
-HIDDEN_SETTINGS = {('UI', 'IP')}
+HIDDEN_SETTINGS = {('UI', 'IP'), ('ALERTS', 'LANGUAGE')}
 
 # Sections managed by utils/config.py (cameras and the defect countdown)
 CAMERA_SECTION = 'camera_settings'
@@ -91,9 +95,9 @@ class ConfigSection:
     pass
 
 
-DUET, UI, LOGGING, ACTION, MACRO, NTFY, PUSHOVER = (ConfigSection() for _ in range(7))
+DUET, UI, LOGGING, ACTION, MACRO, NTFY, PUSHOVER, ALERTS = (ConfigSection() for _ in range(8))
 _SECTIONS = {'DUET': DUET, 'UI': UI, 'LOGGING': LOGGING, 'ACTION': ACTION,
-             'MACRO': MACRO, 'NTFY': NTFY, 'PUSHOVER': PUSHOVER}
+             'MACRO': MACRO, 'NTFY': NTFY, 'PUSHOVER': PUSHOVER, 'ALERTS': ALERTS}
 
 _config_file = None
 _logger = None
@@ -131,6 +135,9 @@ def _validate(section, key, value):
         raise ValueError(Message('between', 'must be between 1 and 5', min=1, max=5))
     if section == 'LOGGING' and key == 'LEVEL' and value not in LOG_LEVELS:
         raise ValueError(Message('oneOf', f'must be one of {", ".join(LOG_LEVELS)}', choices=', '.join(LOG_LEVELS)))
+    if section == 'ALERTS' and key == 'LANGUAGE' and value not in languages():
+        choices = ', '.join(languages())
+        raise ValueError(Message('oneOf', f'must be one of {choices}', choices=choices))
     if section == 'MACRO' and key == 'MACRO' and '"' in value:
         raise ValueError(Message('noQuotes', 'must not contain quotes'))
 
@@ -361,3 +368,26 @@ def _update_config(updates):
         from logger_module import set_log_level
         set_log_level(LOGGING.LEVEL, _logger)
     return {}, restart_keys
+
+
+def set_alert_language(code):
+    """The language a page is shown in (sent with its requests) - alerts are sent in the one used last.
+
+    Saved, so alerts keep that language after a restart. A language with no locale file is ignored.
+    """
+    code = (code or '').strip().lower()
+    if code not in languages():
+        code = code.split('-')[0]  # e.g. fr-ca as fr
+    if code not in languages() or code == getattr(ALERTS, 'LANGUAGE', None):
+        return
+    ALERTS.LANGUAGE = code
+    with _lock:
+        config = _load()
+        if config['ALERTS']['LANGUAGE'] == code:
+            return
+        config['ALERTS']['LANGUAGE'] = code
+        try:
+            _save(config)
+            _logger.info(f'Alerts will be sent in the language of the pages: {code}')
+        except OSError as e:
+            _logger.error(f'Could not save {_config_file}: {e}')

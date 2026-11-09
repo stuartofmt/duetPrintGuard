@@ -1,8 +1,10 @@
 // Calls to the duetPrintGuard server. Each returns the parsed JSON (or null) or throws an Error whose message
 // is the server's detail text; error.status and error.data hold the HTTP status and the parsed reply.
+// Every request says which language the page is shown in, so duetPrintGuard sends its alerts in the same one.
+import { language } from "./i18n.js";
 
-async function request(url, options) {
-	const response = await fetch(url, options);
+async function request(url, options = {}) {
+	const response = await fetch(url, { ...options, headers: { ...options.headers, "X-PrintGuard-Language": language } });
 	let data = null;
 	try {
 		data = await response.json();

@@ -1,0 +1,16 @@
+{
+	"alerts": {
+		"titleAll": "duetPrintGuard : toutes les caméras",
+		"titleCamera": "duetPrintGuard : {camera}",
+		"cameraPlaceholder": "<nom de la caméra>",
+		"paused": "L'impression a été mise en pause.",
+		"cancelled": "L'impression a été annulée.",
+		"dismissed": "L'alerte a été ignorée automatiquement.",
+		"pauseIn": "L'impression sera mise en pause si l'alerte n'est pas ignorée dans les {seconds} secondes.",
+		"cancelIn": "L'impression sera annulée si l'alerte n'est pas ignorée dans les {seconds} secondes.",
+		"dismissIn": "L'alerte sera ignorée automatiquement dans {seconds} secondes si elle n'est pas ignorée manuellement.",
+		"printerPaused": "Impression en pause",
+		"printerResumed": "Impression reprise",
+		"printerCancelled": "Impression annulée"
+	}
+}

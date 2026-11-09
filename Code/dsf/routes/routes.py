@@ -19,6 +19,7 @@ from sse_starlette.sse import EventSourceResponse
 from logger_module import logger
 
 from messages import CodedHTTPException, Message, coded, coded_errors
+from alert_text import alert_text
 from printer_control import running_as_plugin, suspend_print_job, printer_info, printer_settings_changed, reset_notification_counters
 
 import cv2
@@ -112,7 +113,7 @@ async def get_app_config():
     """Get the application configuration (secrets are not returned)."""
     config = get_config_for_ui()
     # What is sent when the ntfy / Pushover title or message is left blank
-    title, message = default_notification_text('<camera nickname>')
+    title, message = default_notification_text(alert_text('cameraPlaceholder', '<camera nickname>'))
     config['default_notification'] = {'title': title, 'message': message}
     return config
 

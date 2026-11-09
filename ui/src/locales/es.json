@@ -290,5 +290,19 @@
 		"unknownCameraChoice": "Selección de cámaras desconocida: {choice}",
 		"countdownTimeMin": "La duración de la cuenta atrás debe ser 0 o más",
 		"detectionNotStarted": "No se pudo iniciar la detección para la cámara {camera}"
+	},
+	"alerts": {
+		"titleAll": "duetPrintGuard: todas las cámaras",
+		"titleCamera": "duetPrintGuard: {camera}",
+		"cameraPlaceholder": "<nombre de la cámara>",
+		"paused": "La impresión se ha pausado.",
+		"cancelled": "La impresión se ha cancelado.",
+		"dismissed": "La alerta se ha descartado automáticamente.",
+		"pauseIn": "La impresión se pausará si la alerta no se descarta en {seconds} segundos.",
+		"cancelIn": "La impresión se cancelará si la alerta no se descarta en {seconds} segundos.",
+		"dismissIn": "La alerta se descartará automáticamente en {seconds} segundos si no se descarta manualmente.",
+		"printerPaused": "Impresión en pausa",
+		"printerResumed": "Impresión reanudada",
+		"printerCancelled": "Impresión cancelada"
 	}
 }

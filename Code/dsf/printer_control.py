@@ -23,6 +23,7 @@ from duet_printer import forgetPrinter, getDuet, getDuetVersion, getStatus, logi
 from logger_module import logger
 from messages import Message, coded
 from duet_config import ACTION, DUET, MACRO, NTFY, PUSHOVER, UI
+from alert_text import alert_text
 
 global MACRO_TIMES, NTFY_TIMES, PUSHOVER_TIMES
 MACRO_TIMES = 0
@@ -286,13 +287,13 @@ def suspend_print_job(action):
     if action == 'pause_print':
         if status == 'processing':
             _duet_pause()
-            _send_duet_code('''M291 S1 T0 P"Paused Printing"''')
+            _send_duet_code(f'M291 S1 T0 P"{alert_text("printerPaused", "Paused Printing")}"')
             _wait_for_status('paused')
 
     elif action == 'resume_print':
         if status == 'paused':
             _duet_resume()
-            _send_duet_code('''M291 S1 T0 P"Resumed Printing"''')
+            _send_duet_code(f'M291 S1 T0 P"{alert_text("printerResumed", "Resumed Printing")}"')
             _wait_for_status('processing')
 
     elif action == 'cancel_print':
@@ -302,7 +303,7 @@ def suspend_print_job(action):
                 status = 'paused'
         if status == 'paused':
             _duet_cancel()
-            _send_duet_code('''M291 S1 T0 P"Cancelled Printing"''')
+            _send_duet_code(f'M291 S1 T0 P"{alert_text("printerCancelled", "Cancelled Printing")}"')
     else:
         logger.critical(f'Unknown action {action}')
 
