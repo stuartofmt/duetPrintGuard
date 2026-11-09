@@ -6,6 +6,7 @@ dragging a slider doesn't flash the card.
 <script setup>
 import { api } from "../api.js";
 import { notify } from "../notify.js";
+import { errorText, t } from "../i18n.js";
 import { mdiDelete } from "../icons.js";
 
 const SENSITIVITY_STEPS = 10; // Slider positions -10..10, 0 = normal (see utils/detector.py sensitivity_factor)
@@ -22,7 +23,7 @@ async function saveAutostart() {
 		await api.postJson("/settings/update_autostart", { camera_uuid: camera.uuid, autostart: camera.autostart });
 	} catch (err) {
 		camera.autostart = !camera.autostart;
-		notify(`Failed to update autostart: ${err.message}`, "error");
+		notify(t("camera.autostartFailed", { error: errorText(err) }), "error");
 	}
 }
 
@@ -47,12 +48,12 @@ async function saveCameraSettings() {
 			sensitivity: camera.sensitivity,
 		});
 	} catch (err) {
-		notify(`Failed to save camera settings: ${err.message}`, "error");
+		notify(t("camera.saveFailed", { error: errorText(err) }), "error");
 	}
 }
 
-const sensitivityText = (value) => value === 0 ? "Normal"
-	: value < 0 ? `Less (${value})` : `More (+${value})`;
+const sensitivityText = (value) => value === 0 ? t("camera.normal")
+	: value < 0 ? t("camera.less", { n: value }) : t("camera.more", { n: value });
 
 function resetSensitivity() {
 	props.camera.sensitivity = 0;
@@ -65,38 +66,37 @@ function resetSensitivity() {
 		<v-card-title class="d-flex align-center">
 			<span class="text-truncate">{{ camera.nickname }}</span>
 			<v-spacer></v-spacer>
-			<v-btn :icon="mdiDelete" variant="text" size="small" color="error" title="Remove camera"
+			<v-btn :icon="mdiDelete" variant="text" size="small" color="error" :title="t('camera.remove')"
 				   @click.stop="$emit('remove')"></v-btn>
 		</v-card-title>
 		<v-card-subtitle class="text-wrap text-break">{{ camera.source }}</v-card-subtitle>
 		<v-card-text>
-			<v-switch v-model="camera.autostart" label="Auto-start" color="primary" density="compact"
+			<v-switch v-model="camera.autostart" :label="t('camera.autostart')" color="primary" density="compact"
 					  hide-details @update:model-value="saveAutostart"></v-switch>
 			<!-- Sensitivity: the middle is normal; log scale, so the ends are effectively fail nothing / fail everything -->
 			<div class="d-flex align-center mt-3">
-				<span>Detection Sensitivity</span>
+				<span>{{ t("camera.sensitivity") }}</span>
 				<v-spacer></v-spacer>
 				<v-btn v-if="camera.sensitivity !== 0" variant="text" size="x-small" class="mr-1"
-					   @click.stop="resetSensitivity">Reset</v-btn>
+					   @click.stop="resetSensitivity">{{ t("common.reset") }}</v-btn>
 				<span class="text-no-wrap">{{ sensitivityText(camera.sensitivity) }}</span>
 			</div>
 			<v-slider v-model="camera.sensitivity" :min="-SENSITIVITY_STEPS" :max="SENSITIVITY_STEPS" :step="1"
 					  :ticks="{ 0: '' }" show-ticks="always" color="primary" track-fill-color="transparent" hide-details
 					  @end="saveCameraSettings"></v-slider>
 			<div class="d-flex text-body-small text-medium-emphasis mt-n1">
-				<span>Less sensitive</span>
+				<span>{{ t("camera.lessSensitive") }}</span>
 				<v-spacer></v-spacer>
-				<span>More sensitive</span>
+				<span>{{ t("camera.moreSensitive") }}</span>
 			</div>
 			<p class="text-body-small text-medium-emphasis mt-1 mb-2">
-				Left: fewer frames count as failures (far left, almost none). Right: more frames count as failures
-				(far right, almost all).
+				{{ t("camera.sensitivityHelp") }}
 			</p>
 			<v-slider v-model="camera.majority_vote_threshold" :min="1" :max="20" :step="1" color="primary"
 					  thumb-label hide-details class="mt-2" @update:model-value="keepWindowAboveThreshold('threshold')"
 					  @end="saveCameraSettings">
 				<template #prepend>
-					<span class="text-no-wrap">Vote Threshold</span>
+					<span class="text-no-wrap">{{ t("camera.voteThreshold") }}</span>
 				</template>
 				<template #append>
 					<span>{{ camera.majority_vote_threshold }}</span>
@@ -106,15 +106,14 @@ function resetSensitivity() {
 					  thumb-label hide-details class="mt-2" @update:model-value="keepWindowAboveThreshold('window')"
 					  @end="saveCameraSettings">
 				<template #prepend>
-					<span class="text-no-wrap">Vote Window</span>
+					<span class="text-no-wrap">{{ t("camera.voteWindow") }}</span>
 				</template>
 				<template #append>
 					<span>{{ camera.majority_vote_window }}</span>
 				</template>
 			</v-slider>
 			<p class="text-body-small text-medium-emphasis mt-2">
-				A defect is raised when at least the threshold number of the last window frames show a failure,
-				so the window is never smaller than the threshold.
+				{{ t("camera.voteHelp") }}
 			</p>
 		</v-card-text>
 	</v-card>

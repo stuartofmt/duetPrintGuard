@@ -7,97 +7,84 @@ import { api } from "../api.js";
 import { notify } from "../notify.js";
 import { printer, printerSettingsSaved, refreshPrinter } from "../printer.js";
 import { mdiContentSave } from "../icons.js";
-
-// Blank ntfy / Pushover titles and messages use the system text, shown as the placeholder
-const SYSTEM_DEFAULT_HINT = "Leave blank to use the system text shown, which follows the camera and countdown settings.";
+import { optional, serverText, t, valueText } from "../i18n.js";
 
 // The tabs of the page; each section names its tab
-const tabs = [
-	{ value: "general", title: "General" },
-	{ value: "actions", title: "Actions" },
-	{ value: "alerts", title: "Alerts" },
-];
+const tabs = ["general", "actions", "alerts"].map((value) => ({ value, title: t(`config.tabs.${value}`) }));
 const tab = ref("general");
 
-// Field names are SECTION.KEY, matching /config/get-app-config and /config/save-app-config
+// Field names are SECTION.KEY, matching /config/get-app-config and /config/save-app-config. A section's title and help,
+// and a field's label, hint and placeholder are in the locale file (config.sections.<id>, config.fields.<SECTION>.<KEY>).
+// placeholder here: a printer command, the same in every language. systemDefault: a blank ntfy / Pushover title or
+// message uses the system text, shown as the placeholder.
 const sections = [
 	{
-		title: "Printer",
+		id: "printer",
 		tab: "general",
-		help: "Works with an SBC on this computer (plugin), or a Duet in SBC mode or standalone on the network - which one is found when connecting.",
 		fields: [
-			{
-				name: "DUET.IP", label: "Printer Address", placeholder: "This computer",
-				hint: "IP address or name of the printer. Leave blank only if this computer is the printer's SBC. Not used when running as a DWC plugin.",
-			},
-			{ name: "DUET.PORT", label: "Printer Port", type: "number", min: 1, max: 65535, hint: "The port DWC uses - normally 80." },
-			{ name: "DUET.PASSWORD", label: "Printer Password", type: "password", hint: "Only if a password is set on the printer." },
+			{ name: "DUET.IP" },
+			{ name: "DUET.PORT", type: "number", min: 1, max: 65535 },
+			{ name: "DUET.PASSWORD", type: "password" },
 		],
 	},
 	{
-		title: "Web Interface",
+		id: "web",
 		tab: "general",
 		fields: [
-			{ name: "UI.IP" },
-			{
-				name: "UI.PORT", label: "Port", type: "number", min: 0, max: 65535, restart: true,
-				hint: "Port for the Detection, Settings and Configuration pages. Must not conflict with DWC or other plugins. Use 0 to pick a free port automatically at startup. If the chosen port is in use, a free port is picked instead.",
-			},
-			{
-				name: "UI.OPENBROWSER", label: "Open Browser at Startup", type: "switch",
-				hint: "Open these pages in this computer's browser when duetPrintGuard starts. Not used when running as a DWC plugin, or without a desktop.",
-			},
-			{ name: "LOGGING.LEVEL", label: "Logging Level", type: "select" },
+			{ name: "UI.IP", readonly: true },
+			{ name: "UI.PORT", type: "number", min: 0, max: 65535, restart: true },
+			{ name: "UI.OPENBROWSER", type: "switch" },
+			{ name: "LOGGING.LEVEL", type: "select" },
 		],
 	},
 	{
-		title: "Printer Actions",
+		id: "actions",
 		tab: "actions",
-		help: "Commands sent to the printer when a defect is detected and nobody intervenes. Leave blank to use the default.",
 		fields: [
-			{ name: "ACTION.PAUSE", label: "Pause Command", placeholder: "M25" },
-			{ name: "ACTION.RESUME", label: "Resume Command", placeholder: "M24" },
-			{ name: "ACTION.CANCEL", label: "Cancel Command", placeholder: "M2" },
+			{ name: "ACTION.PAUSE", placeholder: "M25" },
+			{ name: "ACTION.RESUME", placeholder: "M24" },
+			{ name: "ACTION.CANCEL", placeholder: "M2" },
 		],
 	},
 	{
-		title: "Macro Alert",
+		id: "macro",
 		tab: "alerts",
 		fields: [
-			{
-				name: "MACRO.MACRO", label: "Macro", placeholder: "e.g. 0:/sys/duetPrintGuard/macros/Notify.g",
-				hint: 'Macro called on failure e.g. to send MQTT. Enter just the path used in M98 P"<path>".',
-			},
-			{ name: "MACRO.MAXTIMES", label: "Maximum Times", type: "number", min: 0 },
+			{ name: "MACRO.MACRO" },
+			{ name: "MACRO.MAXTIMES", type: "number", min: 0 },
 		],
 	},
 	{
-		title: "ntfy Alert",
+		id: "ntfy",
 		tab: "alerts",
 		link: "https://docs.ntfy.sh/publish/#message-priority",
 		fields: [
-			{ name: "NTFY.TOPIC", label: "Topic", hint: "The ntfy topic you subscribe to. Required to send ntfy alerts." },
-			{ name: "NTFY.TITLE", label: "Title", systemDefault: "title", hint: SYSTEM_DEFAULT_HINT },
-			{ name: "NTFY.MESSAGE", label: "Message", systemDefault: "message", hint: SYSTEM_DEFAULT_HINT },
-			{ name: "NTFY.PRIORITY", label: "Priority", type: "number", min: 1, max: 5 },
-			{ name: "NTFY.MAXTIMES", label: "Maximum Times", type: "number", min: 0 },
+			{ name: "NTFY.TOPIC" },
+			{ name: "NTFY.TITLE", systemDefault: "title" },
+			{ name: "NTFY.MESSAGE", systemDefault: "message" },
+			{ name: "NTFY.PRIORITY", type: "number", min: 1, max: 5 },
+			{ name: "NTFY.MAXTIMES", type: "number", min: 0 },
 		],
 	},
 	{
-		title: "Pushover Alert",
+		id: "pushover",
 		tab: "alerts",
-		help: "Both the API token and user key are required to send Pushover alerts.",
 		fields: [
-			{ name: "PUSHOVER.API", label: "API Token" },
-			{ name: "PUSHOVER.USER", label: "User / Group Key" },
-			{ name: "PUSHOVER.TITLE", label: "Title", systemDefault: "title", hint: SYSTEM_DEFAULT_HINT },
-			{ name: "PUSHOVER.MESSAGE", label: "Message", systemDefault: "message", hint: SYSTEM_DEFAULT_HINT },
-			{ name: "PUSHOVER.MAXTIMES", label: "Maximum Times", type: "number", min: 0 },
+			{ name: "PUSHOVER.API" },
+			{ name: "PUSHOVER.USER" },
+			{ name: "PUSHOVER.TITLE", systemDefault: "title" },
+			{ name: "PUSHOVER.MESSAGE", systemDefault: "message" },
+			{ name: "PUSHOVER.MAXTIMES", type: "number", min: 0 },
 		],
 	},
 ];
 
-const editableFields = sections.flatMap((s) => s.fields).filter((f) => f.label);
+const sectionTitle = (section) => t(`config.sections.${section.id}.title`);
+const sectionHelp = (section) => optional(`config.sections.${section.id}.help`);
+const fieldLabel = (name) => t(`config.fields.${name}.label`);
+const fieldText = (field, part) => optional(`config.fields.${field.name}.${part}`);
+
+const editableFields = sections.flatMap((s) => s.fields).filter((f) => !f.readonly);
 const tabOfField = Object.fromEntries(sections.flatMap((s) => s.fields.map((f) => [f.name, s.tab])));
 
 const values = reactive({});
@@ -110,17 +97,22 @@ const status = reactive({ text: "", type: "success" });
 const saving = ref(false);
 
 
-const MODE_NAMES = { plugin: "plugin, through DSF", remoteSBC: "remote SBC", remoteStandalone: "remote standalone" };
 const printerStatus = computed(() => {
 	if (!printer.value) return "";
 	const p = printer.value;
-	return p.connected ? `Connected to ${p.address} (${MODE_NAMES[p.mode] || p.mode}), status ${p.status}` : (p.error || `Connecting to ${p.address}`);
+	if (p.connected) {
+		return t("config.printerConnected", {
+			printer: p.address, mode: valueText("mode", p.mode), status: valueText("printerStatus", p.status),
+		});
+	}
+	return p.error ? serverText(p.error, p.errorCode) : t("config.printerConnecting", { printer: p.address });
 });
 
 const fieldHint = (field) => {
-	if (field.name === "UI.PORT" && portStatus.value) return `${portStatus.value}. ${field.hint}`;
-	if (field.name === "DUET.IP" && printerStatus.value) return `${printerStatus.value}. ${field.hint}`;
-	return field.hint;
+	const hint = field.systemDefault ? t("config.systemDefaultHint") : fieldText(field, "hint");
+	if (field.name === "UI.PORT" && portStatus.value) return `${portStatus.value}. ${hint}`;
+	if (field.name === "DUET.IP" && printerStatus.value) return `${printerStatus.value}. ${hint}`;
+	return hint;
 };
 
 function setErrors(newErrors = {}) {
@@ -145,7 +137,7 @@ async function load(section = "") {
 			const setting = data.settings?.[group]?.[key];
 			if (!setting) continue;
 			values[field.name] = setting.value;
-			placeholders[field.name] = field.placeholder
+			placeholders[field.name] = field.placeholder || fieldText(field, "placeholder")
 				|| (field.systemDefault && data.default_notification?.[field.systemDefault])
 				|| (setting.default !== "" && setting.default !== undefined ? String(setting.default) : "");
 		}
@@ -153,15 +145,15 @@ async function load(section = "") {
 		const savedPort = data.settings.UI.PORT.value;
 		const portInUse = data.ui_port_in_use;
 		ipInUse.value = data.ui_ip_in_use;
-		portStatus.value = `Currently connected to port ${portInUse}`;
+		portStatus.value = t("config.portInUse", { port: portInUse });
 		if (savedPort === 0) {
-			portStatus.value += " (picked automatically)";
+			portStatus.value = t("config.portAuto", { status: portStatus.value });
 		} else if (portInUse !== savedPort) {
-			portStatus.value += ` - ${savedPort} will be used after restart, if it is free`;
+			portStatus.value = t("config.portNext", { status: portStatus.value, port: savedPort });
 		}
 	} catch (err) {
 		console.error("Failed to load configuration:", err);
-		Object.assign(status, { text: "Failed to load configuration.", type: "error" });
+		Object.assign(status, { text: t("config.loadFailed"), type: "error" });
 	}
 }
 
@@ -187,29 +179,31 @@ async function save() {
 		// Save is pressed further down
 		if (result.restart_required.length) {
 			Object.assign(status, {
-				text: `Saved. Restart duetPrintGuard for these changes to take effect: ${result.restart_required.join(", ")}`,
+				text: t("config.savedRestart", { settings: result.restart_required.map(fieldLabel).join(", ") }),
 				type: "warning",
 			});
-			notify("Saved - restart duetPrintGuard for some changes to take effect.", "warning", 6000);
+			notify(t("config.savedRestartShort"), "warning", 6000);
 		} else {
 			status.text = "";
-			notify("Saved.");
+			notify(t("config.saved"));
 		}
 		await load();
 		refreshPrinter();
 	} catch (err) {
 		if (err.status === 400 && err.data?.errors) {
-			setErrors(err.data.errors);
+			const codes = err.data.errorCodes || {};
+			setErrors(Object.fromEntries(Object.entries(err.data.errors).map(([name, text]) => [name, serverText(text, codes[name])])));
 			// Show the first tab with a refused setting, unless this one has one
 			if (!tabsWithErrors.value.has(tab.value)) {
 				tab.value = tabs.find((t) => tabsWithErrors.value.has(t.value))?.value ?? tab.value;
 			}
-			Object.assign(status, { text: "Some settings are invalid - nothing was saved.", type: "error" });
-			notify("Some settings are invalid (marked in red) - nothing was saved.", "error", 6000);
+			Object.assign(status, { text: t("config.invalid"), type: "error" });
+			notify(t("config.invalidShort"), "error", 6000);
 		} else {
 			console.error("Failed to save configuration:", err);
-			Object.assign(status, { text: `Failed to save configuration: ${err.message}`, type: "error" });
-			notify(`Failed to save configuration: ${err.message}`, "error", 6000);
+			const text = t("config.saveFailed", { error: serverText(err.message, err.data?.code) });
+			Object.assign(status, { text, type: "error" });
+			notify(text, "error", 6000);
 		}
 	} finally {
 		saving.value = false;
@@ -236,50 +230,48 @@ onMounted(() => {
 				</v-tabs>
 
 				<v-form @submit.prevent="save">
-					<v-card v-for="section in sections.filter((s) => s.tab === tab)" :key="section.title" class="mb-4">
-						<v-card-title>{{ section.title }}</v-card-title>
-						<v-card-subtitle v-if="section.help" class="text-wrap">{{ section.help }}</v-card-subtitle>
+					<v-card v-for="section in sections.filter((s) => s.tab === tab)" :key="section.id" class="mb-4">
+						<v-card-title>{{ sectionTitle(section) }}</v-card-title>
+						<v-card-subtitle v-if="sectionHelp(section)" class="text-wrap">{{ sectionHelp(section) }}</v-card-subtitle>
 						<v-card-text>
 							<template v-for="field in section.fields" :key="field.name">
-								<v-text-field v-if="field.name === 'UI.IP'" label="IP Address" :model-value="ipInUse"
+								<v-text-field v-if="field.readonly" :label="fieldLabel(field.name)" :model-value="ipInUse"
 											  readonly variant="outlined" density="comfortable" class="mb-3"
-											  hint="IP address of this machine, detected automatically at startup."
-											  persistent-hint></v-text-field>
+											  :hint="fieldText(field, 'hint')" persistent-hint></v-text-field>
 
-								<v-switch v-else-if="field.type === 'switch'" v-model="values[field.name]" :label="field.label"
-										  :hint="field.hint" persistent-hint :error-messages="errors[field.name]"
+								<v-switch v-else-if="field.type === 'switch'" v-model="values[field.name]" :label="fieldLabel(field.name)"
+										  :hint="fieldHint(field)" persistent-hint :error-messages="errors[field.name]"
 										  color="primary" density="comfortable" inset class="mb-3"></v-switch>
 
 								<v-select v-else-if="field.type === 'select'" v-model="values[field.name]"
-										  :label="field.label" :items="logLevels" :error-messages="errors[field.name]"
+										  :label="fieldLabel(field.name)" :items="logLevels" :error-messages="errors[field.name]"
 										  variant="outlined" density="comfortable" class="mb-3"></v-select>
 
-								<v-text-field v-else v-model="values[field.name]" :label="field.label"
+								<v-text-field v-else v-model="values[field.name]" :label="fieldLabel(field.name)"
 											  :type="field.type || 'text'" :min="field.min" :max="field.max"
 											  :placeholder="placeholders[field.name]" persistent-placeholder
 											  :error-messages="errors[field.name]" :hint="fieldHint(field)" persistent-hint
 											  variant="outlined" density="comfortable" class="mb-3">
 									<template v-if="field.restart" #append-inner>
-										<v-chip size="x-small" color="warning" variant="tonal">restart</v-chip>
+										<v-chip size="x-small" color="warning" variant="tonal">{{ t("config.restart") }}</v-chip>
 									</template>
 								</v-text-field>
 							</template>
 							<p v-if="section.link" class="text-body-small text-medium-emphasis">
-								Priority 1 to 5 - see
-								<a :href="section.link" target="_blank" rel="noopener">ntfy message priority</a>.
+								{{ t("config.priority") }}
+								<a :href="section.link" target="_blank" rel="noopener">{{ t("config.priorityLink") }}</a>.
 							</p>
 						</v-card-text>
 						<!-- Every card's Save button saves the whole page, so there is no need to scroll to the bottom -->
 						<v-card-actions class="px-4 pb-4 pt-0">
 							<v-spacer></v-spacer>
-							<v-btn type="submit" color="primary" variant="flat" :prepend-icon="mdiContentSave" :loading="saving">Save</v-btn>
+							<v-btn type="submit" color="primary" variant="flat" :prepend-icon="mdiContentSave" :loading="saving">{{ t("common.save") }}</v-btn>
 						</v-card-actions>
 					</v-card>
 
 					<p class="text-body-small text-medium-emphasis mb-4">
-						Settings marked <v-chip size="x-small" color="warning" variant="tonal">restart</v-chip>
-						take effect after duetPrintGuard is restarted. Other settings apply immediately.
-						Each Save button saves the settings on all the tabs.
+						{{ t("config.footerBefore") }} <v-chip size="x-small" color="warning" variant="tonal">{{ t("config.restart") }}</v-chip>
+						{{ t("config.footerAfter") }}
 					</p>
 				</v-form>
 			</v-col>

@@ -24,6 +24,8 @@ import binascii
 import json
 import os
 import re
+
+from messages import Message
 import time
 import zlib
 import threading
@@ -109,7 +111,7 @@ def _convert(value, value_type):
 		try:
 			return int(str(value).strip())
 		except ValueError:
-			raise ValueError('must be a whole number') from None
+			raise ValueError(Message('mustBeWhole', 'must be a whole number')) from None
 	return '' if value is None else str(value).strip()
 
 
@@ -118,19 +120,19 @@ def _validate(section, key, value):
 	if section == 'UI' and key == 'PORT':
 		# 0 = find a free port automatically at startup
 		if not 0 <= value <= 65535:
-			raise ValueError('must be between 0 and 65535')
+			raise ValueError(Message('between', 'must be between 0 and 65535', min=0, max=65535))
 	elif key == 'PORT' and not 1 <= value <= 65535:
-		raise ValueError('must be between 1 and 65535')
+		raise ValueError(Message('between', 'must be between 1 and 65535', min=1, max=65535))
 	if section == 'DUET' and key == 'IP' and not re.fullmatch(r'[A-Za-z0-9.\-:]*', value):
-		raise ValueError('must be an address such as 192.168.1.5 or printer.local')
+		raise ValueError(Message('mustBeAddress', 'must be an address such as 192.168.1.5 or printer.local'))
 	if key == 'MAXTIMES' and value < 0:
-		raise ValueError('must be 0 or more')
+		raise ValueError(Message('zeroOrMore', 'must be 0 or more'))
 	if section == 'NTFY' and key == 'PRIORITY' and not 1 <= value <= 5:
-		raise ValueError('must be between 1 and 5')
+		raise ValueError(Message('between', 'must be between 1 and 5', min=1, max=5))
 	if section == 'LOGGING' and key == 'LEVEL' and value not in LOG_LEVELS:
-		raise ValueError(f'must be one of {", ".join(LOG_LEVELS)}')
+		raise ValueError(Message('oneOf', f'must be one of {", ".join(LOG_LEVELS)}', choices=', '.join(LOG_LEVELS)))
 	if section == 'MACRO' and key == 'MACRO' and '"' in value:
-		raise ValueError('must not contain quotes')
+		raise ValueError(Message('noQuotes', 'must not contain quotes'))
 
 
 def _defaults():
@@ -340,7 +342,7 @@ def _update_config(updates):
 				value = _convert(values[key], value_type)
 				_validate(section, key, value)
 			except ValueError as e:
-				errors[f'{section}.{key}'] = str(e) or 'invalid value'
+				errors[f'{section}.{key}'] = (e.args[0] if e.args else '') or Message('invalidValue', 'invalid value')
 				continue
 			if value != config[section][key]:
 				config[section][key] = value

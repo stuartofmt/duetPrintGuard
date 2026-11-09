@@ -9,6 +9,7 @@ tab is hidden (see visibility.js).
 import { computed, onMounted, ref } from "vue";
 import { api } from "../api.js";
 import { visibility } from "../visibility.js";
+import { errorText, t } from "../i18n.js";
 
 // /stream/<nickname> from the plugin, or ?nickname= under the Vite dev server
 const nickname = new URLSearchParams(window.location.search).get("nickname")
@@ -31,12 +32,12 @@ function onStreamError() {
 }
 
 onMounted(async () => {
-	document.title = `${nickname} - Camera Stream`;
+	document.title = t("stream.title", { name: nickname });
 	try {
 		info.value = await api.get(`/stream-info/${encodeURIComponent(nickname)}`);
 		useDirect.value = Boolean(info.value.direct_url);
 	} catch (err) {
-		error.value = err.status === 404 ? `There is no camera called "${nickname}".` : `Could not load the stream: ${err.message}`;
+		error.value = err.status === 404 ? t("stream.noCamera", { name: nickname }) : t("stream.loadFailed", { error: errorText(err) });
 	}
 });
 </script>
@@ -49,7 +50,7 @@ onMounted(async () => {
 				<v-alert v-if="error" type="error" variant="tonal" max-width="960" class="w-100">{{ error }}</v-alert>
 				<v-card v-else class="w-100" max-width="960">
 					<div class="pg-media">
-						<img v-if="streamUrl" :src="streamUrl" :alt="`Live stream for ${nickname}`" @error="onStreamError" />
+						<img v-if="streamUrl" :src="streamUrl" :alt="t('stream.alt', { name: nickname })" @error="onStreamError" />
 					</div>
 				</v-card>
 			</v-container>

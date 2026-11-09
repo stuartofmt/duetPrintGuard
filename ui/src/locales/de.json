@@ -1,0 +1,294 @@
+{
+	"common": {
+		"ok": "OK",
+		"cancel": "Abbrechen",
+		"close": "Schließen",
+		"save": "Speichern",
+		"reset": "Zurücksetzen",
+		"pleaseConfirm": "Bitte bestätigen"
+	},
+	"pages": {
+		"title": "duetPrintGuard {page}",
+		"detection": "Erkennung",
+		"settings": "Einstellungen",
+		"configuration": "Konfiguration"
+	},
+	"printer": {
+		"connecting": "Verbindung zum Drucker unter {printer} wird hergestellt",
+		"refused": "duetPrintGuard versucht es erst wieder, wenn die Druckereinstellungen geändert werden.",
+		"retrying": "duetPrintGuard versucht es weiter. Prüfen Sie, ob der Drucker eingeschaltet ist, oder ändern Sie Adresse und Port.",
+		"detectionRuns": "Die Erkennung läuft weiter, kann den Druck aber weder pausieren noch abbrechen. Die Einstellungen sind gespeichert.",
+		"address": "Druckeradresse",
+		"addressHint": "Leer = dieser Computer",
+		"port": "Port",
+		"portHint": "Leer = 80",
+		"password": "Passwort",
+		"passwordHint": "Leer = aktuelles Passwort behalten",
+		"saveConnect": "Speichern und verbinden"
+	},
+	"detection": {
+		"pause": "Pausieren",
+		"resume": "Fortsetzen",
+		"cancel": "Abbrechen",
+		"ignore": "Ignorieren",
+		"countdown": "{action} in {n} s",
+		"countdownActions": {
+			"pause_print": "Pause",
+			"cancel_print": "Abbruch",
+			"ignore": "Aktion"
+		},
+		"status": {
+			"detecting": "Erkennt",
+			"paused": "Pausiert",
+			"inactive": "Inaktiv"
+		},
+		"detection": "Erkennung",
+		"lastUpdate": "Letzte Aktualisierung",
+		"unknown": "Unbekannt",
+		"startDetection": "Erkennung starten",
+		"stopDetection": "Erkennung stoppen",
+		"openStream": "Live-Stream in einem neuen Tab öffnen",
+		"resetNotifications": "Benachrichtigungen zurücksetzen",
+		"terminate": "Programm beenden",
+		"enableAutostart": "Autostart aktivieren",
+		"disableAutostart": "Autostart deaktivieren",
+		"noCamerasTitle": "Keine Kameras eingerichtet",
+		"noCamerasText": "Fügen Sie auf der Seite Einstellungen eine Kamera hinzu.",
+		"confirmResume": "Möchten Sie den Druck wirklich fortsetzen?",
+		"confirmPause": "Möchten Sie den Druck wirklich pausieren?",
+		"confirmCancel": "Möchten Sie den Druck wirklich abbrechen?",
+		"confirmTerminate": "duetPrintGuard beenden? Die Erkennung stoppt, und das Programm muss von Hand neu gestartet werden.",
+		"startFailed": "Die Erkennung konnte nicht gestartet werden",
+		"stopFailed": "Die Erkennung konnte nicht gestoppt werden",
+		"startFailedBecause": "Die Erkennung konnte nicht gestartet werden: {error}",
+		"stopFailedBecause": "Die Erkennung konnte nicht gestoppt werden: {error}",
+		"popupBlocked": "Der Browser hat den neuen Tab blockiert - erlauben Sie Pop-ups für diese Seite.",
+		"actionFailed": "{action} konnte nicht ausgeführt werden: {error}",
+		"autostartFailed": "Autostart konnte nicht geändert werden: {error}",
+		"notificationsReset": "Benachrichtigungen zurückgesetzt.",
+		"resetFailed": "Benachrichtigungen konnten nicht zurückgesetzt werden: {error}",
+		"terminateFailed": "Das Programm konnte nicht beendet werden: {error}"
+	},
+	"settings": {
+		"cameraPreview": "Kameravorschau",
+		"refreshSnapshot": "Bild aktualisieren",
+		"loadingFeed": "Kamerabild wird geladen...",
+		"unableFeed": "Kamerabild kann nicht geladen werden",
+		"noCameraSelected": "Keine Kamera ausgewählt",
+		"countdown": "Countdown",
+		"countdownHelp": "Was passiert, wenn ein Fehler erkannt wird und niemand eingreift.",
+		"countdownAction": "Countdown-Aktion",
+		"countdownTime": "Countdown-Zeit",
+		"seconds": "{n} s",
+		"whichCameras": "Welche Kameras",
+		"actions": {
+			"ignore": "Ignorieren",
+			"cancel_print": "Druck abbrechen",
+			"pause_print": "Druck pausieren"
+		},
+		"controls": {
+			"any_camera": "Beliebige",
+			"all_cameras": "Alle"
+		},
+		"addCamera": "Kamera hinzufügen",
+		"addTitle": "HTTP- oder RTSP-Kamera hinzufügen",
+		"nickname": "Kameraname",
+		"streamUrl": "HTTP- oder RTSP-Stream-URL",
+		"streamPlaceholder": "z. B. http://IP_ADRESSE:PORT/stream",
+		"snapshotUrl": "HTTP-Bild-URL",
+		"snapshotPlaceholder": "z. B. http://IP_ADRESSE:PORT/snapshot",
+		"snapshotHint": "Für RTSP-Kameras nicht nötig",
+		"showPreview": "Kameravorschau anzeigen",
+		"loadingPreview": "Vorschau wird geladen...",
+		"unablePreview": "Vorschau kann nicht geladen werden",
+		"addButton": "Kamera hinzufügen",
+		"required": "Erforderlich",
+		"nicknameExists": "Eine Kamera mit diesem Namen gibt es bereits",
+		"sourceExists": "Eine Kamera mit dieser Quelle gibt es bereits",
+		"snapshotRequired": "Für HTTP-Kameras erforderlich",
+		"listFailed": "Die Kameraliste konnte nicht geladen werden.",
+		"confirmRemove": "Möchten Sie die Kamera „{name}“ wirklich entfernen?",
+		"removed": "{name} entfernt.",
+		"removeFailed": "Die Kamera konnte nicht entfernt werden: {error}",
+		"countdownFailed": "Die Countdown-Einstellungen konnten nicht gespeichert werden: {error}",
+		"added": "{name} hinzugefügt.",
+		"addFailed": "Die Kamera konnte nicht hinzugefügt werden"
+	},
+	"camera": {
+		"remove": "Kamera entfernen",
+		"autostart": "Autostart",
+		"sensitivity": "Erkennungsempfindlichkeit",
+		"normal": "Normal",
+		"less": "Weniger ({n})",
+		"more": "Mehr (+{n})",
+		"lessSensitive": "Weniger empfindlich",
+		"moreSensitive": "Empfindlicher",
+		"sensitivityHelp": "Links: weniger Bilder zählen als Fehler (ganz links fast keine). Rechts: mehr Bilder zählen als Fehler (ganz rechts fast alle).",
+		"voteThreshold": "Abstimmungsschwelle",
+		"voteWindow": "Abstimmungsfenster",
+		"voteHelp": "Ein Fehler wird gemeldet, wenn mindestens so viele der letzten Bilder im Fenster einen Fehler zeigen, wie die Schwelle angibt. Das Fenster ist daher nie kleiner als die Schwelle.",
+		"autostartFailed": "Autostart konnte nicht geändert werden: {error}",
+		"saveFailed": "Die Kameraeinstellungen konnten nicht gespeichert werden: {error}"
+	},
+	"stream": {
+		"title": "{name} - Kamera-Stream",
+		"noCamera": "Es gibt keine Kamera namens „{name}“.",
+		"loadFailed": "Der Stream konnte nicht geladen werden: {error}",
+		"alt": "Live-Stream von {name}"
+	},
+	"config": {
+		"tabs": {
+			"general": "Allgemein",
+			"actions": "Aktionen",
+			"alerts": "Benachrichtigungen"
+		},
+		"sections": {
+			"printer": {
+				"title": "Drucker",
+				"help": "Funktioniert mit einem SBC auf diesem Computer (Plugin) oder einem Duet im SBC- oder Standalone-Modus im Netzwerk - welcher Modus vorliegt, wird beim Verbinden erkannt."
+			},
+			"web": { "title": "Weboberfläche" },
+			"actions": {
+				"title": "Druckeraktionen",
+				"help": "Befehle, die an den Drucker gesendet werden, wenn ein Fehler erkannt wird und niemand eingreift. Leer lassen für den Standardwert."
+			},
+			"macro": { "title": "Makro-Benachrichtigung" },
+			"ntfy": { "title": "ntfy-Benachrichtigung" },
+			"pushover": {
+				"title": "Pushover-Benachrichtigung",
+				"help": "Für Pushover-Benachrichtigungen werden sowohl das API-Token als auch der Benutzerschlüssel benötigt."
+			}
+		},
+		"fields": {
+			"DUET": {
+				"IP": {
+					"label": "Druckeradresse",
+					"placeholder": "Dieser Computer",
+					"hint": "IP-Adresse oder Name des Druckers. Nur leer lassen, wenn dieser Computer der SBC des Druckers ist. Wird als DWC-Plugin nicht verwendet."
+				},
+				"PORT": { "label": "Druckerport", "hint": "Der Port, den DWC verwendet - normalerweise 80." },
+				"PASSWORD": { "label": "Druckerpasswort", "hint": "Nur wenn am Drucker ein Passwort gesetzt ist." }
+			},
+			"UI": {
+				"IP": { "label": "IP-Adresse", "hint": "IP-Adresse dieses Rechners, beim Start automatisch ermittelt." },
+				"PORT": {
+					"label": "Port",
+					"hint": "Port für die Seiten Erkennung, Einstellungen und Konfiguration. Darf nicht mit DWC oder anderen Plugins kollidieren. Mit 0 wird beim Start automatisch ein freier Port gewählt. Ist der gewählte Port belegt, wird stattdessen ein freier Port gewählt."
+				},
+				"OPENBROWSER": {
+					"label": "Browser beim Start öffnen",
+					"hint": "Öffnet diese Seiten im Browser dieses Computers, wenn duetPrintGuard startet. Wird als DWC-Plugin oder ohne Desktop nicht verwendet."
+				}
+			},
+			"LOGGING": { "LEVEL": { "label": "Protokollierungsstufe" } },
+			"ACTION": {
+				"PAUSE": { "label": "Pausenbefehl" },
+				"RESUME": { "label": "Fortsetzungsbefehl" },
+				"CANCEL": { "label": "Abbruchbefehl" }
+			},
+			"MACRO": {
+				"MACRO": {
+					"label": "Makro",
+					"placeholder": "z. B. 0:/sys/duetPrintGuard/macros/Notify.g",
+					"hint": "Makro, das bei einem Fehler aufgerufen wird, z. B. um MQTT zu senden. Geben Sie nur den Pfad ein, der in M98 P\"<Pfad>\" verwendet wird."
+				},
+				"MAXTIMES": { "label": "Maximale Anzahl" }
+			},
+			"NTFY": {
+				"TOPIC": { "label": "Thema", "hint": "Das ntfy-Thema, das Sie abonniert haben. Für ntfy-Benachrichtigungen erforderlich." },
+				"TITLE": { "label": "Titel" },
+				"MESSAGE": { "label": "Nachricht" },
+				"PRIORITY": { "label": "Priorität" },
+				"MAXTIMES": { "label": "Maximale Anzahl" }
+			},
+			"PUSHOVER": {
+				"API": { "label": "API-Token" },
+				"USER": { "label": "Benutzer- / Gruppenschlüssel" },
+				"TITLE": { "label": "Titel" },
+				"MESSAGE": { "label": "Nachricht" },
+				"MAXTIMES": { "label": "Maximale Anzahl" }
+			}
+		},
+		"systemDefaultHint": "Leer lassen, um den angezeigten Systemtext zu verwenden, der sich nach den Kamera- und Countdown-Einstellungen richtet.",
+		"priority": "Priorität 1 bis 5 - siehe",
+		"priorityLink": "ntfy-Nachrichtenpriorität",
+		"restart": "Neustart",
+		"footerBefore": "Mit",
+		"footerAfter": "markierte Einstellungen werden nach einem Neustart von duetPrintGuard wirksam. Andere Einstellungen gelten sofort. Jede Speichern-Schaltfläche speichert die Einstellungen aller Tabs.",
+		"portInUse": "Derzeit verbunden mit Port {port}",
+		"portAuto": "{status} (automatisch gewählt)",
+		"portNext": "{status} - nach einem Neustart wird {port} verwendet, wenn er frei ist",
+		"printerConnected": "Verbunden mit {printer} ({mode}), Status: {status}",
+		"printerConnecting": "Verbindung zu {printer} wird hergestellt",
+		"loadFailed": "Die Konfiguration konnte nicht geladen werden.",
+		"savedRestart": "Gespeichert. Starten Sie duetPrintGuard neu, damit diese Änderungen wirksam werden: {settings}",
+		"savedRestartShort": "Gespeichert - starten Sie duetPrintGuard neu, damit einige Änderungen wirksam werden.",
+		"saved": "Gespeichert.",
+		"invalid": "Einige Einstellungen sind ungültig - es wurde nichts gespeichert.",
+		"invalidShort": "Einige Einstellungen sind ungültig (rot markiert) - es wurde nichts gespeichert.",
+		"saveFailed": "Die Konfiguration konnte nicht gespeichert werden: {error}"
+	},
+	"values": {
+		"result": {
+			"success": "Erfolg",
+			"failure": "Fehler",
+			"DEFECT": "DEFEKT",
+			"Error": "Fehler",
+			"Failed to get frame": "Kein Bild erhalten",
+			"Error in detection loop": "Fehler in der Erkennungsschleife"
+		},
+		"mode": {
+			"plugin": "Plugin, über DSF",
+			"remoteSBC": "entfernter SBC",
+			"remoteStandalone": "entfernt, Standalone"
+		},
+		"printerStatus": {
+			"disconnected": "getrennt",
+			"starting": "startet",
+			"updating": "wird aktualisiert",
+			"off": "aus",
+			"halted": "angehalten",
+			"pausing": "pausiert gerade",
+			"paused": "pausiert",
+			"resuming": "wird fortgesetzt",
+			"cancelling": "wird abgebrochen",
+			"processing": "druckt",
+			"simulating": "simuliert",
+			"busy": "beschäftigt",
+			"changingTool": "Werkzeugwechsel",
+			"idle": "bereit"
+		}
+	},
+	"server": {
+		"printerPassword": "Der Drucker unter {printer} hat das Passwort nicht akzeptiert",
+		"printerNotResponding": "Der Drucker unter {printer} antwortet nicht",
+		"printerCannotConnect": "Keine Verbindung zum Drucker unter {printer}: {error}",
+		"alreadyConnected": "Bereits mit dem Drucker verbunden",
+		"notSavedMarked": "Nicht gespeichert - prüfen Sie die markierten Einstellungen",
+		"savedConnecting": "Gespeichert - Verbindung zum Drucker unter {printer} wird hergestellt",
+		"printerNotSaved": "Die Druckereinstellungen konnten nicht gespeichert werden: {error}",
+		"configNotSaved": "Die Konfiguration konnte nicht gespeichert werden: {error}",
+		"mustBeWhole": "muss eine ganze Zahl sein",
+		"between": "muss zwischen {min} und {max} liegen",
+		"mustBeAddress": "muss eine Adresse wie 192.168.1.5 oder printer.local sein",
+		"zeroOrMore": "muss 0 oder größer sein",
+		"oneOf": "muss einer der folgenden Werte sein: {choices}",
+		"noQuotes": "darf keine Anführungszeichen enthalten",
+		"invalidValue": "ungültiger Wert",
+		"terminatePlugin": "Läuft als Plugin - beenden Sie es im Plugin-Manager von DWC",
+		"stopping": "duetPrintGuard wird beendet",
+		"cameraNotFound": "Kamera nicht gefunden",
+		"missingNicknameSource": "Kameraname oder Quelle fehlt.",
+		"missingSnapshot": "Bild-URL der Kamera fehlt.",
+		"cameraStream": "Von der Stream-URL {stream} konnte kein Video gelesen werden.",
+		"cameraSnapshot": "Von der Bild-URL {snapshot} konnte kein JPEG-Bild abgerufen werden.",
+		"cameraBoth": "Von der Stream-URL {stream} konnte kein Video gelesen werden. Von der Bild-URL {snapshot} konnte kein JPEG-Bild abgerufen werden.",
+		"sensitivityRange": "Die Empfindlichkeit muss zwischen -{steps} und {steps} liegen.",
+		"thresholdMin": "Die Abstimmungsschwelle muss mindestens 1 sein.",
+		"windowMin": "Das Abstimmungsfenster muss mindestens so groß wie die Schwelle sein.",
+		"unknownAction": "Unbekannte Aktion: {action}",
+		"unknownCameraChoice": "Unbekannte Kameraauswahl: {choice}",
+		"countdownTimeMin": "Die Countdown-Zeit muss 0 oder größer sein",
+		"detectionNotStarted": "Die Erkennung für Kamera {camera} konnte nicht gestartet werden"
+	}
+}

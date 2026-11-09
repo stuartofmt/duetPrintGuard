@@ -1,0 +1,294 @@
+{
+	"common": {
+		"ok": "OK",
+		"cancel": "Annuler",
+		"close": "Fermer",
+		"save": "Enregistrer",
+		"reset": "Réinitialiser",
+		"pleaseConfirm": "Veuillez confirmer"
+	},
+	"pages": {
+		"title": "duetPrintGuard {page}",
+		"detection": "Détection",
+		"settings": "Paramètres",
+		"configuration": "Configuration"
+	},
+	"printer": {
+		"connecting": "Connexion à l'imprimante {printer}",
+		"refused": "duetPrintGuard ne réessaiera pas tant que les paramètres de l'imprimante n'auront pas été modifiés.",
+		"retrying": "duetPrintGuard continue d'essayer. Vérifiez que l'imprimante est allumée, ou modifiez son adresse et son port.",
+		"detectionRuns": "La détection continue, mais elle ne peut ni mettre en pause ni annuler l'impression. Les paramètres sont enregistrés.",
+		"address": "Adresse de l'imprimante",
+		"addressHint": "Vide = cet ordinateur",
+		"port": "Port",
+		"portHint": "Vide = 80",
+		"password": "Mot de passe",
+		"passwordHint": "Vide = garder le mot de passe actuel",
+		"saveConnect": "Enregistrer et connecter"
+	},
+	"detection": {
+		"pause": "Pause",
+		"resume": "Reprendre",
+		"cancel": "Annuler",
+		"ignore": "Ignorer",
+		"countdown": "{action} dans {n} s",
+		"countdownActions": {
+			"pause_print": "Pause",
+			"cancel_print": "Annulation",
+			"ignore": "Action"
+		},
+		"status": {
+			"detecting": "Détection",
+			"paused": "En pause",
+			"inactive": "Inactive"
+		},
+		"detection": "Détection",
+		"lastUpdate": "Dernière mise à jour",
+		"unknown": "Inconnu",
+		"startDetection": "Démarrer la détection",
+		"stopDetection": "Arrêter la détection",
+		"openStream": "Ouvrir le flux en direct dans un nouvel onglet",
+		"resetNotifications": "Réinitialiser les notifications",
+		"terminate": "Arrêter le programme",
+		"enableAutostart": "Activer le démarrage automatique",
+		"disableAutostart": "Désactiver le démarrage automatique",
+		"noCamerasTitle": "Aucune caméra configurée",
+		"noCamerasText": "Ajoutez une caméra sur la page Paramètres.",
+		"confirmResume": "Voulez-vous vraiment reprendre l'impression ?",
+		"confirmPause": "Voulez-vous vraiment mettre l'impression en pause ?",
+		"confirmCancel": "Voulez-vous vraiment annuler l'impression ?",
+		"confirmTerminate": "Arrêter duetPrintGuard ? La détection s'arrête, et le programme devra être relancé manuellement.",
+		"startFailed": "Impossible de démarrer la détection",
+		"stopFailed": "Impossible d'arrêter la détection",
+		"startFailedBecause": "Impossible de démarrer la détection : {error}",
+		"stopFailedBecause": "Impossible d'arrêter la détection : {error}",
+		"popupBlocked": "Le navigateur a bloqué le nouvel onglet - autorisez les fenêtres pop-up pour cette page.",
+		"actionFailed": "Impossible d'exécuter {action} : {error}",
+		"autostartFailed": "Impossible de modifier le démarrage automatique : {error}",
+		"notificationsReset": "Notifications réinitialisées.",
+		"resetFailed": "Impossible de réinitialiser les notifications : {error}",
+		"terminateFailed": "Impossible d'arrêter le programme : {error}"
+	},
+	"settings": {
+		"cameraPreview": "Aperçu de la caméra",
+		"refreshSnapshot": "Actualiser l'image",
+		"loadingFeed": "Chargement de l'image de la caméra...",
+		"unableFeed": "Impossible de charger l'image de la caméra",
+		"noCameraSelected": "Aucune caméra sélectionnée",
+		"countdown": "Compte à rebours",
+		"countdownHelp": "Ce qui se passe lorsqu'un défaut est détecté et que personne n'intervient.",
+		"countdownAction": "Action du compte à rebours",
+		"countdownTime": "Durée du compte à rebours",
+		"seconds": "{n} s",
+		"whichCameras": "Quelles caméras",
+		"actions": {
+			"ignore": "Ignorer",
+			"cancel_print": "Annuler l'impression",
+			"pause_print": "Mettre l'impression en pause"
+		},
+		"controls": {
+			"any_camera": "N'importe laquelle",
+			"all_cameras": "Toutes"
+		},
+		"addCamera": "Ajouter une caméra",
+		"addTitle": "Ajouter une caméra HTTP ou RTSP",
+		"nickname": "Nom de la caméra",
+		"streamUrl": "URL du flux HTTP ou RTSP",
+		"streamPlaceholder": "ex. http://ADRESSE_IP:PORT/stream",
+		"snapshotUrl": "URL de l'image HTTP",
+		"snapshotPlaceholder": "ex. http://ADRESSE_IP:PORT/snapshot",
+		"snapshotHint": "Inutile pour les caméras RTSP",
+		"showPreview": "Afficher l'aperçu de la caméra",
+		"loadingPreview": "Chargement de l'aperçu...",
+		"unablePreview": "Impossible de charger l'aperçu",
+		"addButton": "Ajouter la caméra",
+		"required": "Obligatoire",
+		"nicknameExists": "Une caméra porte déjà ce nom",
+		"sourceExists": "Une caméra utilise déjà cette source",
+		"snapshotRequired": "Obligatoire pour les caméras HTTP",
+		"listFailed": "Impossible de charger la liste des caméras.",
+		"confirmRemove": "Voulez-vous vraiment supprimer la caméra « {name} » ?",
+		"removed": "{name} supprimée.",
+		"removeFailed": "Impossible de supprimer la caméra : {error}",
+		"countdownFailed": "Impossible d'enregistrer les paramètres du compte à rebours : {error}",
+		"added": "{name} ajoutée.",
+		"addFailed": "Impossible d'ajouter la caméra"
+	},
+	"camera": {
+		"remove": "Supprimer la caméra",
+		"autostart": "Démarrage automatique",
+		"sensitivity": "Sensibilité de détection",
+		"normal": "Normale",
+		"less": "Moins ({n})",
+		"more": "Plus (+{n})",
+		"lessSensitive": "Moins sensible",
+		"moreSensitive": "Plus sensible",
+		"sensitivityHelp": "À gauche : moins d'images comptent comme des échecs (tout à gauche, presque aucune). À droite : plus d'images comptent comme des échecs (tout à droite, presque toutes).",
+		"voteThreshold": "Seuil de vote",
+		"voteWindow": "Fenêtre de vote",
+		"voteHelp": "Un défaut est signalé lorsqu'au moins le nombre d'images du seuil, parmi les dernières images de la fenêtre, montrent un échec. La fenêtre n'est donc jamais plus petite que le seuil.",
+		"autostartFailed": "Impossible de modifier le démarrage automatique : {error}",
+		"saveFailed": "Impossible d'enregistrer les paramètres de la caméra : {error}"
+	},
+	"stream": {
+		"title": "{name} - Flux de la caméra",
+		"noCamera": "Il n'y a pas de caméra nommée « {name} ».",
+		"loadFailed": "Impossible de charger le flux : {error}",
+		"alt": "Flux en direct de {name}"
+	},
+	"config": {
+		"tabs": {
+			"general": "Général",
+			"actions": "Actions",
+			"alerts": "Alertes"
+		},
+		"sections": {
+			"printer": {
+				"title": "Imprimante",
+				"help": "Fonctionne avec un SBC sur cet ordinateur (plugin), ou une Duet en mode SBC ou autonome sur le réseau - le mode est détecté à la connexion."
+			},
+			"web": { "title": "Interface web" },
+			"actions": {
+				"title": "Actions de l'imprimante",
+				"help": "Commandes envoyées à l'imprimante lorsqu'un défaut est détecté et que personne n'intervient. Laissez vide pour utiliser la valeur par défaut."
+			},
+			"macro": { "title": "Alerte par macro" },
+			"ntfy": { "title": "Alerte ntfy" },
+			"pushover": {
+				"title": "Alerte Pushover",
+				"help": "Le jeton API et la clé utilisateur sont tous deux nécessaires pour envoyer des alertes Pushover."
+			}
+		},
+		"fields": {
+			"DUET": {
+				"IP": {
+					"label": "Adresse de l'imprimante",
+					"placeholder": "Cet ordinateur",
+					"hint": "Adresse IP ou nom de l'imprimante. Laissez vide uniquement si cet ordinateur est le SBC de l'imprimante. Non utilisé en tant que plugin DWC."
+				},
+				"PORT": { "label": "Port de l'imprimante", "hint": "Le port utilisé par DWC - normalement 80." },
+				"PASSWORD": { "label": "Mot de passe de l'imprimante", "hint": "Uniquement si un mot de passe est défini sur l'imprimante." }
+			},
+			"UI": {
+				"IP": { "label": "Adresse IP", "hint": "Adresse IP de cette machine, détectée automatiquement au démarrage." },
+				"PORT": {
+					"label": "Port",
+					"hint": "Port des pages Détection, Paramètres et Configuration. Ne doit pas entrer en conflit avec DWC ou d'autres plugins. Utilisez 0 pour choisir automatiquement un port libre au démarrage. Si le port choisi est occupé, un port libre est choisi à la place."
+				},
+				"OPENBROWSER": {
+					"label": "Ouvrir le navigateur au démarrage",
+					"hint": "Ouvre ces pages dans le navigateur de cet ordinateur au démarrage de duetPrintGuard. Non utilisé en tant que plugin DWC, ni sans bureau."
+				}
+			},
+			"LOGGING": { "LEVEL": { "label": "Niveau de journalisation" } },
+			"ACTION": {
+				"PAUSE": { "label": "Commande de pause" },
+				"RESUME": { "label": "Commande de reprise" },
+				"CANCEL": { "label": "Commande d'annulation" }
+			},
+			"MACRO": {
+				"MACRO": {
+					"label": "Macro",
+					"placeholder": "ex. 0:/sys/duetPrintGuard/macros/Notify.g",
+					"hint": "Macro appelée en cas d'échec, par ex. pour envoyer un message MQTT. Indiquez seulement le chemin utilisé dans M98 P\"<chemin>\"."
+				},
+				"MAXTIMES": { "label": "Nombre maximal d'envois" }
+			},
+			"NTFY": {
+				"TOPIC": { "label": "Sujet", "hint": "Le sujet ntfy auquel vous êtes abonné. Nécessaire pour envoyer des alertes ntfy." },
+				"TITLE": { "label": "Titre" },
+				"MESSAGE": { "label": "Message" },
+				"PRIORITY": { "label": "Priorité" },
+				"MAXTIMES": { "label": "Nombre maximal d'envois" }
+			},
+			"PUSHOVER": {
+				"API": { "label": "Jeton API" },
+				"USER": { "label": "Clé utilisateur / groupe" },
+				"TITLE": { "label": "Titre" },
+				"MESSAGE": { "label": "Message" },
+				"MAXTIMES": { "label": "Nombre maximal d'envois" }
+			}
+		},
+		"systemDefaultHint": "Laissez vide pour utiliser le texte système affiché, qui suit les paramètres des caméras et du compte à rebours.",
+		"priority": "Priorité de 1 à 5 - voir",
+		"priorityLink": "la priorité des messages ntfy",
+		"restart": "redémarrage",
+		"footerBefore": "Les paramètres marqués",
+		"footerAfter": "prennent effet après le redémarrage de duetPrintGuard. Les autres s'appliquent immédiatement. Chaque bouton Enregistrer enregistre les paramètres de tous les onglets.",
+		"portInUse": "Actuellement connecté au port {port}",
+		"portAuto": "{status} (choisi automatiquement)",
+		"portNext": "{status} - le port {port} sera utilisé après le redémarrage, s'il est libre",
+		"printerConnected": "Connecté à {printer} ({mode}), état : {status}",
+		"printerConnecting": "Connexion à {printer}",
+		"loadFailed": "Impossible de charger la configuration.",
+		"savedRestart": "Enregistré. Redémarrez duetPrintGuard pour que ces modifications prennent effet : {settings}",
+		"savedRestartShort": "Enregistré - redémarrez duetPrintGuard pour que certaines modifications prennent effet.",
+		"saved": "Enregistré.",
+		"invalid": "Certains paramètres ne sont pas valides - rien n'a été enregistré.",
+		"invalidShort": "Certains paramètres ne sont pas valides (en rouge) - rien n'a été enregistré.",
+		"saveFailed": "Impossible d'enregistrer la configuration : {error}"
+	},
+	"values": {
+		"result": {
+			"success": "Réussite",
+			"failure": "Échec",
+			"DEFECT": "DÉFAUT",
+			"Error": "Erreur",
+			"Failed to get frame": "Impossible d'obtenir une image",
+			"Error in detection loop": "Erreur dans la boucle de détection"
+		},
+		"mode": {
+			"plugin": "plugin, via DSF",
+			"remoteSBC": "SBC distant",
+			"remoteStandalone": "autonome distant"
+		},
+		"printerStatus": {
+			"disconnected": "déconnectée",
+			"starting": "démarrage",
+			"updating": "mise à jour",
+			"off": "éteinte",
+			"halted": "arrêtée",
+			"pausing": "mise en pause",
+			"paused": "en pause",
+			"resuming": "reprise",
+			"cancelling": "annulation",
+			"processing": "impression",
+			"simulating": "simulation",
+			"busy": "occupée",
+			"changingTool": "changement d'outil",
+			"idle": "inactive"
+		}
+	},
+	"server": {
+		"printerPassword": "L'imprimante {printer} a refusé le mot de passe",
+		"printerNotResponding": "L'imprimante {printer} ne répond pas",
+		"printerCannotConnect": "Impossible de se connecter à l'imprimante {printer} : {error}",
+		"alreadyConnected": "Déjà connecté à l'imprimante",
+		"notSavedMarked": "Non enregistré - vérifiez les paramètres signalés",
+		"savedConnecting": "Enregistré - connexion à l'imprimante {printer}",
+		"printerNotSaved": "Impossible d'enregistrer les paramètres de l'imprimante : {error}",
+		"configNotSaved": "Impossible d'enregistrer la configuration : {error}",
+		"mustBeWhole": "doit être un nombre entier",
+		"between": "doit être compris entre {min} et {max}",
+		"mustBeAddress": "doit être une adresse comme 192.168.1.5 ou printer.local",
+		"zeroOrMore": "doit être 0 ou plus",
+		"oneOf": "doit être l'une des valeurs {choices}",
+		"noQuotes": "ne doit pas contenir de guillemets",
+		"invalidValue": "valeur non valide",
+		"terminatePlugin": "Fonctionne en tant que plugin - arrêtez-le depuis le gestionnaire de plugins de DWC",
+		"stopping": "duetPrintGuard s'arrête",
+		"cameraNotFound": "Caméra introuvable",
+		"missingNicknameSource": "Nom ou source de la caméra manquant.",
+		"missingSnapshot": "URL de l'image de la caméra manquante.",
+		"cameraStream": "Impossible de lire la vidéo depuis l'URL du flux {stream}.",
+		"cameraSnapshot": "Impossible d'obtenir une image JPEG depuis l'URL de l'image {snapshot}.",
+		"cameraBoth": "Impossible de lire la vidéo depuis l'URL du flux {stream}. Impossible d'obtenir une image JPEG depuis l'URL de l'image {snapshot}.",
+		"sensitivityRange": "La sensibilité doit être comprise entre -{steps} et {steps}.",
+		"thresholdMin": "Le seuil de vote doit être d'au moins 1.",
+		"windowMin": "La fenêtre de vote doit être au moins égale au seuil.",
+		"unknownAction": "Action inconnue : {action}",
+		"unknownCameraChoice": "Choix de caméras inconnu : {choice}",
+		"countdownTimeMin": "La durée du compte à rebours doit être 0 ou plus",
+		"detectionNotStarted": "Impossible de démarrer la détection pour la caméra {camera}"
+	}
+}

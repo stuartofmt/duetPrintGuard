@@ -34,3 +34,8 @@ and open http://localhost:5173/static/app/index.html. Changes show as soon as th
 | `src/api.js`, `src/sse.js`, `src/notify.js`, `src/pages.js` | Server calls, live events, messages / confirm, and page links |
 | `src/icons.js` | The icons used - only these are bundled (import new ones from `@mdi/js` here) |
 | `src/app.css`, `src/fonts/` | Shared styles and the Roboto font DWC uses |
+| `src/locales/en.json`, `src/i18n.js` | All the pages' text, ready for other languages (the same scheme as duetLapse3): every label, hint, button, message and confirm question, the Configuration page's sections and settings (`config.fields.<SECTION>.<KEY>`), the values duetPrintGuard reports (`values`: detection results, printer status and mode), and duetPrintGuard's own messages (`server`, by the code `Code/dsf/messages.py` sends with them). The language is `?lang=<code>` in the url, otherwise the browser's language, otherwise English. To add a language, add `src/locales/<code>.json` (e.g. `de.json`) with the texts it translates - anything it doesn't have is shown in English - and rebuild. Add a `server` entry for each new `Message` code |
+
+## Translating
+
+Copy `src/locales/en.json` to `src/locales/<code>.json` (the browser's language code, e.g. `de` or `pt-br`), translate the texts - not the keys, and keep `{names}` in braces as they are - then `npm run build` and commit. Try it with `?lang=<code>` on any page's address. The ntfy / Pushover alert texts are sent from duetPrintGuard itself, so they stay in English unless set on the Configuration page.

@@ -21,6 +21,7 @@ import duet_printer
 import state  # Shared state - always use state.<name>
 from duet_printer import forgetPrinter, getDuet, getDuetVersion, getStatus, loginPrinter, printerAddress, sendDuetGcode
 from logger_module import logger
+from messages import Message, coded
 from duet_config import ACTION, DUET, MACRO, NTFY, PUSHOVER, UI
 
 global MACRO_TIMES, NTFY_TIMES, PUSHOVER_TIMES
@@ -136,9 +137,9 @@ def _connect():
 	if model == '':
 		if code == 403:
 			_passwordRefused = True
-			_set_status('disconnected', False, f'The printer at {printerAddress()} did not accept the password')
+			_set_status('disconnected', False, Message('printerPassword', f'The printer at {printerAddress()} did not accept the password', printer=printerAddress()))
 		else:
-			_set_status('disconnected', False, f'The printer at {printerAddress()} is not responding')
+			_set_status('disconnected', False, Message('printerNotResponding', f'The printer at {printerAddress()} is not responding', printer=printerAddress()))
 		return
 	state.apiModel = model
 	version = dsf_printer.getVersion() if model == DSF else getDuetVersion(model)
@@ -161,7 +162,7 @@ def _poll():
 	if status != 'disconnected':
 		_set_status(status, True)
 		return
-	_set_status('disconnected', False, f'The printer at {printerAddress()} is not responding')
+	_set_status('disconnected', False, Message('printerNotResponding', f'The printer at {printerAddress()} is not responding', printer=printerAddress()))
 	if state.apiModel == DSF:
 		state.apiModel = ''  # Connect again from the start
 		return
@@ -169,7 +170,7 @@ def _poll():
 	if code == 403:
 		state.apiModel = ''
 		_passwordRefused = True
-		_set_status('disconnected', False, f'The printer at {printerAddress()} did not accept the password')
+		_set_status('disconnected', False, Message('printerPassword', f'The printer at {printerAddress()} did not accept the password', printer=printerAddress()))
 
 
 def _monitor():
@@ -183,7 +184,8 @@ def _monitor():
 				_connect()
 		except Exception as e:  # e.g. a printer address that can not be used - keep the thread going
 			logger.warning(f'Could not check the printer at {printerAddress()}: {e}')
-			_set_status('disconnected', False, f'Could not connect to the printer at {printerAddress()}: {e}')
+			_set_status('disconnected', False, Message('printerCannotConnect', f'Could not connect to the printer at {printerAddress()}: {e}',
+														printer=printerAddress(), error=e))
 		_wake.wait(None if _passwordRefused else (POLL_SECONDS if _connected else RECONNECT_SECONDS))
 		_wake.clear()
 
@@ -202,6 +204,7 @@ def printer_info():
 		'mode': MODES.get(state.apiModel, ''),
 		'plugin': bool(state.plugin),
 		'error': _error,
+		'errorCode': coded(_error),  # So the page can show it in its language
 		'retrying': not _passwordRefused,  # False - no more tries until the printer settings change
 		'ip': DUET.IP,  # The printer settings, for the page's connect form (not the password)
 		'port': DUET.PORT,

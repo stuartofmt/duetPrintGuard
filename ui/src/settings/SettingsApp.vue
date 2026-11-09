@@ -6,20 +6,16 @@ import CameraCard from "./CameraCard.vue";
 import { api } from "../api.js";
 import { confirm, notify } from "../notify.js";
 import { visibility } from "../visibility.js";
+import { errorText, t } from "../i18n.js";
 import { mdiCameraOff, mdiClose, mdiPlus, mdiRefresh } from "../icons.js";
 
 const PREVIEW_DELAY = 1000; // ms after the stream URL stops changing before the preview reloads
 
-const countdownActions = [
-	{ title: "Ignore", value: "ignore" },
-	{ title: "Cancel Print", value: "cancel_print" },
-	{ title: "Pause Print", value: "pause_print" },
-];
+const countdownActions = ["ignore", "cancel_print", "pause_print"]
+	.map((value) => ({ title: t(`settings.actions.${value}`), value }));
 
-const countdownControls = [
-	{ title: "Any", value: "any_camera" },
-	{ title: "All", value: "all_cameras" },
-];
+const countdownControls = ["any_camera", "all_cameras"]
+	.map((value) => ({ title: t(`settings.controls.${value}`), value }));
 
 const isRtsp = (url) => (url || "").trim().toLowerCase().startsWith("rtsp://");
 const normalise = (text) => (text || "").trim().toLowerCase();
@@ -44,7 +40,7 @@ async function loadCameras() {
 		list = (await api.get("/config/get-camera-list"))?.list || {};
 	} catch (err) {
 		console.error("Failed to fetch camera list:", err);
-		notify("Failed to load the camera list.", "error");
+		notify(t("settings.listFailed"), "error");
 	}
 	cameras.value = Object.entries(list).map(([uuid, camera]) => ({
 		uuid,
@@ -85,13 +81,13 @@ function loadSelectedSnapshot() {
 }
 
 async function removeCamera(camera) {
-	if (!await confirm(`Are you sure you want to remove the camera "${camera.nickname}"?`, { color: "error" })) return;
+	if (!await confirm(t("settings.confirmRemove", { name: camera.nickname }), { color: "error" })) return;
 	try {
 		const result = await api.postJson("/config/remove-camera", { camera_uuid: camera.uuid });
-		if (result?.success === false) throw new Error("the camera was not found");
-		notify(`Removed ${camera.nickname}.`);
+		if (result?.success === false) throw new Error(t("server.cameraNotFound"));
+		notify(t("settings.removed", { name: camera.nickname }));
 	} catch (err) {
-		notify(`Failed to remove camera: ${err.message}`, "error");
+		notify(t("settings.removeFailed", { error: errorText(err) }), "error");
 	}
 	await loadCameras();
 }
@@ -116,7 +112,7 @@ async function saveCountdown() {
 	try {
 		await api.postForm("/config/update-countdown", { ...countdown });
 	} catch (err) {
-		notify(`Failed to save countdown settings: ${err.message}`, "error");
+		notify(t("settings.countdownFailed", { error: errorText(err) }), "error");
 	}
 }
 
@@ -124,13 +120,13 @@ async function saveCountdown() {
 // Add camera
 // =========================
 const rules = {
-	required: (v) => Boolean((v || "").trim()) || "Required",
+	required: (v) => Boolean((v || "").trim()) || t("settings.required"),
 	uniqueNickname: (v) => !cameras.value.some((c) => normalise(c.nickname) === normalise(v))
-		|| "A camera with this nickname already exists",
+		|| t("settings.nicknameExists"),
 	uniqueSource: (v) => !cameras.value.some((c) => normalise(c.source) === normalise(v))
-		|| "A camera with this source already exists",
+		|| t("settings.sourceExists"),
 	// HTTP cameras need a snapshot URL (used for detection and snapshots) - RTSP cameras do not
-	snapshot: (v) => isRtsp(add.source) || Boolean((v || "").trim()) || "Required for HTTP cameras",
+	snapshot: (v) => isRtsp(add.source) || Boolean((v || "").trim()) || t("settings.snapshotRequired"),
 };
 
 function openAddCamera() {
@@ -179,12 +175,12 @@ async function addCamera() {
 	try {
 		// The server checks that the stream and snapshot URLs work before adding the camera
 		await api.postJson("/config/add-camera", data);
-		notify(`Added ${data.nickname}.`);
+		notify(t("settings.added", { name: data.nickname }));
 		closeAddCamera();
 		await loadCameras();
 	} catch (err) {
 		console.error("Failed adding camera:", err);
-		add.error = err.message || "Failed to add camera";
+		add.error = errorText(err) || t("settings.addFailed");
 	} finally {
 		add.saving = false;
 	}
@@ -214,41 +210,41 @@ onMounted(() => {
 			<v-col cols="12" md="7">
 				<v-card class="mb-4">
 					<v-card-title class="d-flex align-center">
-						{{ selected ? selected.nickname : 'Camera Preview' }}
+						{{ selected ? selected.nickname : t('settings.cameraPreview') }}
 						<v-spacer></v-spacer>
-						<v-btn v-if="selected" :icon="mdiRefresh" variant="text" size="small" title="Refresh snapshot"
+						<v-btn v-if="selected" :icon="mdiRefresh" variant="text" size="small" :title="t('settings.refreshSnapshot')"
 							   @click="loadSelectedSnapshot"></v-btn>
 					</v-card-title>
 					<div class="pg-media">
-						<img v-if="snapshot.url && !snapshot.failed" :src="snapshot.url" alt="Camera preview"
-							 @load="snapshot.loading = false" @error="snapshot.loading = false; snapshot.failed = true" />
+						<img v-if="snapshot.url && !snapshot.failed" :src="snapshot.url" 
+							 :alt="t('settings.cameraPreview')" @load="snapshot.loading = false" @error="snapshot.loading = false; snapshot.failed = true" />
 						<div v-if="snapshot.loading" class="pg-media-overlay">
 							<v-progress-circular indeterminate></v-progress-circular>
-							<span>Loading camera feed...</span>
+							<span>{{ t("settings.loadingFeed") }}</span>
 						</div>
 						<div v-else-if="snapshot.failed || !selected" class="pg-media-overlay">
 							<v-icon :icon="mdiCameraOff" size="large"></v-icon>
-							<span>{{ selected ? 'Unable to load camera feed' : 'No camera selected' }}</span>
+							<span>{{ selected ? t("settings.unableFeed") : t("settings.noCameraSelected") }}</span>
 						</div>
 					</div>
 				</v-card>
 
 				<v-card>
-					<v-card-title>Countdown</v-card-title>
-					<v-card-subtitle class="text-wrap">What happens when a defect is detected and nobody intervenes.</v-card-subtitle>
+					<v-card-title>{{ t("settings.countdown") }}</v-card-title>
+					<v-card-subtitle class="text-wrap">{{ t("settings.countdownHelp") }}</v-card-subtitle>
 					<v-card-text>
-						<v-select v-model="countdown.countdown_action" label="Countdown Action" :items="countdownActions"
+						<v-select v-model="countdown.countdown_action" :label="t('settings.countdownAction')" :items="countdownActions"
 								  variant="outlined" density="comfortable" @update:model-value="saveCountdown"></v-select>
 						<v-slider v-model="countdown.countdown_time" :min="0" :max="300" :step="5" color="primary"
 								  thumb-label @end="saveCountdown">
 							<template #prepend>
-								<span class="text-no-wrap">Countdown Time</span>
+								<span class="text-no-wrap">{{ t("settings.countdownTime") }}</span>
 							</template>
 							<template #append>
-								<span class="text-no-wrap">{{ countdown.countdown_time }} s</span>
+								<span class="text-no-wrap">{{ t("settings.seconds", { n: countdown.countdown_time }) }}</span>
 							</template>
 						</v-slider>
-						<v-select v-model="countdown.countdown_control" label="Which Cameras" :items="countdownControls"
+						<v-select v-model="countdown.countdown_control" :label="t('settings.whichCameras')" :items="countdownControls"
 								  variant="outlined" density="comfortable" @update:model-value="saveCountdown"></v-select>
 					</v-card-text>
 				</v-card>
@@ -260,7 +256,7 @@ onMounted(() => {
 							:selected="selected?.uuid === camera.uuid"
 							@select="select(camera)" @remove="removeCamera(camera)" />
 
-				<v-btn block color="primary" :prepend-icon="mdiPlus" @click="openAddCamera">Add a Camera</v-btn>
+				<v-btn block color="primary" :prepend-icon="mdiPlus" @click="openAddCamera">{{ t("settings.addCamera") }}</v-btn>
 			</v-col>
 		</v-row>
 
@@ -268,7 +264,7 @@ onMounted(() => {
 		<v-dialog v-model="add.show" max-width="560" persistent>
 			<v-card>
 				<v-card-title class="d-flex align-center">
-					Add HTTP or RTSP Camera
+					{{ t("settings.addTitle") }}
 					<v-spacer></v-spacer>
 					<v-btn :icon="mdiClose" variant="text" size="small" @click="closeAddCamera"></v-btn>
 				</v-card-title>
@@ -276,36 +272,36 @@ onMounted(() => {
 					<v-card-text>
 						<v-alert v-if="add.error" type="error" variant="tonal" density="compact" class="mb-4"
 								 closable :text="add.error" @click:close="add.error = ''"></v-alert>
-						<v-text-field v-model="add.nickname" label="Camera Nickname" :rules="[rules.required, rules.uniqueNickname]"
+						<v-text-field v-model="add.nickname" :label="t('settings.nickname')" :rules="[rules.required, rules.uniqueNickname]"
 									  variant="outlined" density="comfortable" class="mb-2"></v-text-field>
-						<v-text-field v-model="add.source" label="HTTP or RTSP Stream URL" type="url"
-									  placeholder="e.g. http://IP_ADDRESS:PORT/stream" persistent-placeholder
+						<v-text-field v-model="add.source" :label="t('settings.streamUrl')" type="url"
+									  :placeholder="t('settings.streamPlaceholder')" persistent-placeholder
 									  :rules="[rules.required, rules.uniqueSource]"
 									  variant="outlined" density="comfortable" class="mb-2"
 									  @update:model-value="schedulePreview"></v-text-field>
-						<v-text-field v-model="add.snapshot" label="HTTP Snapshot URL" type="url"
-									  placeholder="e.g. http://IP_ADDRESS:PORT/snapshot" persistent-placeholder
-									  hint="Not needed for RTSP cameras" persistent-hint :rules="[rules.snapshot]"
+						<v-text-field v-model="add.snapshot" :label="t('settings.snapshotUrl')" type="url"
+									  :placeholder="t('settings.snapshotPlaceholder')" persistent-placeholder
+									  :hint="t('settings.snapshotHint')" persistent-hint :rules="[rules.snapshot]"
 									  variant="outlined" density="comfortable" class="mb-2"></v-text-field>
-						<v-switch v-model="add.preview" label="Show camera preview" color="primary" density="compact"
+						<v-switch v-model="add.preview" :label="t('settings.showPreview')" color="primary" density="compact"
 								  hide-details @update:model-value="updatePreview"></v-switch>
 						<div v-if="add.preview" class="pg-media mt-2">
-							<img v-if="add.previewUrl" :src="add.previewUrl" alt="Camera preview"
+							<img v-if="add.previewUrl" :src="add.previewUrl" :alt="t('settings.cameraPreview')"
 								 @load="add.previewState = 'ok'" @error="add.previewState = 'error'" />
 							<div v-if="add.previewState === 'loading'" class="pg-media-overlay">
 								<v-progress-circular indeterminate></v-progress-circular>
-								<span>Loading camera preview...</span>
+								<span>{{ t("settings.loadingPreview") }}</span>
 							</div>
 							<div v-else-if="add.previewState === 'error'" class="pg-media-overlay">
 								<v-icon :icon="mdiCameraOff" size="large" color="error"></v-icon>
-								<span>Unable to load camera preview</span>
+								<span>{{ t("settings.unablePreview") }}</span>
 							</div>
 						</div>
 					</v-card-text>
 					<v-card-actions>
 						<v-spacer></v-spacer>
-						<v-btn @click="closeAddCamera">Cancel</v-btn>
-						<v-btn type="submit" color="primary" variant="flat" :loading="add.saving">Add Camera</v-btn>
+						<v-btn @click="closeAddCamera">{{ t("common.cancel") }}</v-btn>
+						<v-btn type="submit" color="primary" variant="flat" :loading="add.saving">{{ t("settings.addButton") }}</v-btn>
 					</v-card-actions>
 				</v-form>
 			</v-card>

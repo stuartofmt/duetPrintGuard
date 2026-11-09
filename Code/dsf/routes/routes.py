@@ -18,6 +18,7 @@ from sse_starlette.sse import EventSourceResponse
 
 from logger_module import logger
 
+from messages import CodedHTTPException, Message, coded, coded_errors
 from printer_control import running_as_plugin, suspend_print_job, printer_info, printer_settings_changed, reset_notification_counters
 
 import cv2
@@ -52,7 +53,7 @@ async def alert_response(request: Request,
 	"""
 
 	if action not in ('ignore', 'pause_print', 'resume_print', 'cancel_print'):
-		raise HTTPException(status_code=400, detail=f"Unknown action {action}")
+		raise CodedHTTPException(400, Message("unknownAction", f"Unknown action {action}", action=action))
 
 	await UI_countdown('stop') #Stop the countdown timer on the UI immediately when an action is taken
 
@@ -125,9 +126,9 @@ async def save_app_config(request: Request):
 		errors, restart_keys = update_config(data)
 	except OSError as e:
 		logger.error("Failed to save configuration: %s", e)
-		raise HTTPException(status_code=500, detail=f"Failed to save configuration: {e}")
+		raise CodedHTTPException(500, Message("configNotSaved", f"Failed to save configuration: {e}", error=e))
 	if errors:
-		return JSONResponse(status_code=400, content={"success": False, "errors": errors})
+		return JSONResponse(status_code=400, content={"success": False, "errors": errors, "errorCodes": coded_errors(errors)})
 	logger.info("Configuration updated from config page")
 	if (DUET.IP, DUET.PORT, DUET.PASSWORD) != printer_before:
 		printer_settings_changed()
@@ -151,7 +152,7 @@ def get_camera_uuid_by_nickname(nickname: str):
 async def serve_camera_stream(nickname: str):
 	"""Serve the page for a named camera stream. It gets the camera's details from /stream-info/<nickname>."""
 	if not get_camera_uuid_by_nickname(nickname):
-		raise HTTPException(status_code=404, detail="Camera not found")
+		raise CodedHTTPException(404, Message("cameraNotFound", "Camera not found"))
 	return serve_page("stream")
 
 
@@ -160,7 +161,7 @@ async def camera_stream_info(request: Request, nickname: str):
 	"""What the stream page needs: the camera's id, nickname, and its own stream URL (None for RTSP)."""
 	camera_uuid = get_camera_uuid_by_nickname(nickname)
 	if not camera_uuid:
-		raise HTTPException(status_code=404, detail="Camera not found")
+		raise CodedHTTPException(404, Message("cameraNotFound", "Camera not found"))
 	return {
 		"camera_uuid": camera_uuid,
 		"nickname": CAMERA_SETTINGS[camera_uuid].get('nickname', nickname),
@@ -195,14 +196,15 @@ async def update_settings(request: Request,
 						  ):
 	"""Update camera settings from the settings page."""
 	if camera_uuid not in CAMERA_SETTINGS:
-		raise HTTPException(status_code=404, detail="Camera not found.")
+		raise CodedHTTPException(404, Message("cameraNotFound", "Camera not found"))
 	if not -SENSITIVITY_STEPS <= sensitivity <= SENSITIVITY_STEPS:
-		raise HTTPException(status_code=400, detail=f"Sensitivity must be between -{SENSITIVITY_STEPS} and {SENSITIVITY_STEPS}.")
+		raise CodedHTTPException(400, Message("sensitivityRange", f"Sensitivity must be between -{SENSITIVITY_STEPS} and {SENSITIVITY_STEPS}.",
+												steps=SENSITIVITY_STEPS))
 	if majority_vote_threshold < 1:
-		raise HTTPException(status_code=400, detail="Majority vote threshold must be at least 1.")
+		raise CodedHTTPException(400, Message("thresholdMin", "Majority vote threshold must be at least 1."))
 	# A defect needs at least threshold failures within the window, so a smaller window could never trigger
 	if majority_vote_window < majority_vote_threshold:
-		raise HTTPException(status_code=400, detail="Majority vote window must be at least the threshold.")
+		raise CodedHTTPException(400, Message("windowMin", "Majority vote window must be at least the threshold."))
 	add_to_config({'camera_settings': {camera_uuid: {
 		"majority_vote_threshold": majority_vote_threshold,
 		"majority_vote_window": majority_vote_window,
@@ -225,7 +227,7 @@ async def update_autostart(request: Request):
 	else:
 		autostart = False
 	if camera_uuid not in CAMERA_SETTINGS:
-		raise HTTPException(status_code=404, detail="Camera not found")
+		raise CodedHTTPException(404, Message("cameraNotFound", "Camera not found"))
 	add_to_config({'camera_settings': {camera_uuid: {
 		"autostart": autostart}}})
 
@@ -249,7 +251,7 @@ async def update_autostart(request: Request):
 @router.get('/camera/snapshot/{camera_uuid}', include_in_schema=False)
 async def camera_snapshot(camera_uuid: str):
 	if camera_uuid not in CAMERA_SETTINGS:
-		raise HTTPException(status_code=404, detail="Camera not found")
+		raise CodedHTTPException(404, Message("cameraNotFound", "Camera not found"))
 	try:
 		# HTTP cameras: return the snapshot URL's JPEG as-is
 		snapshot_url = CAMERA_SETTINGS.get(camera_uuid, {}).get('snapshot')
@@ -297,7 +299,7 @@ def camera_live_stream(camera_uuid: str) -> StreamingResponse:
 @router.get('/camera/stream/{camera_uuid}', include_in_schema=False)
 async def camera_stream(camera_uuid: str):
 	if camera_uuid not in CAMERA_SETTINGS:
-		raise HTTPException(status_code=404, detail="Camera not found")
+		raise CodedHTTPException(404, Message("cameraNotFound", "Camera not found"))
 	return camera_live_stream(camera_uuid)
 
 
@@ -358,7 +360,7 @@ async def stream_by_nickname(nickname: str):
 	"""Direct video stream by camera nickname."""
 	camera_uuid = get_camera_uuid_by_nickname(nickname)
 	if not camera_uuid:
-		raise HTTPException(status_code=404, detail="Camera not found")
+		raise CodedHTTPException(404, Message("cameraNotFound", "Camera not found"))
 	return camera_live_stream(camera_uuid)
 
 
@@ -388,9 +390,9 @@ async def check_camera_urls(source, snapshot):
 		snapshot_works())
 	problems = []
 	if not stream_ok:
-		problems.append(f"Could not read video from the stream URL {source}.")
+		problems.append(Message("cameraStream", f"Could not read video from the stream URL {source}.", stream=source))
 	if not snapshot_ok:
-		problems.append(f"Could not get a JPEG image from the snapshot URL {snapshot}.")
+		problems.append(Message("cameraSnapshot", f"Could not get a JPEG image from the snapshot URL {snapshot}.", snapshot=snapshot))
 	for problem in problems:
 		logger.warning("Camera not added: %s", problem)
 	return problems
@@ -404,14 +406,16 @@ async def add_camera_config(request: Request):
 	nickname = data.get('nickname')
 	source = data.get('source')
 	if not nickname or not source:
-		raise HTTPException(status_code=400, detail="Missing camera nickname or source.")
+		raise CodedHTTPException(400, Message("missingNicknameSource", "Missing camera nickname or source."))
 	snapshot = data.get('snapshot')
 	# HTTP cameras need a snapshot URL (used for detection and snapshots) - RTSP cameras do not
 	if is_http_source(source) and not snapshot:
-		raise HTTPException(status_code=400, detail="Missing camera snapshot URL.")
+		raise CodedHTTPException(400, Message("missingSnapshot", "Missing camera snapshot URL."))
 	problems = await check_camera_urls(source, snapshot)
 	if problems:
-		raise HTTPException(status_code=400, detail=' '.join(problems))
+		# One problem, or both (as one message)
+		raise CodedHTTPException(400, problems[0] if len(problems) == 1 else Message(
+			"cameraBoth", ' '.join(problems), stream=source, snapshot=snapshot))
 	camera_uuid = str(uuid.uuid4())
 	default_camera_settings = deepcopy(DEFAULT_CAMERA_SETTINGS) # Precaution vs shallow copy
 	add_to_config({'camera_settings': {camera_uuid: {
@@ -429,7 +433,7 @@ async def remove_camera_config(request: Request):
 	data = await request.json()
 	camera_uuid = data.get('camera_uuid')
 	if not camera_uuid or camera_uuid not in CAMERA_SETTINGS:
-		raise HTTPException(status_code=400, detail="Missing camera_uuid.")
+		raise CodedHTTPException(400, Message("cameraNotFound", "Camera not found"))
 	try:
 		# Stop detection and this camera's video stream (other cameras are not affected)
 		if CAMERA_STATES.get(camera_uuid, {}).get('live_detection_running') == 'yes':
@@ -511,11 +515,11 @@ async def update_countdown(request: Request,
 						  ):
 	"""Update countdown settings from the settings page."""
 	if countdown_action not in ('ignore', 'pause_print', 'cancel_print'):
-		raise HTTPException(status_code=400, detail=f"Unknown countdown action {countdown_action}")
+		raise CodedHTTPException(400, Message("unknownAction", f"Unknown action {countdown_action}", action=countdown_action))
 	if countdown_control not in ('any_camera', 'all_cameras'):
-		raise HTTPException(status_code=400, detail=f"Unknown camera choice {countdown_control}")
+		raise CodedHTTPException(400, Message("unknownCameraChoice", f"Unknown camera choice {countdown_control}", choice=countdown_control))
 	if countdown_time < 0:
-		raise HTTPException(status_code=400, detail="Countdown time must be 0 or more")
+		raise CodedHTTPException(400, Message("countdownTimeMin", "Countdown time must be 0 or more"))
 	try:
 		add_to_config({'countdown_settings': {
 								"countdown_action": countdown_action,
@@ -598,7 +602,8 @@ async def starting_detection(request: Request, camera_uuid: str = Body(..., embe
 		return await start_live_detection(camera_uuid)
 	except Exception as e:
 		logger.error("Error starting live detection for camera %s: %s", camera_uuid, e)
-		return {"success": False, "message": f"Failed to start live detection for camera {camera_uuid}"}
+		message = Message("detectionNotStarted", f"Failed to start live detection for camera {camera_uuid}", camera=camera_uuid)
+		return {"success": False, "message": message, "code": coded(message)}
 
 
 @router.post("/detect/live/stop")
@@ -630,7 +635,8 @@ async def connect_printer(request: Request):
 	Takes {ip, port, password}: a blank port is 80 and a blank password keeps the saved one.
 	"""
 	if printer_info()["connected"]:
-		return JSONResponse(status_code=409, content={"success": False, "errors": {}, "message": "Already connected to the printer"})
+		message = Message("alreadyConnected", "Already connected to the printer")
+		return JSONResponse(status_code=409, content={"success": False, "errors": {}, "message": message, "code": coded(message)})
 	data = await request.json()
 	settings = {"IP": data.get("ip") or "", "PORT": data.get("port") if str(data.get("port") or "").strip() else 80}
 	if data.get("password"):
@@ -639,11 +645,15 @@ async def connect_printer(request: Request):
 		errors, _ = update_config({"DUET": settings})
 	except OSError as e:
 		logger.error("Failed to save the printer settings: %s", e)
-		raise HTTPException(status_code=500, detail=f"Failed to save the printer settings: {e}")
+		raise CodedHTTPException(500, Message("printerNotSaved", f"Failed to save the printer settings: {e}", error=e))
 	if errors:
-		return JSONResponse(status_code=400, content={"success": False, "errors": errors, "message": "Not saved - check the marked settings"})
+		message = Message("notSavedMarked", "Not saved - check the marked settings")
+		return JSONResponse(status_code=400, content={"success": False, "errors": errors, "errorCodes": coded_errors(errors),
+													  "message": message, "code": coded(message)})
 	printer_settings_changed()  # Connects again even if nothing changed, e.g. after the printer was switched on
-	return {"success": True, "message": f"Saved - connecting to the printer at {printer_info()['address']}"}
+	address = printer_info()['address']
+	message = Message("savedConnecting", f"Saved - connecting to the printer at {address}", printer=address)
+	return {"success": True, "message": message, "code": coded(message)}
 
 
 @router.get("/printer/enableautostart", include_in_schema=False)
@@ -704,10 +714,11 @@ def _terminate():
 async def terminate_program():
 	"""Terminate the program - not as the plugin, which DWC's plugin manager starts and stops."""
 	if running_as_plugin():
-		raise HTTPException(status_code=403, detail="Running as a plugin - stop it from DWC's plugin manager")
+		raise CodedHTTPException(403, Message("terminatePlugin", "Running as a plugin - stop it from DWC's plugin manager"))
 	logger.info('Terminate the Program was pressed - stopping')
 	threading.Timer(0.5, _terminate).start()  # After this reply has been sent
-	return {"success": True, "message": "duetPrintGuard is stopping"}
+	message = Message("stopping", "duetPrintGuard is stopping")
+	return {"success": True, "message": message, "code": coded(message)}
 
 
 @router.get("/printer/resetnotifications", include_in_schema=False)

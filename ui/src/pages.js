@@ -5,9 +5,10 @@ export const query = new URLSearchParams(window.location.search);
 export const embedded = window.parent !== window;
 
 export const pages = [
-	{ title: "Detection", path: "/index", icon: mdiEye },
-	{ title: "Settings", path: "/settings", icon: mdiCctv },
-	{ title: "Configuration", path: "/config", icon: mdiCog },
+// key: the page's name in the locale file (pages.<key>)
+	{ key: "detection", path: "/index", icon: mdiEye },
+	{ key: "settings", path: "/settings", icon: mdiCctv },
+	{ key: "configuration", path: "/config", icon: mdiCog },
 ];
 
 // The Vite dev server serves the pages as /static/app/<page>.html; the plugin serves them as /<page>

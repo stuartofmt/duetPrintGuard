@@ -12,13 +12,13 @@ import { pageUrl, streamPageUrl } from "../pages.js";
 import { printer, refreshPrinter } from "../printer.js";
 import { connectSSE } from "../sse.js";
 import { visibility } from "../visibility.js";
+import { errorText, serverText, t, valueText } from "../i18n.js";
 import {
 	mdiAutorenew, mdiAutorenewOff, mdiBellCheck, mdiBellOff, mdiPause, mdiPlay, mdiPower, mdiStop, mdiTimerSand,
 } from "../icons.js";
 
 const DEFAULT_ICON = "/static/images/default_icon.png";
 const MAX_CONCURRENT_SNAPSHOTS = 2;
-const ACTION_NAMES = { pause_print: "Pause", cancel_print: "Cancel", ignore: "Action" };
 
 // =========================
 // Snapshot queue - at most MAX_CONCURRENT_SNAPSHOTS loading at once
@@ -73,16 +73,17 @@ const active = computed(() => visibility.visible && !suspended.value);
 let countdownTimer = null;
 let closeSSE = null;
 
-const countdownText = computed(() => ACTION_NAMES[countdown.action] ?? "Action");
+// The action the countdown ends with - "Action" for ignore or not known
+const countdownText = computed(() => t(`detection.countdownActions.${["pause_print", "cancel_print"].includes(countdown.action) ? countdown.action : "ignore"}`));
 
 const findCamera = (uuid) => cameras.value.find((c) => c.uuid === uuid);
 const isDetecting = (camera) => camera.state.live_detection_running === "yes";
 // 'paused' - detection stopped because the print was paused, and restarts when it is resumed
 const statusChip = (camera) => isDetecting(camera)
-	? { text: "Detecting", color: "success" }
+	? { text: t("detection.status.detecting"), color: "success" }
 	: camera.state.live_detection_running === "paused"
-		? { text: "Paused", color: "warning" }
-		: { text: "Inactive", color: "error" };
+		? { text: t("detection.status.paused"), color: "warning" }
+		: { text: t("detection.status.inactive"), color: "error" };
 const resultClass = (camera) => !camera.state.last_result
 	? "text-medium-emphasis"
 	: (camera.state.last_result === "success" ? "text-success" : "text-error");
@@ -135,10 +136,10 @@ async function toggleDetection(camera) {
 	try {
 		const result = await api.postJson(`/detect/live/${start ? "start" : "stop"}`, { camera_uuid: camera.uuid });
 		if (result?.success === false) {
-			notify(result.message || `Failed to ${start ? "start" : "stop"} detection`, "error");
+			notify(serverText(result.message, result.code) || t(start ? "detection.startFailed" : "detection.stopFailed"), "error");
 		}
 	} catch (err) {
-		notify(`Failed to ${start ? "start" : "stop"} detection: ${err.message}`, "error");
+		notify(t(start ? "detection.startFailedBecause" : "detection.stopFailedBecause", { error: errorText(err) }), "error");
 	} finally {
 		camera.busy = false;
 		refreshState(camera);
@@ -149,7 +150,7 @@ async function toggleDetection(camera) {
 function openStream(camera) {
 	const tab = window.open(streamPageUrl(camera.nickname), "_blank");
 	if (!tab) {
-		notify("The browser blocked the new tab - allow pop-ups for this page.", "error");
+		notify(t("detection.popupBlocked"), "error");
 		return;
 	}
 	suspended.value = true;
@@ -163,7 +164,7 @@ async function runAction(action) {
 		await api.postJson("/countdown/action", { action });
 		return true;
 	} catch (err) {
-		notify(`Failed to run ${action}: ${err.message}`, "error");
+		notify(t("detection.actionFailed", { action, error: errorText(err) }), "error");
 		return false;
 	}
 }
@@ -176,15 +177,15 @@ watch(() => printer.value?.status, (status) => {
 
 async function togglePause() {
 	if (paused.value) {
-		if (await confirm("Are you sure you want to Resume the print?")) await runAction("resume_print");
-	} else if (await confirm("Are you sure you want to Pause the print?", { color: "warning" })) {
+		if (await confirm(t("detection.confirmResume"))) await runAction("resume_print");
+	} else if (await confirm(t("detection.confirmPause"), { color: "warning" })) {
 		await runAction("pause_print");
 	}
 	refreshPrinter();
 }
 
 async function cancelPrint() {
-	if (await confirm("Are you sure you want to Cancel the print?", { color: "error" })) {
+	if (await confirm(t("detection.confirmCancel"), { color: "error" })) {
 		await runAction("cancel_print");
 		refreshPrinter();
 	}
@@ -230,16 +231,16 @@ async function toggleAutostart() {
 		}
 	} catch (err) {
 		autostart.waiting = false;
-		notify(`Failed to change autostart: ${err.message}`, "error");
+		notify(t("detection.autostartFailed", { error: errorText(err) }), "error");
 	}
 }
 
 async function resetNotifications() {
 	try {
 		await api.get("/printer/resetnotifications");
-		notify("Notifications reset.");
+		notify(t("detection.notificationsReset"));
 	} catch (err) {
-		notify(`Failed to reset notifications: ${err.message}`, "error");
+		notify(t("detection.resetFailed", { error: errorText(err) }), "error");
 	}
 }
 
@@ -248,14 +249,13 @@ const canTerminate = computed(() => printer.value != null && !printer.value.plug
 const terminated = ref(false);
 
 async function terminateProgram() {
-	if (!await confirm("Terminate duetPrintGuard? Detection stops, and the program has to be started again by hand.",
-		{ title: "Terminate the Program", color: "error" })) return;
+	if (!await confirm(t("detection.confirmTerminate"), { title: t("detection.terminate"), color: "error" })) return;
 	try {
 		const reply = await api.postJson("/terminate", {});
 		terminated.value = true;
-		notify(reply.message || "duetPrintGuard is stopping", "warning", -1);
+		notify(serverText(reply.message, reply.code) || t("server.stopping"), "warning", -1);
 	} catch (err) {
-		notify(`Failed to terminate the program: ${err.data?.detail || err.message}`, "error", 6000);
+		notify(t("detection.terminateFailed", { error: errorText(err) }), "error", 6000);
 	}
 }
 
@@ -339,20 +339,20 @@ onBeforeUnmount(() => {
 				<v-btn :color="paused ? 'success' : 'warning'" :prepend-icon="paused ? mdiPlay : mdiPause"
 					   :class="{ 'pg-pulse': countdown.active && countdown.action === 'pause_print' }"
 					   @click="togglePause">
-					{{ paused ? 'Resume' : 'Pause' }}
+					{{ paused ? t('detection.resume') : t('detection.pause') }}
 				</v-btn>
 				<v-btn color="error" :prepend-icon="mdiStop"
 					   :class="{ 'pg-pulse': countdown.active && countdown.action === 'cancel_print' }"
 					   @click="cancelPrint">
-					Cancel
+					{{ t("detection.cancel") }}
 				</v-btn>
 				<v-btn v-if="countdown.active" color="secondary" :prepend-icon="mdiBellOff"
 					   :class="{ 'pg-pulse': countdown.action !== 'pause_print' && countdown.action !== 'cancel_print' }"
 					   @click="runAction('ignore')">
-					Ignore
+					{{ t("detection.ignore") }}
 				</v-btn>
 				<v-chip v-if="countdown.active" color="error" variant="flat" :prepend-icon="mdiTimerSand" label>
-					{{ countdownText }} in {{ countdown.seconds }} sec
+					{{ t("detection.countdown", { action: countdownText, n: countdown.seconds }) }}
 				</v-chip>
 			</v-card-text>
 		</v-card>
@@ -370,12 +370,12 @@ onBeforeUnmount(() => {
 							</v-chip>
 						</v-card-title>
 						<v-list density="compact" class="bg-transparent">
-							<v-list-item title="Detection">
+							<v-list-item :title="t('detection.detection')">
 								<template #append>
-									<span :class="resultClass(camera)">{{ camera.state.last_result ?? 'Unknown' }}</span>
+									<span :class="resultClass(camera)">{{ camera.state.last_result ? valueText('result', camera.state.last_result) : t('detection.unknown') }}</span>
 								</template>
 							</v-list-item>
-							<v-list-item title="Last Update">
+							<v-list-item :title="t('detection.lastUpdate')">
 								<template #append>
 									<span>{{ lastUpdate(camera) }}</span>
 								</template>
@@ -386,13 +386,13 @@ onBeforeUnmount(() => {
 							<v-btn block variant="flat" :color="isDetecting(camera) ? 'error' : 'success'"
 								   :prepend-icon="isDetecting(camera) ? mdiStop : mdiPlay"
 								   :loading="camera.busy" @click="toggleDetection(camera)">
-								{{ isDetecting(camera) ? 'Stop Detection' : 'Start Detection' }}
+								{{ isDetecting(camera) ? t('detection.stopDetection') : t('detection.startDetection') }}
 							</v-btn>
 						</v-card-actions>
 					</v-card>
 				</v-col>
 				<v-col cols="12" sm="7" md="8">
-					<div class="pg-media pg-media--compact pg-clickable" title="Open the live stream in a new tab" @click="openStream(camera)">
+					<div class="pg-media pg-media--compact pg-clickable" :title="t('detection.openStream')" @click="openStream(camera)">
 						<img :src="cameraView(camera)" :alt="camera.nickname" @error="onViewError(camera)" />
 					</div>
 				</v-col>
@@ -401,25 +401,25 @@ onBeforeUnmount(() => {
 
 		<!-- Bottom controls -->
 		<div class="d-flex flex-wrap ga-2 mt-4">
-			<v-btn :prepend-icon="mdiBellCheck" @click="resetNotifications">Reset Notification</v-btn>
+			<v-btn :prepend-icon="mdiBellCheck" @click="resetNotifications">{{ t("detection.resetNotifications") }}</v-btn>
 			<v-btn v-if="canTerminate" color="error" variant="tonal" :prepend-icon="mdiPower" :disabled="terminated"
-				   @click="terminateProgram">Terminate the Program</v-btn>
+				   @click="terminateProgram">{{ t("detection.terminate") }}</v-btn>
 			<v-btn v-if="autostart.enabled" :color="autostart.waiting ? 'warning' : (autostart.running ? 'error' : 'success')"
 				   :loading="autostart.waiting" :prepend-icon="autostart.running ? mdiAutorenewOff : mdiAutorenew"
 				   @click="toggleAutostart">
-				{{ autostart.running ? 'Disable Autostart' : 'Enable Autostart' }}
+				{{ autostart.running ? t('detection.disableAutostart') : t('detection.enableAutostart') }}
 			</v-btn>
 		</div>
 
 		<!-- No cameras configured -->
 		<v-dialog v-model="showNoCameras" max-width="420">
 			<v-card>
-				<v-card-title>No Cameras Configured</v-card-title>
-				<v-card-text>Add a camera on the Settings page.</v-card-text>
+				<v-card-title>{{ t("detection.noCamerasTitle") }}</v-card-title>
+				<v-card-text>{{ t("detection.noCamerasText") }}</v-card-text>
 				<v-card-actions>
 					<v-spacer></v-spacer>
-					<v-btn @click="showNoCameras = false">Close</v-btn>
-					<v-btn color="primary" variant="flat" :href="settingsUrl">Settings</v-btn>
+					<v-btn @click="showNoCameras = false">{{ t("common.close") }}</v-btn>
+					<v-btn color="primary" variant="flat" :href="settingsUrl">{{ t("pages.settings") }}</v-btn>
 				</v-card-actions>
 			</v-card>
 		</v-dialog>

@@ -1,0 +1,294 @@
+{
+	"common": {
+		"ok": "OK",
+		"cancel": "Cancel",
+		"close": "Close",
+		"save": "Save",
+		"reset": "Reset",
+		"pleaseConfirm": "Please confirm"
+	},
+	"pages": {
+		"title": "duetPrintGuard {page}",
+		"detection": "Detection",
+		"settings": "Settings",
+		"configuration": "Configuration"
+	},
+	"printer": {
+		"connecting": "Connecting to the printer at {printer}",
+		"refused": "duetPrintGuard will not try again until the printer settings are changed.",
+		"retrying": "duetPrintGuard keeps trying. Check the printer is on, or change its address and port.",
+		"detectionRuns": "Detection still runs, but it cannot pause or cancel the print. The settings are saved.",
+		"address": "Printer address",
+		"addressHint": "Blank = this computer",
+		"port": "Port",
+		"portHint": "Blank = 80",
+		"password": "Password",
+		"passwordHint": "Blank = keep the current one",
+		"saveConnect": "Save and connect"
+	},
+	"detection": {
+		"pause": "Pause",
+		"resume": "Resume",
+		"cancel": "Cancel",
+		"ignore": "Ignore",
+		"countdown": "{action} in {n} sec",
+		"countdownActions": {
+			"pause_print": "Pause",
+			"cancel_print": "Cancel",
+			"ignore": "Action"
+		},
+		"status": {
+			"detecting": "Detecting",
+			"paused": "Paused",
+			"inactive": "Inactive"
+		},
+		"detection": "Detection",
+		"lastUpdate": "Last Update",
+		"unknown": "Unknown",
+		"startDetection": "Start Detection",
+		"stopDetection": "Stop Detection",
+		"openStream": "Open the live stream in a new tab",
+		"resetNotifications": "Reset Notification",
+		"terminate": "Terminate the Program",
+		"enableAutostart": "Enable Autostart",
+		"disableAutostart": "Disable Autostart",
+		"noCamerasTitle": "No Cameras Configured",
+		"noCamerasText": "Add a camera on the Settings page.",
+		"confirmResume": "Are you sure you want to Resume the print?",
+		"confirmPause": "Are you sure you want to Pause the print?",
+		"confirmCancel": "Are you sure you want to Cancel the print?",
+		"confirmTerminate": "Terminate duetPrintGuard? Detection stops, and the program has to be started again by hand.",
+		"startFailed": "Failed to start detection",
+		"stopFailed": "Failed to stop detection",
+		"startFailedBecause": "Failed to start detection: {error}",
+		"stopFailedBecause": "Failed to stop detection: {error}",
+		"popupBlocked": "The browser blocked the new tab - allow pop-ups for this page.",
+		"actionFailed": "Failed to run {action}: {error}",
+		"autostartFailed": "Failed to change autostart: {error}",
+		"notificationsReset": "Notifications reset.",
+		"resetFailed": "Failed to reset notifications: {error}",
+		"terminateFailed": "Failed to terminate the program: {error}"
+	},
+	"settings": {
+		"cameraPreview": "Camera Preview",
+		"refreshSnapshot": "Refresh snapshot",
+		"loadingFeed": "Loading camera feed...",
+		"unableFeed": "Unable to load camera feed",
+		"noCameraSelected": "No camera selected",
+		"countdown": "Countdown",
+		"countdownHelp": "What happens when a defect is detected and nobody intervenes.",
+		"countdownAction": "Countdown Action",
+		"countdownTime": "Countdown Time",
+		"seconds": "{n} s",
+		"whichCameras": "Which Cameras",
+		"actions": {
+			"ignore": "Ignore",
+			"cancel_print": "Cancel Print",
+			"pause_print": "Pause Print"
+		},
+		"controls": {
+			"any_camera": "Any",
+			"all_cameras": "All"
+		},
+		"addCamera": "Add a Camera",
+		"addTitle": "Add HTTP or RTSP Camera",
+		"nickname": "Camera Nickname",
+		"streamUrl": "HTTP or RTSP Stream URL",
+		"streamPlaceholder": "e.g. http://IP_ADDRESS:PORT/stream",
+		"snapshotUrl": "HTTP Snapshot URL",
+		"snapshotPlaceholder": "e.g. http://IP_ADDRESS:PORT/snapshot",
+		"snapshotHint": "Not needed for RTSP cameras",
+		"showPreview": "Show camera preview",
+		"loadingPreview": "Loading camera preview...",
+		"unablePreview": "Unable to load camera preview",
+		"addButton": "Add Camera",
+		"required": "Required",
+		"nicknameExists": "A camera with this nickname already exists",
+		"sourceExists": "A camera with this source already exists",
+		"snapshotRequired": "Required for HTTP cameras",
+		"listFailed": "Failed to load the camera list.",
+		"confirmRemove": "Are you sure you want to remove the camera \"{name}\"?",
+		"removed": "Removed {name}.",
+		"removeFailed": "Failed to remove camera: {error}",
+		"countdownFailed": "Failed to save countdown settings: {error}",
+		"added": "Added {name}.",
+		"addFailed": "Failed to add camera"
+	},
+	"camera": {
+		"remove": "Remove camera",
+		"autostart": "Auto-start",
+		"sensitivity": "Detection Sensitivity",
+		"normal": "Normal",
+		"less": "Less ({n})",
+		"more": "More (+{n})",
+		"lessSensitive": "Less sensitive",
+		"moreSensitive": "More sensitive",
+		"sensitivityHelp": "Left: fewer frames count as failures (far left, almost none). Right: more frames count as failures (far right, almost all).",
+		"voteThreshold": "Vote Threshold",
+		"voteWindow": "Vote Window",
+		"voteHelp": "A defect is raised when at least the threshold number of the last window frames show a failure, so the window is never smaller than the threshold.",
+		"autostartFailed": "Failed to update autostart: {error}",
+		"saveFailed": "Failed to save camera settings: {error}"
+	},
+	"stream": {
+		"title": "{name} - Camera Stream",
+		"noCamera": "There is no camera called \"{name}\".",
+		"loadFailed": "Could not load the stream: {error}",
+		"alt": "Live stream for {name}"
+	},
+	"config": {
+		"tabs": {
+			"general": "General",
+			"actions": "Actions",
+			"alerts": "Alerts"
+		},
+		"sections": {
+			"printer": {
+				"title": "Printer",
+				"help": "Works with an SBC on this computer (plugin), or a Duet in SBC mode or standalone on the network - which one is found when connecting."
+			},
+			"web": { "title": "Web Interface" },
+			"actions": {
+				"title": "Printer Actions",
+				"help": "Commands sent to the printer when a defect is detected and nobody intervenes. Leave blank to use the default."
+			},
+			"macro": { "title": "Macro Alert" },
+			"ntfy": { "title": "ntfy Alert" },
+			"pushover": {
+				"title": "Pushover Alert",
+				"help": "Both the API token and user key are required to send Pushover alerts."
+			}
+		},
+		"fields": {
+			"DUET": {
+				"IP": {
+					"label": "Printer Address",
+					"placeholder": "This computer",
+					"hint": "IP address or name of the printer. Leave blank only if this computer is the printer's SBC. Not used when running as a DWC plugin."
+				},
+				"PORT": { "label": "Printer Port", "hint": "The port DWC uses - normally 80." },
+				"PASSWORD": { "label": "Printer Password", "hint": "Only if a password is set on the printer." }
+			},
+			"UI": {
+				"IP": { "label": "IP Address", "hint": "IP address of this machine, detected automatically at startup." },
+				"PORT": {
+					"label": "Port",
+					"hint": "Port for the Detection, Settings and Configuration pages. Must not conflict with DWC or other plugins. Use 0 to pick a free port automatically at startup. If the chosen port is in use, a free port is picked instead."
+				},
+				"OPENBROWSER": {
+					"label": "Open Browser at Startup",
+					"hint": "Open these pages in this computer's browser when duetPrintGuard starts. Not used when running as a DWC plugin, or without a desktop."
+				}
+			},
+			"LOGGING": { "LEVEL": { "label": "Logging Level" } },
+			"ACTION": {
+				"PAUSE": { "label": "Pause Command" },
+				"RESUME": { "label": "Resume Command" },
+				"CANCEL": { "label": "Cancel Command" }
+			},
+			"MACRO": {
+				"MACRO": {
+					"label": "Macro",
+					"placeholder": "e.g. 0:/sys/duetPrintGuard/macros/Notify.g",
+					"hint": "Macro called on failure e.g. to send MQTT. Enter just the path used in M98 P\"<path>\"."
+				},
+				"MAXTIMES": { "label": "Maximum Times" }
+			},
+			"NTFY": {
+				"TOPIC": { "label": "Topic", "hint": "The ntfy topic you subscribe to. Required to send ntfy alerts." },
+				"TITLE": { "label": "Title" },
+				"MESSAGE": { "label": "Message" },
+				"PRIORITY": { "label": "Priority" },
+				"MAXTIMES": { "label": "Maximum Times" }
+			},
+			"PUSHOVER": {
+				"API": { "label": "API Token" },
+				"USER": { "label": "User / Group Key" },
+				"TITLE": { "label": "Title" },
+				"MESSAGE": { "label": "Message" },
+				"MAXTIMES": { "label": "Maximum Times" }
+			}
+		},
+		"systemDefaultHint": "Leave blank to use the system text shown, which follows the camera and countdown settings.",
+		"priority": "Priority 1 to 5 - see",
+		"priorityLink": "ntfy message priority",
+		"restart": "restart",
+		"footerBefore": "Settings marked",
+		"footerAfter": "take effect after duetPrintGuard is restarted. Other settings apply immediately. Each Save button saves the settings on all the tabs.",
+		"portInUse": "Currently connected to port {port}",
+		"portAuto": "{status} (picked automatically)",
+		"portNext": "{status} - {port} will be used after restart, if it is free",
+		"printerConnected": "Connected to {printer} ({mode}), status {status}",
+		"printerConnecting": "Connecting to {printer}",
+		"loadFailed": "Failed to load configuration.",
+		"savedRestart": "Saved. Restart duetPrintGuard for these changes to take effect: {settings}",
+		"savedRestartShort": "Saved - restart duetPrintGuard for some changes to take effect.",
+		"saved": "Saved.",
+		"invalid": "Some settings are invalid - nothing was saved.",
+		"invalidShort": "Some settings are invalid (marked in red) - nothing was saved.",
+		"saveFailed": "Failed to save configuration: {error}"
+	},
+	"values": {
+		"result": {
+			"success": "Success",
+			"failure": "Failure",
+			"DEFECT": "DEFECT",
+			"Error": "Error",
+			"Failed to get frame": "Failed to get frame",
+			"Error in detection loop": "Error in detection loop"
+		},
+		"mode": {
+			"plugin": "plugin, through DSF",
+			"remoteSBC": "remote SBC",
+			"remoteStandalone": "remote standalone"
+		},
+		"printerStatus": {
+			"disconnected": "disconnected",
+			"starting": "starting",
+			"updating": "updating",
+			"off": "off",
+			"halted": "halted",
+			"pausing": "pausing",
+			"paused": "paused",
+			"resuming": "resuming",
+			"cancelling": "cancelling",
+			"processing": "printing",
+			"simulating": "simulating",
+			"busy": "busy",
+			"changingTool": "changing tool",
+			"idle": "idle"
+		}
+	},
+	"server": {
+		"printerPassword": "The printer at {printer} did not accept the password",
+		"printerNotResponding": "The printer at {printer} is not responding",
+		"printerCannotConnect": "Could not connect to the printer at {printer}: {error}",
+		"alreadyConnected": "Already connected to the printer",
+		"notSavedMarked": "Not saved - check the marked settings",
+		"savedConnecting": "Saved - connecting to the printer at {printer}",
+		"printerNotSaved": "Failed to save the printer settings: {error}",
+		"configNotSaved": "Failed to save configuration: {error}",
+		"mustBeWhole": "must be a whole number",
+		"between": "must be between {min} and {max}",
+		"mustBeAddress": "must be an address such as 192.168.1.5 or printer.local",
+		"zeroOrMore": "must be 0 or more",
+		"oneOf": "must be one of {choices}",
+		"noQuotes": "must not contain quotes",
+		"invalidValue": "invalid value",
+		"terminatePlugin": "Running as a plugin - stop it from DWC's plugin manager",
+		"stopping": "duetPrintGuard is stopping",
+		"cameraNotFound": "Camera not found",
+		"missingNicknameSource": "Missing camera nickname or source.",
+		"missingSnapshot": "Missing camera snapshot URL.",
+		"cameraStream": "Could not read video from the stream URL {stream}.",
+		"cameraSnapshot": "Could not get a JPEG image from the snapshot URL {snapshot}.",
+		"cameraBoth": "Could not read video from the stream URL {stream}. Could not get a JPEG image from the snapshot URL {snapshot}.",
+		"sensitivityRange": "Sensitivity must be between -{steps} and {steps}.",
+		"thresholdMin": "Majority vote threshold must be at least 1.",
+		"windowMin": "Majority vote window must be at least the threshold.",
+		"unknownAction": "Unknown action {action}",
+		"unknownCameraChoice": "Unknown camera choice {choice}",
+		"countdownTimeMin": "Countdown time must be 0 or more",
+		"detectionNotStarted": "Failed to start live detection for camera {camera}"
+	}
+}

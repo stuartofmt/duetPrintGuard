@@ -16,6 +16,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from duet_config import UI
+from messages import CodedHTTPException, coded_http_exception_handler
 
 from utils.config import init_config, PRINTER_POLL_SECONDS
 
@@ -97,6 +98,8 @@ def init_routes_and_modules():
 	static_dir = os.path.join(base_dir, "static")
 	app.mount("/static", RevalidatedStaticFiles(directory=static_dir), name="static")
 
+	# Error replies with a code, so the page can show them in its language (messages.py)
+	app.add_exception_handler(CodedHTTPException, coded_http_exception_handler)
 	app.include_router(app_router)
 
 
