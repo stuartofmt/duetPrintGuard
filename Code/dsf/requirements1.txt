@@ -1,0 +1,38 @@
+# The same packages as requirements.txt, as ranges of compatible versions instead of exact pins - for
+# Python 3.11 or later. pip installs the newest version in each range that suits the Python it runs on
+# (e.g. numpy 2.4.x on Python 3.11, where numpy 2.5 is not available).
+#
+# Lower bounds: the oldest versions tested - each has a release for Python 3.11.
+# Upper bounds: the next major version, which may not be compatible.
+#
+# Tested (2026-11-10) on Python 3.11 with the oldest version of every range, and on Python 3.11 and 3.13
+# with the newest: starts, loads the detection model, serves every page and the live events, saves the
+# configuration and reads form posts. Detection results were the same as with requirements.txt.
+
+# ----------------------------
+# Web framework (stable stack)
+# ----------------------------
+fastapi>=0.100.0,<1.0
+starlette>=0.27.0,<2.0
+uvicorn[standard]>=0.23.0,<1.0
+sse-starlette>=1.6.0,<4.0
+python-multipart>=0.0.6,<0.1
+
+# ----------------------------
+# ML / inference stack
+# ----------------------------
+onnxruntime>=1.15.0,<2.0
+
+# ----------------------------
+# Image / CV
+# ----------------------------
+numpy>=1.24.2,<3.0
+pillow>=9.2.0,<13.0
+opencv-python-headless>=4.7.0.72,<5.0
+
+# ----------------------------
+# Duet3d
+# ----------------------------
+dsf-python>=3.7.0,<3.8
+requests>=2.28.0,<3.0
+websocket-client>=1.5.0,<2.0
