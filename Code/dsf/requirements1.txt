@@ -1,38 +1,69 @@
 # The same packages as requirements.txt, as ranges of compatible versions instead of exact pins - for
-# Python 3.11 or later. pip installs the newest version in each range that suits the Python it runs on
-# (e.g. numpy 2.4.x on Python 3.11, where numpy 2.5 is not available).
+# Python 3.11 or later. pip installs the newest version in each range that suits the Python it runs on.
 #
-# Lower bounds: the oldest versions tested - each has a release for Python 3.11.
-# Upper bounds: the next major version, which may not be compatible.
+# Packages whose range is the same for every Python come first. onnxruntime, numpy, Pillow and opencv
+# have later first releases for newer Pythons, so they have a section per Python version: pip only reads
+# the lines whose python_version matches the Python it runs on.
 #
-# Tested (2026-11-10) on Python 3.11 with the oldest version of every range, and on Python 3.11 and 3.13
-# with the newest: starts, loads the detection model, serves every page and the live events, saves the
+# Lower bounds: the oldest version tested. Upper bounds: the next major version, which may not be compatible.
+# min / max: the oldest and newest versions tested.
+#
+# Tested (2026-11-13) on Python 3.11, 3.12, 3.13 and 3.14 - with the oldest and with the newest version
+# of every range: starts, loads the detection model, serves every page and the live events, saves the
 # configuration and reads form posts. Detection results were the same as with requirements.txt.
+
+# ============================================================
+# All Python versions
+# ============================================================
 
 # ----------------------------
 # Web framework (stable stack)
 # ----------------------------
-fastapi>=0.100.0,<1.0
-starlette>=0.27.0,<2.0
-uvicorn[standard]>=0.23.0,<1.0
-sse-starlette>=1.6.0,<4.0
-python-multipart>=0.0.6,<0.1
-
-# ----------------------------
-# ML / inference stack
-# ----------------------------
-onnxruntime>=1.15.0,<2.0
-
-# ----------------------------
-# Image / CV
-# ----------------------------
-numpy>=1.24.2,<3.0
-pillow>=9.2.0,<13.0
-opencv-python-headless>=4.7.0.72,<5.0
+fastapi>=0.100.0,<1.0                # min 0.100.0, max 0.162.5
+starlette>=0.27.0,<2.0               # min 0.27.0, max 1.10.0
+uvicorn[standard]>=0.23.0,<1.0       # min 0.23.0, max 0.54.0
+sse-starlette>=1.6.0,<4.0            # min 1.6.0, max 3.7.0
+python-multipart>=0.0.6,<0.1         # min 0.0.6, max 0.0.33
 
 # ----------------------------
 # Duet3d
 # ----------------------------
-dsf-python>=3.7.0,<3.8
-requests>=2.28.0,<3.0
-websocket-client>=1.5.0,<2.0
+dsf-python>=3.7.0,<3.8               # min 3.7.0, max 3.7.0.post1
+requests>=2.28.0,<3.0                # min 2.28.0, max 2.34.2
+websocket-client>=1.5.0,<2.0         # min 1.5.0, max 1.9.2
+
+# ============================================================
+# By Python version - ML / inference and Image / CV
+# ============================================================
+
+# ----------------------------
+# Python 3.11
+# ----------------------------
+onnxruntime>=1.15.0,<2.0; python_version == "3.11"                 # min 1.15.0, max 1.31.1
+numpy>=1.24.2,<3.0; python_version == "3.11"                       # min 1.24.2, max 2.4.6 (numpy 2.5 needs 3.12)
+pillow>=9.2.0,<13.0; python_version == "3.11"                      # min 9.2.0, max 12.3.0
+opencv-python-headless>=4.7.0.72,<5.0; python_version == "3.11"    # min 4.7.0.72, max 4.14.0.94
+
+# ----------------------------
+# Python 3.12
+# ----------------------------
+onnxruntime>=1.17.0,<2.0; python_version == "3.12"                 # min 1.17.0, max 1.31.1
+numpy>=1.26.0,<3.0; python_version == "3.12"                       # min 1.26.0, max 2.5.4
+pillow>=10.0.0,<13.0; python_version == "3.12"                     # min 10.0.0, max 12.3.0
+opencv-python-headless>=4.7.0.72,<5.0; python_version == "3.12"    # min 4.7.0.72, max 4.14.0.94
+
+# ----------------------------
+# Python 3.13 - numpy 2 only, so opencv 4.10 or later
+# ----------------------------
+onnxruntime>=1.20.0,<2.0; python_version == "3.13"                 # min 1.20.0, max 1.31.1
+numpy>=2.1.0,<3.0; python_version == "3.13"                        # min 2.1.0, max 2.5.4
+pillow>=10.4.0,<13.0; python_version == "3.13"                     # min 10.4.0, max 12.3.0
+opencv-python-headless>=4.10.0.84,<5.0; python_version == "3.13"   # min 4.10.0.84, max 4.14.0.94
+
+# ----------------------------
+# Python 3.14 and later
+# ----------------------------
+onnxruntime>=1.24.1,<2.0; python_version >= "3.14"                 # min 1.24.1, max 1.31.1
+numpy>=2.3.2,<3.0; python_version >= "3.14"                        # min 2.3.2, max 2.5.4
+pillow>=11.3.0,<13.0; python_version >= "3.14"                     # min 11.3.0, max 12.3.0
+opencv-python-headless>=4.10.0.84,<5.0; python_version >= "3.14"   # min 4.10.0.84, max 4.14.0.94
