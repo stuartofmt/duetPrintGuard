@@ -236,6 +236,7 @@
 		"follow": "Seguir",
 		"reload": "Recargar el registro",
 		"download": "Descargar el registro",
+		"current": "Registro actual",
 		"previous": "Registro anterior",
 		"couldNotRead": "No se pudo leer el archivo de registro: {error}",
 		"noFile": "Todavía no hay archivo de registro.",

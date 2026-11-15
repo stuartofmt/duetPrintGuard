@@ -236,6 +236,7 @@
 		"follow": "Suivre",
 		"reload": "Recharger le journal",
 		"download": "Télécharger le journal",
+		"current": "Journal actuel",
 		"previous": "Journal précédent",
 		"couldNotRead": "Impossible de lire le fichier journal : {error}",
 		"noFile": "Il n'y a pas encore de fichier journal.",

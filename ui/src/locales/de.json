@@ -236,6 +236,7 @@
 		"follow": "Mitlaufen",
 		"reload": "Protokoll neu laden",
 		"download": "Protokoll herunterladen",
+		"current": "Aktuelles Protokoll",
 		"previous": "Vorheriges Protokoll",
 		"couldNotRead": "Die Protokolldatei konnte nicht gelesen werden: {error}",
 		"noFile": "Es gibt noch keine Protokolldatei.",

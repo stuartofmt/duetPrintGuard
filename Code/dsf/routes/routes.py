@@ -117,15 +117,20 @@ async def serve_log():
 LOG_TAIL = 256 * 1024  # The most of the log file sent to the Log page at once (bytes)
 
 
+def log_files(previous):
+    """(the log file to show - current or previous, the previous log file) - '' for one there isn't."""
+    previous_file = previous_log_file() if os.path.isfile(previous_log_file()) else ''
+    return (previous_file if previous else current_log_file()), previous_file
+
+
 @router.get("/log/text", include_in_schema=False)
-def log_text(offset: int = -1):
+def log_text(offset: int = -1, previous: bool = False):
     """The log file from offset (bytes) - whole lines only. offset -1, or one that can't be carried on from (e.g. a
     new log file after a restart, or too much is new), gives the end of the log file instead, with reset true.
-    previous: the log file from the run before, if there is one (shown with /log/previous)."""
-    log_file = current_log_file()
+    previous: true for the log file from the run before this one. The reply's previous is that file, if there is one."""
+    log_file, previous_file = log_files(previous)
     if not log_file:
-        return {'file': '', 'previous': '', 'text': '', 'offset': 0, 'reset': True, 'truncated': False}
-    previous = previous_log_file() if os.path.isfile(previous_log_file()) else ''
+        return {'file': '', 'previous': previous_file, 'text': '', 'offset': 0, 'reset': True, 'truncated': False}
     try:
         size = os.path.getsize(log_file)
         reset = offset < 0 or offset > size or size - offset > LOG_TAIL
@@ -134,33 +139,25 @@ def log_text(offset: int = -1):
             f.seek(start)
             data = f.read(size - start)
     except OSError as e:
-        return {'file': log_file, 'previous': previous, 'error': str(e)}
+        return {'file': log_file, 'previous': previous_file, 'error': str(e)}
     truncated = reset and start > 0
     if truncated:  # Starts part way through a line
         skip = data.find(b'\n') + 1
         start, data = start + skip, data[skip:]
     data = data[:data.rfind(b'\n') + 1]  # A line still being written comes next time
-    return {'file': log_file, 'previous': previous, 'offset': start + len(data), 'reset': reset, 'truncated': truncated,
-            'text': data.decode('utf-8', errors='replace').replace('\r\n', '\n')}
+    return {'file': log_file, 'previous': previous_file, 'offset': start + len(data), 'reset': reset,
+            'truncated': truncated, 'text': data.decode('utf-8', errors='replace').replace('\r\n', '\n')}
 
 
 @router.get("/log/download", include_in_schema=False)
-def log_download():
-    """The whole log file, as a download."""
-    log_file = current_log_file()
+def log_download(previous: bool = False):
+    """The whole log file - or, with previous true, the one from the run before this one - as a download."""
+    log_file = log_files(previous)[0]
     if not log_file or not os.path.isfile(log_file):
-        raise CodedHTTPException(404, Message("noLogFile", "There is no log file yet"))
+        raise CodedHTTPException(404, Message("noPreviousLog", "There is no previous log file") if previous
+                                 else Message("noLogFile", "There is no log file yet"))
     return FileResponse(log_file, filename=os.path.basename(log_file), media_type='text/plain',
                         headers={"Cache-Control": "no-cache"})
-
-
-@router.get("/log/previous", include_in_schema=False)
-def log_previous():
-    """The log file from the run before this one, shown in the browser (Previous log on the Log page)."""
-    previous = previous_log_file()
-    if not previous or not os.path.isfile(previous):
-        raise CodedHTTPException(404, Message("noPreviousLog", "There is no previous log file"))
-    return FileResponse(previous, media_type='text/plain; charset=utf-8', headers={"Cache-Control": "no-cache"})
 
 
 @router.get("/config/get-app-config", include_in_schema=False)

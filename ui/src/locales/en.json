@@ -236,6 +236,7 @@
 		"follow": "Follow",
 		"reload": "Reload the log",
 		"download": "Download the log",
+		"current": "Current log",
 		"previous": "Previous log",
 		"couldNotRead": "Could not read the log file: {error}",
 		"noFile": "There is no log file yet.",

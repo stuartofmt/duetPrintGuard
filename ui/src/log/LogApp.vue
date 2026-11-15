@@ -1,5 +1,6 @@
 <!-- Log page: the log file - its end, then new lines as they are written (checked every few seconds).
-     Follow keeps the newest line in view. The same as duetLapse3's Log tab. -->
+     Follow keeps the newest line in view. Previous shows the log file from the run before this one instead, and
+     download gets the log file being shown. The same as duetLapse3's Log tab. -->
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from "vue";
 import PgPage from "../components/PgPage.vue";
@@ -16,14 +17,21 @@ const filter = ref("");
 const follow = ref(true);
 const loading = ref(false);
 const box = ref(null);
+const showPrevious = ref(false); // The log file from the run before this one, instead of the current one
 let offset = -1;
 let timer = null;
+let again = false;
 
 async function load() {
-	if (loading.value) return;
+	if (loading.value) {
+		again = true; // e.g. switched between current and previous while reading
+		return;
+	}
 	loading.value = true;
+	const previous = showPrevious.value;
 	try {
-		const data = await api.get(`/log/text?offset=${offset}`);
+		const data = await api.get(`/log/text?offset=${offset}${previous ? "&previous=true" : ""}`);
+		if (previous !== showPrevious.value) return; // Switched while reading - read again (finally)
 		Object.assign(log, { loaded: true, file: data.file ?? "", previous: data.previous ?? "", error: data.error ?? "" });
 		if (!data.error) {
 			const added = data.text ? data.text.replace(/\n$/, "").split("\n") : [];
@@ -36,6 +44,10 @@ async function load() {
 		Object.assign(log, { loaded: true, error: errorText(err) });
 	} finally {
 		loading.value = false;
+		if (again || previous !== showPrevious.value) {
+			again = false;
+			load();
+		}
 	}
 }
 
@@ -44,6 +56,15 @@ function reload() {
 	offset = -1;
 	load();
 }
+
+watch(showPrevious, () => {
+	lines.value = [];
+	Object.assign(log, { loaded: false, file: "", truncated: false, error: "" });
+	follow.value = true;
+	reload();
+});
+
+const downloadUrl = computed(() => "/log/download" + (showPrevious.value ? "?previous=true" : ""));
 
 const text = computed(() => {
 	const wanted = filter.value.trim().toLowerCase();
@@ -72,8 +93,8 @@ watch(follow, (on) => on && toEnd());
 
 onMounted(() => {
 	load();
-	// New lines - not while the page is hidden (another browser tab in front)
-	timer = setInterval(() => document.hidden || load(), CHECK_SECONDS * 1000);
+	// New lines - not while the page is hidden (another browser tab in front), nor for the previous log file
+	timer = setInterval(() => document.hidden || showPrevious.value || load(), CHECK_SECONDS * 1000);
 });
 onUnmounted(() => clearInterval(timer));
 </script>
@@ -89,10 +110,13 @@ onUnmounted(() => clearInterval(timer));
 				<v-switch v-model="follow" :label="t('log.follow')" color="primary" density="compact" inset hide-details
 						  class="flex-grow-0 me-2"></v-switch>
 				<v-btn :icon="mdiRefresh" variant="text" size="small" :loading="loading" :title="t('log.reload')" @click="reload"></v-btn>
-				<!-- The log file from the run before this one, in a new browser tab -->
-				<v-btn v-if="log.previous" variant="text" size="small" href="/log/previous" target="_blank"
-					   :title="log.previous">{{ t("log.previous") }}</v-btn>
-				<v-btn :icon="mdiDownload" variant="text" size="small" :disabled="!log.file" href="/log/download"
+				<!-- Which log file: the current one, or the one from the run before this one -->
+				<v-btn-toggle v-if="log.previous || showPrevious" v-model="showPrevious" mandatory density="compact"
+							  variant="outlined" color="primary" divided>
+					<v-btn :value="false" size="small">{{ t("log.current") }}</v-btn>
+					<v-btn :value="true" size="small">{{ t("log.previous") }}</v-btn>
+				</v-btn-toggle>
+				<v-btn :icon="mdiDownload" variant="text" size="small" :disabled="!log.file" :href="downloadUrl"
 					   :title="t('log.download')"></v-btn>
 			</div>
 			<v-divider></v-divider>
