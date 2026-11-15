@@ -341,12 +341,15 @@ async def _take_action_after_countdown(countdown_time, alert_id):
     if _alert_still_active(alert_id):  # Not dismissed or overridden by the user, and not a newer alert
         match COUNTDOWN_SETTINGS['countdown_action']:
             case 'ignore':  # allowing new alerts to be triggered
+                logger.info(f'Defect countdown ended ({countdown_time} seconds) with no action taken - the alert is dismissed')
                 COUNTDOWN_SETTINGS['alert_status'] = 'inactive'
             case 'pause_print':
+                logger.info(f'Defect countdown ended ({countdown_time} seconds) with no action taken - pausing the print')
                 await asyncio.to_thread(suspend_print_job, 'pause_print')
                 await pause_all_detection()
                 COUNTDOWN_SETTINGS['alert_status'] = 'paused'
             case 'cancel_print':
+                logger.info(f'Defect countdown ended ({countdown_time} seconds) with no action taken - cancelling the print')
                 await asyncio.to_thread(suspend_print_job, 'cancel_print')
                 await stop_all_detection()
                 COUNTDOWN_SETTINGS['alert_status'] = 'cancelled'  # Not reset since print job has been stopped
