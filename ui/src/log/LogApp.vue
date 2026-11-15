@@ -11,7 +11,7 @@ const MAX_LINES = 10000; // Older lines are dropped from the page - the log file
 const CHECK_SECONDS = 3;
 
 const lines = ref([]);
-const log = reactive({ loaded: false, file: "", error: "", truncated: false });
+const log = reactive({ loaded: false, file: "", previous: "", error: "", truncated: false });
 const filter = ref("");
 const follow = ref(true);
 const loading = ref(false);
@@ -24,7 +24,7 @@ async function load() {
 	loading.value = true;
 	try {
 		const data = await api.get(`/log/text?offset=${offset}`);
-		Object.assign(log, { loaded: true, file: data.file ?? "", error: data.error ?? "" });
+		Object.assign(log, { loaded: true, file: data.file ?? "", previous: data.previous ?? "", error: data.error ?? "" });
 		if (!data.error) {
 			const added = data.text ? data.text.replace(/\n$/, "").split("\n") : [];
 			const all = data.reset ? added : [...lines.value, ...added];
@@ -89,6 +89,9 @@ onUnmounted(() => clearInterval(timer));
 				<v-switch v-model="follow" :label="t('log.follow')" color="primary" density="compact" inset hide-details
 						  class="flex-grow-0 me-2"></v-switch>
 				<v-btn :icon="mdiRefresh" variant="text" size="small" :loading="loading" :title="t('log.reload')" @click="reload"></v-btn>
+				<!-- The log file from the run before this one, in a new browser tab -->
+				<v-btn v-if="log.previous" variant="text" size="small" href="/log/previous" target="_blank"
+					   :title="log.previous">{{ t("log.previous") }}</v-btn>
 				<v-btn :icon="mdiDownload" variant="text" size="small" :disabled="!log.file" href="/log/download"
 					   :title="t('log.download')"></v-btn>
 			</div>

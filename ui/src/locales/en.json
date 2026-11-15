@@ -236,6 +236,7 @@
 		"follow": "Follow",
 		"reload": "Reload the log",
 		"download": "Download the log",
+		"previous": "Previous log",
 		"couldNotRead": "Could not read the log file: {error}",
 		"noFile": "There is no log file yet.",
 		"truncated": "Showing the end of the log file - download it to see all of it.",
@@ -304,7 +305,8 @@
 		"unknownCameraChoice": "Unknown camera choice {choice}",
 		"countdownTimeMin": "Countdown time must be 0 or more",
 		"detectionNotStarted": "Failed to start live detection for camera {camera}",
-		"noLogFile": "There is no log file yet"
+		"noLogFile": "There is no log file yet",
+		"noPreviousLog": "There is no previous log file"
 	},
 	"alerts": {
 		"titleAll": "duetPrintGuard: All cameras",

@@ -70,9 +70,10 @@ def create_log_file(console_logger):
     global logger, file_path, logfilename, _startup_handler
 
     logfile = os.path.join(file_path, logfilename)
-    if os.path.exists(logfile):
-        console_logger.info(f'Removing old logfile {logfile}')
-        os.remove(logfile)
+    previous = previous_log_file()
+    if os.path.exists(logfile):  # Kept as <program name>.previous.log, replacing the one before it
+        console_logger.info(f'Keeping the last logfile as {previous}')
+        os.replace(logfile, previous)
 
     # The startup log is closed (it stays in the program folder until the next start) and copied to the log file
     startup_text = ''
@@ -98,6 +99,16 @@ def create_log_file(console_logger):
     logger.info(f'''Logging started at {logfile}''')
 
     return logger
+
+
+def previous_log_file():
+    """The log file from the run before this one: <program name>.previous.log, next to the log file -
+    '' until setup_logfile has been called."""
+    try:
+        base, ext = os.path.splitext(logfilename)
+        return os.path.join(file_path, f'{base}.previous{ext}')
+    except NameError:
+        return ''
 
 
 def current_log_file():

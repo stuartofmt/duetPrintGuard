@@ -236,6 +236,7 @@
 		"follow": "Mitlaufen",
 		"reload": "Protokoll neu laden",
 		"download": "Protokoll herunterladen",
+		"previous": "Vorheriges Protokoll",
 		"couldNotRead": "Die Protokolldatei konnte nicht gelesen werden: {error}",
 		"noFile": "Es gibt noch keine Protokolldatei.",
 		"truncated": "Das Ende der Protokolldatei wird angezeigt - laden Sie sie herunter, um alles zu sehen.",
@@ -304,7 +305,8 @@
 		"unknownCameraChoice": "Unbekannte Kameraauswahl: {choice}",
 		"countdownTimeMin": "Die Countdown-Zeit muss 0 oder größer sein",
 		"detectionNotStarted": "Die Erkennung für Kamera {camera} konnte nicht gestartet werden",
-		"noLogFile": "Es gibt noch keine Protokolldatei"
+		"noLogFile": "Es gibt noch keine Protokolldatei",
+		"noPreviousLog": "Es gibt keine vorherige Protokolldatei"
 	},
 	"alerts": {
 		"titleAll": "duetPrintGuard: Alle Kameras",
