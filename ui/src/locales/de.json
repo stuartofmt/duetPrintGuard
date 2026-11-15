@@ -127,7 +127,9 @@
 		"sensitivityHelp": "Links: weniger Bilder zählen als Fehler (ganz links fast keine). Rechts: mehr Bilder zählen als Fehler (ganz rechts fast alle).",
 		"voteThreshold": "Abstimmungsschwelle",
 		"voteWindow": "Abstimmungsfenster",
-		"voteHelp": "Ein Fehler wird gemeldet, wenn mindestens so viele der letzten Bilder im Fenster einen Fehler zeigen, wie die Schwelle angibt. Das Fenster ist daher nie kleiner als die Schwelle.",
+		"voteHelp": "Das Abstimmungsfenster ist die Anzahl der letzten Bilder, die betrachtet werden. Die Abstimmungsschwelle ist die Anzahl davon, die einen Fehler zeigen müssen, damit ein Fehler gemeldet wird - ihr Balken zeigt diesen Anteil am Fenster: Je voller der Balken, desto weniger empfindlich.",
+		"voteOf": "{n} von {window} ({percent} %)",
+		"voteFrames": {"one": "{n} Bild", "other": "{n} Bilder"},
 		"autostartFailed": "Autostart konnte nicht geändert werden: {error}",
 		"saveFailed": "Die Kameraeinstellungen konnten nicht gespeichert werden: {error}"
 	},

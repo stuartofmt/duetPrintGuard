@@ -127,7 +127,9 @@
 		"sensitivityHelp": "À gauche : moins d'images comptent comme des échecs (tout à gauche, presque aucune). À droite : plus d'images comptent comme des échecs (tout à droite, presque toutes).",
 		"voteThreshold": "Seuil de vote",
 		"voteWindow": "Fenêtre de vote",
-		"voteHelp": "Un défaut est signalé lorsqu'au moins le nombre d'images du seuil, parmi les dernières images de la fenêtre, montrent un échec. La fenêtre n'est donc jamais plus petite que le seuil.",
+		"voteHelp": "La fenêtre de vote est le nombre de dernières images examinées. Le seuil de vote est le nombre d'entre elles qui doivent montrer un échec pour signaler un défaut - sa barre l'indique en part de la fenêtre : plus elle est remplie, moins la détection est sensible.",
+		"voteOf": "{n} sur {window} ({percent} %)",
+		"voteFrames": {"one": "{n} image", "other": "{n} images"},
 		"autostartFailed": "Impossible de modifier le démarrage automatique : {error}",
 		"saveFailed": "Impossible d'enregistrer les paramètres de la caméra : {error}"
 	},

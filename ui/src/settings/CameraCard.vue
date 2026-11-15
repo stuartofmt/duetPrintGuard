@@ -27,16 +27,30 @@ async function saveAutostart() {
 	}
 }
 
-// The window must be at least the threshold, so moving one slider past the other drags it along
-function keepWindowAboveThreshold(moved) {
+// Majority vote: the window (how many recent frames are looked at) is set first, and the threshold (how many of
+// them must show a failure) is a share of it - its slider runs from 1 to the window, so its bar shows how strict
+// the vote is. A smaller window brings the threshold down with it.
+const MAX_WINDOW = 100;
+
+function windowChanged() {
 	const camera = props.camera;
-	if (camera.majority_vote_window >= camera.majority_vote_threshold) return;
-	if (moved === "threshold") {
-		camera.majority_vote_window = camera.majority_vote_threshold;
-	} else {
+	if (camera.majority_vote_threshold > camera.majority_vote_window) {
 		camera.majority_vote_threshold = camera.majority_vote_window;
 	}
 }
+
+// The threshold slider starts at 0, so its bar is exactly threshold / window - but 0 is not allowed
+function thresholdChanged() {
+	if (props.camera.majority_vote_threshold < 1) {
+		props.camera.majority_vote_threshold = 1;
+	}
+}
+
+const thresholdText = (camera) => t("camera.voteOf", {
+	n: camera.majority_vote_threshold,
+	window: camera.majority_vote_window,
+	percent: Math.round((100 * camera.majority_vote_threshold) / camera.majority_vote_window),
+});
 
 async function saveCameraSettings() {
 	const camera = props.camera;
@@ -92,26 +106,24 @@ function resetSensitivity() {
 			<p class="text-body-small text-medium-emphasis mt-1 mb-2">
 				{{ t("camera.sensitivityHelp") }}
 			</p>
-			<v-slider v-model="camera.majority_vote_threshold" :min="1" :max="20" :step="1" color="primary"
-					  thumb-label hide-details class="mt-2" @update:model-value="keepWindowAboveThreshold('threshold')"
-					  @end="saveCameraSettings">
-				<template #prepend>
-					<span class="text-no-wrap">{{ t("camera.voteThreshold") }}</span>
-				</template>
-				<template #append>
-					<span>{{ camera.majority_vote_threshold }}</span>
-				</template>
-			</v-slider>
-			<v-slider v-model="camera.majority_vote_window" :min="1" :max="100" :step="1" color="primary"
-					  thumb-label hide-details class="mt-2" @update:model-value="keepWindowAboveThreshold('window')"
-					  @end="saveCameraSettings">
-				<template #prepend>
-					<span class="text-no-wrap">{{ t("camera.voteWindow") }}</span>
-				</template>
-				<template #append>
-					<span>{{ camera.majority_vote_window }}</span>
-				</template>
-			</v-slider>
+			<!-- Majority vote: the label and value above each slider, so both bars line up -->
+			<div class="d-flex align-center mt-3">
+				<span>{{ t("camera.voteWindow") }}</span>
+				<v-spacer></v-spacer>
+				<span class="text-no-wrap">{{ t("camera.voteFrames", { n: camera.majority_vote_window }) }}</span>
+			</div>
+			<v-slider v-model="camera.majority_vote_window" :min="1" :max="MAX_WINDOW" :step="1" color="primary"
+					  thumb-label hide-details @update:model-value="windowChanged" @end="saveCameraSettings"></v-slider>
+			<div class="d-flex align-center mt-1">
+				<span>{{ t("camera.voteThreshold") }}</span>
+				<v-spacer></v-spacer>
+				<span class="text-no-wrap">{{ thresholdText(camera) }}</span>
+			</div>
+			<!-- 0 (not allowed - see thresholdChanged) to the window: the bar is the share of the window's frames
+				 that must show a failure -->
+			<v-slider v-model="camera.majority_vote_threshold" :min="0" :max="camera.majority_vote_window" :step="1"
+					  color="primary" thumb-label hide-details @update:model-value="thresholdChanged"
+					  @end="saveCameraSettings"></v-slider>
 			<p class="text-body-small text-medium-emphasis mt-2">
 				{{ t("camera.voteHelp") }}
 			</p>

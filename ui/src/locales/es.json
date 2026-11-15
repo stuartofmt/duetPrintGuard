@@ -127,7 +127,9 @@
 		"sensitivityHelp": "Izquierda: menos imágenes cuentan como fallo (en el extremo izquierdo, casi ninguna). Derecha: más imágenes cuentan como fallo (en el extremo derecho, casi todas).",
 		"voteThreshold": "Umbral de votación",
 		"voteWindow": "Ventana de votación",
-		"voteHelp": "Se señala un defecto cuando al menos el número de imágenes del umbral, entre las últimas imágenes de la ventana, muestran un fallo. Por eso la ventana nunca es menor que el umbral.",
+		"voteHelp": "La ventana de votación es el número de últimas imágenes que se examinan. El umbral de votación es cuántas de ellas deben mostrar un fallo para señalar un defecto: su barra lo muestra como parte de la ventana, así que cuanto más llena, menos sensible.",
+		"voteOf": "{n} de {window} ({percent} %)",
+		"voteFrames": {"one": "{n} imagen", "other": "{n} imágenes"},
 		"autostartFailed": "No se pudo cambiar el inicio automático: {error}",
 		"saveFailed": "No se pudo guardar la configuración de la cámara: {error}"
 	},

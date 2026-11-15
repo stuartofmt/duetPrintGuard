@@ -127,7 +127,9 @@
 		"sensitivityHelp": "Left: fewer frames count as failures (far left, almost none). Right: more frames count as failures (far right, almost all).",
 		"voteThreshold": "Vote Threshold",
 		"voteWindow": "Vote Window",
-		"voteHelp": "A defect is raised when at least the threshold number of the last window frames show a failure, so the window is never smaller than the threshold.",
+		"voteHelp": "Vote Window is how many of the latest frames are looked at. Vote Threshold is how many of them must show a failure to raise a defect - its bar shows that as a share of the window, so a fuller bar is less sensitive.",
+		"voteOf": "{n} of {window} ({percent}%)",
+		"voteFrames": {"one": "{n} frame", "other": "{n} frames"},
 		"autostartFailed": "Failed to update autostart: {error}",
 		"saveFailed": "Failed to save camera settings: {error}"
 	},
