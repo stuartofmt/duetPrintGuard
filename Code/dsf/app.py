@@ -163,28 +163,29 @@ async def autostart_detection(cameras, app_state):
     from utils.stream_utils import start_live_detection, stop_live_detection, save_app_state_request
 
     autostart_pending = True
+    names = ', '.join(settings.get('nickname') or uuid for uuid, settings in cameras.items())  # For the log
 
     await send_autostart_running(True)
     try:
         while True:
-            logger.debug(f'Waiting for printer before autostarting detection loop for cameras: {list(cameras.keys())}')
+            logger.debug(f'Waiting for printer before autostarting detection loop for cameras: {names}')
             printer_status = get_duet_printer_status()
             if printer_status == 'processing' and autostart_pending:
                 try:
-                    logger.info(f'Autostarting detection loop for cameras: {list(cameras.keys())}')
+                    logger.info(f'Autostarting detection loop for cameras: {names}')
                     for camera_uuid in cameras.keys():
                         save_app_state_request(app_state)
                         await start_live_detection(camera_uuid)
                     autostart_pending = False
                 except Exception as e:
-                    logger.error(f'Error auto starting detection loop for cameras: {list(cameras.keys())}: {e}')
+                    logger.error(f'Error auto starting detection loop for cameras: {names}: {e}')
             elif printer_status == 'idle' and not autostart_pending:
                 try:
-                    logger.debug(f'Autostopping detection loop for cameras: {list(cameras.keys())} as printer is not processing')
+                    logger.debug(f'Autostopping detection loop for cameras: {names} as printer is not processing')
                     for camera_uuid in cameras.keys():
                         await stop_live_detection(camera_uuid)
                 except Exception as e:
-                    logger.error(f'Error auto stopping detection loop for cameras: {list(cameras.keys())}: {e}')
+                    logger.error(f'Error auto stopping detection loop for cameras: {names}: {e}')
                 break
 
             await asyncio.sleep(PRINTER_POLL_SECONDS)  # No need to poll to quickly
