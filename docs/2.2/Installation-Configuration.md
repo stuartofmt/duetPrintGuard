@@ -65,7 +65,11 @@ If `Port` is 0 or already in use, a free port is chosen at startup. The configur
 
 ## Logging
 
-When the plugin is run, a log file `duetPrintGuard.log`  is created in the `system/duetPrintGuard` directory.
+When the plugin is run, the log file `duetPrintGuard.log` is in the `system/duetPrintGuard` directory. When run on its own, it is in the settings folder (see [Standalone boards](#standalone-boards)).
+
+From the moment duetPrintGuard starts, messages also go to `duetPrintGuard.startup.log` in the program's folder (`Code/dsf`), which is new at each start, so a problem that stops it early is still recorded. Once the startup checks are done, logging switches to `duetPrintGuard.log`, starting with what the startup log holds.
+
+At each start the log from the run before is kept as `duetPrintGuard.previous.log`, next to `duetPrintGuard.log`. Both can be read on the [Log page](Basic-Operation.md#log-page).
 
 ## Setup
 When the plugin is first accessed - the Detection page will display with a message stating that there are no cameras configured.  Press the "Settings" button (or the Settings tab) to configure one or more cameras.
@@ -158,7 +162,9 @@ When a defect is detected several things happen
 
 ## Configuration Page
 
-The Configuration page is accessible from the Configuration tab or via `http://<IP>:<PORT>/config`. Press `Save` at the bottom of any card to save changes - each Save button saves all the settings on the page. Settings marked `restart` take effect after duetPrintGuard is restarted. Other settings apply immediately.
+The Configuration page is accessible from the Configuration tab or via `http://<IP>:<PORT>/config`. It has three tabs: `General` (the `Printer` and `Web Interface` cards), `Actions` (`Printer Actions`) and `Alerts` (`Macro Alert`, `ntfy Alert` and `Pushover Alert`). Press `Save` at the bottom of any card to save changes - each Save button saves the settings on all the tabs. A tab with a setting that was not accepted is marked in red, and the page switches to it. Settings marked `restart` take effect after duetPrintGuard is restarted. Other settings apply immediately.
+
+The image shows the `General` tab.
 
 <img src="media/images/Config1.png" style="width:50%; height:auto;">
 

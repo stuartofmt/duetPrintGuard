@@ -5,12 +5,13 @@ The main page is accessible via `http://localhost:<PORT>` or `http://<IP>:<PORT>
 
 IP and PORT are those in use by the plugin. They are shown on the Configuration page and in the log file at startup.
 
-The tabs at the top of each page switch between the three pages:
+The tabs at the top of each page switch between the four pages:
 - Detection - the main page, described here
 - Settings - cameras and the defect countdown (see [Installation-Configuration](Installation-Configuration.md#camera-setup))
 - Configuration - the printer connection, printer commands, notifications and the web interface (see [Installation-Configuration](Installation-Configuration.md#configuration-page))
+- Log - the log file (see [Log page](#log-page))
 
-A warning at the top of the Detection page shows if the printer is not connected, with a link to the printer settings.
+While the printer is not connected, every page shows a banner at the top saying why, and whether duetPrintGuard is still trying. It has fields for the printer's address, port and password, and a `Save and connect` button.
 
 Broadly, there are three main states
 - Not Detecting
@@ -32,7 +33,7 @@ The top control section provides printer control (`Pause` / `Resume` and `Cancel
 In the middle section: each configured camera is shown separately with the following details:
  - The Camera nickname
  - Current detection status [Inactive]
- - Current detection result [-]
+ - Current detection result [Unknown]
  - The time of the last update [-]
  - A snapshot of the camera's view, taken when the page was opened
  - A button to toggle Detecting on and off [Start Detection]
@@ -101,3 +102,18 @@ If the user does nothing within the configured `Countdown Time` - the `Countdown
  - Turning `Auto-start` off for a camera does not stop detection already running on it. With `Auto-start` off on every camera, the printer is no longer checked.
  - Detection can still be started and stopped by hand with each camera's buttons. A camera stopped by hand during a print is not started again until the next print.
 
+### Log page
+
+The Log page is accessible from the Log tab or via `http://<IP>:<PORT>/log`. It shows the end of the log file, then new lines as they are written (checked every few seconds).
+
+- `Follow` keeps the newest line in view. Scrolling up to read turns it off, and scrolling back to the end turns it on again.
+- The filter box shows only the lines containing the text typed.
+- The reload button reads the end of the log file again.
+- The download button downloads the whole log file being shown.
+- `Current log` / `Previous log` - shown when there is a log from the run before this one (`duetPrintGuard.previous.log`). `Previous log` shows that file instead of the current one.
+
+Very long logs show only their end on the page - download the file to see all of it.
+
+The image shows the log filtered on `http` - the lines with the addresses of the pages.
+
+<img src="media/images/Log1.png" style="width:50%; height:auto;">

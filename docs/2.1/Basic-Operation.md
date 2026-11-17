@@ -5,12 +5,13 @@ The main page is accessible via `http://localhost:<PORT>` or `http://<IP>:<PORT>
 
 IP and PORT are those in use by the plugin. They are shown on the Configuration page and in the log file at startup.
 
-The tabs at the top of each page switch between the three pages:
+The tabs at the top of each page switch between the four pages:
 - Detection - the main page, described here
 - Settings - cameras and the defect countdown (see [Installation-Configuration](Installation-Configuration.md#camera-setup))
 - Configuration - the printer connection, printer commands, notifications and the web interface (see [Installation-Configuration](Installation-Configuration.md#configuration-page))
+- Log - the log file (see [Log page](#log-page))
 
-A warning at the top of the Detection page shows if the printer is not connected, with a link to the printer settings.
+While the printer is not connected, every page shows a banner at the top saying why, and whether duetPrintGuard is still trying. It has fields for the printer's address, port and password, and a `Save and connect` button.
 
 Broadly, there are three main states
 - Not Detecting
@@ -32,7 +33,7 @@ The top control section provides printer control (`Pause` / `Resume` and `Cancel
 In the middle section: each configured camera is shown separately with the following details:
  - The Camera nickname
  - Current detection status [Inactive]
- - Current detection result [-]
+ - Current detection result [Unknown]
  - The time of the last update [-]
  - A snapshot of the camera's view, taken when the page was opened
  - A button to toggle Detecting on and off [Start Detection]
@@ -84,9 +85,10 @@ If the user does nothing within the configured `Countdown Time` - the `Countdown
 <img src="media/images/Plugin4.png" style="width:50%; height:auto;">
 
 ### Bottom Control section
- The bottom control section comprises one or two buttons.
+ The bottom control section has these buttons:
  - Reset Notification
- - Enable / Disable Autostart
+ - Enable / Disable Autostart (only when a camera has `Auto-start` on)
+ - Terminate the Program (only when not running as a DWC plugin)
 
  Reset Notification resets all the notification counters to zero. I.e Notifications will be sent up to `Maximum Times` (per the Macro, ntfy and Pushover settings on the Configuration page)
 
@@ -95,3 +97,18 @@ If the user does nothing within the configured `Countdown Time` - the `Countdown
  If autostart is enabled, detection will commence once a print job has started and will stop when the print job is complete.  This allows duetPrintGuard to run in the background but note: Once a print job has completed, autostart needs to be reenabled.  This was an implementation decision to avoid constant use of cpu between print jobs.
 
  <img src="media/images/Plugin5.png" style="width:50%; height:auto;">
+
+### Log page
+
+The Log page is accessible from the Log tab or via `http://<IP>:<PORT>/log`. It shows the end of the log file, then new lines as they are written (checked every few seconds).
+
+- `Follow` keeps the newest line in view. Scrolling up to read turns it off, and scrolling back to the end turns it on again.
+- The filter box shows only the lines containing the text typed.
+- The reload button reads the end of the log file again.
+- The download button downloads the whole log file.
+
+Very long logs show only their end on the page - download the file to see all of it.
+
+The image shows the log filtered on `http` - the lines with the addresses of the pages.
+
+<img src="media/images/Log1.png" style="width:50%; height:auto;">
