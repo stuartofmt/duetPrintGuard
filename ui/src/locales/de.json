@@ -51,8 +51,6 @@
 		"openStream": "Live-Stream in einem neuen Tab öffnen",
 		"resetNotifications": "Benachrichtigungen zurücksetzen",
 		"terminate": "Programm beenden",
-		"enableAutostart": "Autostart aktivieren",
-		"disableAutostart": "Autostart deaktivieren",
 		"noCamerasTitle": "Keine Kameras eingerichtet",
 		"noCamerasText": "Fügen Sie auf der Seite Einstellungen eine Kamera hinzu.",
 		"confirmResume": "Möchten Sie den Druck wirklich fortsetzen?",
@@ -65,7 +63,6 @@
 		"stopFailedBecause": "Die Erkennung konnte nicht gestoppt werden: {error}",
 		"popupBlocked": "Der Browser hat den neuen Tab blockiert - erlauben Sie Pop-ups für diese Seite.",
 		"actionFailed": "{action} konnte nicht ausgeführt werden: {error}",
-		"autostartFailed": "Autostart konnte nicht geändert werden: {error}",
 		"notificationsReset": "Benachrichtigungen zurückgesetzt.",
 		"resetFailed": "Benachrichtigungen konnten nicht zurückgesetzt werden: {error}",
 		"terminateFailed": "Das Programm konnte nicht beendet werden: {error}"

@@ -51,8 +51,6 @@
 		"openStream": "Open the live stream in a new tab",
 		"resetNotifications": "Reset Notification",
 		"terminate": "Terminate the Program",
-		"enableAutostart": "Enable Autostart",
-		"disableAutostart": "Disable Autostart",
 		"noCamerasTitle": "No Cameras Configured",
 		"noCamerasText": "Add a camera on the Settings page.",
 		"confirmResume": "Are you sure you want to Resume the print?",
@@ -65,7 +63,6 @@
 		"stopFailedBecause": "Failed to stop detection: {error}",
 		"popupBlocked": "The browser blocked the new tab - allow pop-ups for this page.",
 		"actionFailed": "Failed to run {action}: {error}",
-		"autostartFailed": "Failed to change autostart: {error}",
 		"notificationsReset": "Notifications reset.",
 		"resetFailed": "Failed to reset notifications: {error}",
 		"terminateFailed": "Failed to terminate the program: {error}"

@@ -1,5 +1,5 @@
 // Server-Sent Events from /sse. connectSSE(handlers) opens the event stream and calls handlers[eventName](data)
-// with the parsed payload of each event (countdown_time, camera_updated, autostart_updated, autostart_running).
+// with the parsed payload of each event (countdown_time, camera_updated).
 // Returns a function that closes the connection.
 
 function parse(data) {

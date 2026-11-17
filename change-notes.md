@@ -47,9 +47,10 @@ What changed since the 3.6 version (duetPrintGuard 1.0.0, for DWC / DSF 3.6), de
 ## Detection
 
 - **Sensitivity slider for each camera.** Normal is in the middle, more sensitive to the right and less to the left. It replaces the old Sensitivity setting.
-- **Vote settings shown as a share.** The vote window slider comes first. The threshold slider runs up to the window, and shows the share of frames that must show a failure, for example "3 of 5 (60%)".
+- **Vote settings shown as a share.** The threshold slider comes first and runs up to the vote window below it, and shows the share of frames that must show a failure, for example "3 of 5 (60%)".
 - **Changes apply at once.** Vote settings, countdown settings and Which Cameras take effect without restarting detection.
 - **All cameras keep watching during a countdown,** so any other camera that sees the failure also shows DEFECT.
+- **Autostart needs no button.** Detection starts with every print on the cameras whose Auto-start switch is on, from when duetPrintGuard starts. The Enable / Disable Autostart button on the Detection page is gone, and autostart no longer has to be turned on again after each print.
 
 ## When a defect is found
 
@@ -81,7 +82,6 @@ What changed since the 3.6 version (duetPrintGuard 1.0.0, for DWC / DSF 3.6), de
 
 ## Unchanged from the 3.6 version
 
-- Detection starts and stops by itself with the print.
 - The defect countdown, with its Ignore, Pause and Cancel actions.
 - Majority-vote detection.
 - The Any or All camera choice.

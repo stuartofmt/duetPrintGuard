@@ -27,9 +27,9 @@ async function saveAutostart() {
 	}
 }
 
-// Majority vote: the window (how many recent frames are looked at) is set first, and the threshold (how many of
-// them must show a failure) is a share of it - its slider runs from 1 to the window, so its bar shows how strict
-// the vote is. A smaller window brings the threshold down with it.
+// Majority vote: the threshold (how many of the recent frames must show a failure) is shown first, then the window
+// (how many recent frames are looked at). The threshold is a share of the window - its slider runs from 1 to the
+// window, so its bar shows how strict the vote is. A smaller window brings the threshold down with it.
 const MAX_WINDOW = 100;
 
 function windowChanged() {
@@ -108,13 +108,6 @@ function resetSensitivity() {
 			</p>
 			<!-- Majority vote: the label and value above each slider, so both bars line up -->
 			<div class="d-flex align-center mt-3">
-				<span>{{ t("camera.voteWindow") }}</span>
-				<v-spacer></v-spacer>
-				<span class="text-no-wrap">{{ t("camera.voteFrames", { n: camera.majority_vote_window }) }}</span>
-			</div>
-			<v-slider v-model="camera.majority_vote_window" :min="1" :max="MAX_WINDOW" :step="1" color="primary"
-					  thumb-label hide-details @update:model-value="windowChanged" @end="saveCameraSettings"></v-slider>
-			<div class="d-flex align-center mt-1">
 				<span>{{ t("camera.voteThreshold") }}</span>
 				<v-spacer></v-spacer>
 				<span class="text-no-wrap">{{ thresholdText(camera) }}</span>
@@ -124,6 +117,13 @@ function resetSensitivity() {
 			<v-slider v-model="camera.majority_vote_threshold" :min="0" :max="camera.majority_vote_window" :step="1"
 					  color="primary" thumb-label hide-details @update:model-value="thresholdChanged"
 					  @end="saveCameraSettings"></v-slider>
+			<div class="d-flex align-center mt-1">
+				<span>{{ t("camera.voteWindow") }}</span>
+				<v-spacer></v-spacer>
+				<span class="text-no-wrap">{{ t("camera.voteFrames", { n: camera.majority_vote_window }) }}</span>
+			</div>
+			<v-slider v-model="camera.majority_vote_window" :min="1" :max="MAX_WINDOW" :step="1" color="primary"
+					  thumb-label hide-details @update:model-value="windowChanged" @end="saveCameraSettings"></v-slider>
 			<p class="text-body-small text-medium-emphasis mt-2">
 				{{ t("camera.voteHelp") }}
 			</p>

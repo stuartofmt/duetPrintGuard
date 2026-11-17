@@ -268,9 +268,9 @@ async def update_settings(request: Request,
 
 @router.post("/settings/update_autostart", include_in_schema=False)
 async def update_autostart(request: Request):
-    """Update camera autostart setting."""
+    """Update camera autostart setting - detection starts on the camera when a print starts."""
 
-    from app import activate_autostart_detection
+    from app import update_autostart as start_or_stop_autostart
     data = await request.json()
     camera_uuid = data.get('camera_uuid')
     checkbox = data.get('autostart')
@@ -284,18 +284,7 @@ async def update_autostart(request: Request):
         raise CodedHTTPException(404, Message("cameraNotFound", "Camera not found"))
     add_to_config({'camera_settings': {camera_uuid: {
             "autostart": autostart}}})
-
-    # Since we updated autostart - check to see if any cameras have it set then let index UI
-    autostartSet = any(
-            settings.get("autostart", False)
-            for settings in CAMERA_SETTINGS.values()
-    )
-
-    if not autostartSet:  # terminate the background thread
-        activate_autostart_detection(False)
-
-    # Update the UI
-    await send_autostartUpdated_state(autostartSet)
+    start_or_stop_autostart()  # The watcher runs while any camera has autostart on
 
     return {"success": True, "autostart": autostart}
 
@@ -711,49 +700,6 @@ async def connect_printer(request: Request):
     return {"success": True, "message": message, "code": coded(message)}
 
 
-@router.get("/printer/enableautostart", include_in_schema=False)
-async def enable_autostart(request: Request):
-    """Eenable autostart"""
-    from app import activate_autostart_detection
-    try:
-        activate_autostart_detection(True)
-        return {"success": True}
-    except Exception as e:
-        logger.error("Error enabling autostart: %s", e)
-        return {"success": False, "message": "Failed to enable autostart"}
-
-
-@router.get("/printer/disableautostart", include_in_schema=False)
-async def disable_autostart(request: Request):
-    """Disable autostart"""
-    from app import activate_autostart_detection
-    try:
-        activate_autostart_detection(False)
-        return {"success": True}
-    except Exception as e:
-        logger.error("Error disabling autostart: %s", e)
-        return {"success": False, "message": "Failed to disable autostart"}
-
-
-async def send_autostartUpdated_state(state):
-    """Send a direct autostart state SSE event to the browser.
-
-    This bypasses the ALERT model and the alert queueing path.
-    Only the camera state payload is sent to the SSE client.
-    """
-    try:
-        from routes.routes import managerSSE
-        payload = {
-                "event": "autostart_updated",
-                "data": json.dumps({
-                        "state": state
-                })
-        }
-        await managerSSE.broadcast(payload)
-        logger.debug(f"Broadcast autostart_updated to {state}")
-    except Exception as e:
-        logger.error("Failed to broadcast autostartUpdated SSE event =  %s: %s", state, e)
-
 TERMINATE_FORCE_SECONDS = 10  # Exits anyway if a clean stop has not finished by then
 
 
@@ -780,11 +726,11 @@ async def terminate_program():
 
 @router.get("/printer/resetnotifications", include_in_schema=False)
 async def reset_notifications(request: Request):
-    """Disable autostart"""
+    """Reset the notification counters"""
     try:
         reset_notification_counters()
         logger.debug(f'Notifocation counters reset')
         return {"success": True}
     except Exception as e:
-        logger.error("Error disabling autostart: %s", e)
+        logger.error("Error resetting notifications: %s", e)
         return {"success": False, "message": "Failed to reset notifications"}

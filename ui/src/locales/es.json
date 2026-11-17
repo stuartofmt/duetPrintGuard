@@ -51,8 +51,6 @@
 		"openStream": "Abrir la transmisión en directo en una pestaña nueva",
 		"resetNotifications": "Restablecer notificaciones",
 		"terminate": "Cerrar el programa",
-		"enableAutostart": "Activar inicio automático",
-		"disableAutostart": "Desactivar inicio automático",
 		"noCamerasTitle": "No hay cámaras configuradas",
 		"noCamerasText": "Añada una cámara en la página Ajustes.",
 		"confirmResume": "¿Seguro que quiere reanudar la impresión?",
@@ -65,7 +63,6 @@
 		"stopFailedBecause": "No se pudo detener la detección: {error}",
 		"popupBlocked": "El navegador bloqueó la pestaña nueva - permita las ventanas emergentes para esta página.",
 		"actionFailed": "No se pudo ejecutar {action}: {error}",
-		"autostartFailed": "No se pudo cambiar el inicio automático: {error}",
 		"notificationsReset": "Notificaciones restablecidas.",
 		"resetFailed": "No se pudieron restablecer las notificaciones: {error}",
 		"terminateFailed": "No se pudo cerrar el programa: {error}"

@@ -51,8 +51,6 @@
 		"openStream": "Ouvrir le flux en direct dans un nouvel onglet",
 		"resetNotifications": "Réinitialiser les notifications",
 		"terminate": "Arrêter le programme",
-		"enableAutostart": "Activer le démarrage automatique",
-		"disableAutostart": "Désactiver le démarrage automatique",
 		"noCamerasTitle": "Aucune caméra configurée",
 		"noCamerasText": "Ajoutez une caméra sur la page Paramètres.",
 		"confirmResume": "Voulez-vous vraiment reprendre l'impression ?",
@@ -65,7 +63,6 @@
 		"stopFailedBecause": "Impossible d'arrêter la détection : {error}",
 		"popupBlocked": "Le navigateur a bloqué le nouvel onglet - autorisez les fenêtres pop-up pour cette page.",
 		"actionFailed": "Impossible d'exécuter {action} : {error}",
-		"autostartFailed": "Impossible de modifier le démarrage automatique : {error}",
 		"notificationsReset": "Notifications réinitialisées.",
 		"resetFailed": "Impossible de réinitialiser les notifications : {error}",
 		"terminateFailed": "Impossible d'arrêter le programme : {error}"

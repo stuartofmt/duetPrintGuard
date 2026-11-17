@@ -3,7 +3,6 @@ import asyncio
 from logger_module import logger
 import os
 from contextlib import asynccontextmanager
-import json
 import mimetypes
 
 # Windows takes these from the registry, where .js may be text/plain - the browser then refuses to run the pages' scripts
@@ -62,6 +61,7 @@ def init_routes_and_modules():
             logger.error("Could not load the detection model - detection will not work: %s", e)
             app_instance.state.detector = None
 
+        update_autostart()  # Cameras with autostart on: detection starts when a print starts
         yield
         logger.debug("Cleaning up resources on shutdown...")
         try:
@@ -125,93 +125,69 @@ def init_routes_and_modules():
         return response
 
 
-def activate_autostart_detection(Enable):
-    '''
-    If one or more cameras have autostart enabled the start the background poll
-    polling stops after the printer goes from processing to idle
-    so this needs to be called to reset autostart.
-    Must be called from the event loop (e.g. a route handler).
-    '''
+def update_autostart():
+    """Start the autostart watcher if any camera has autostart on, or stop it if none has.
+
+    Called at startup and when a camera's autostart is changed. Must be called from the event loop (e.g. a route
+    handler). Stopping the watcher leaves detection that it started running.
+    """
     global _autostart_task
+    from utils.config import CAMERA_SETTINGS  # Imported here so it is initialized before use
+
     running = _autostart_task is not None and not _autostart_task.done()
-    if not Enable:  # Stop monitoring - detection that autostart has started keeps running
-        if running:
-            logger.debug('Autostart will be restarted')
-            _autostart_task.cancel()
-        return
-
-    if running:  # Already running
-        return
-
-    from utils.config import CAMERA_SETTINGS  # Need to import CAMERA_SETTINGS here to ensure it is initialized before use
-
-    autostartCameras = {k: v for k, v in CAMERA_SETTINGS.items() if v.get('autostart', False)}
-    if not autostartCameras:
-        logger.info('Autostart not required')
-        return
-
-    logger.info('Starting Autostart')
-    _autostart_task = asyncio.get_running_loop().create_task(autostart_detection(autostartCameras, app.state))
+    wanted = any(settings.get('autostart', False) for settings in CAMERA_SETTINGS.values())
+    if wanted and not running:
+        logger.info('Autostart: detection starts when a print starts, for cameras: %s', autostart_names())
+        _autostart_task = asyncio.get_running_loop().create_task(autostart_detection(app.state))
+    elif not wanted and running:
+        logger.info('Autostart: no camera has autostart on - stopped')
+        _autostart_task.cancel()
 
 
-async def autostart_detection(cameras, app_state):
-    # Start detection when printer is processing
-    # Stops detection when printer goes to idle after processing
-    # Finishes after idle state (or when cancelled by activate_autostart_detection(False))
+def autostart_cameras():
+    """The cameras with autostart on."""
+    from utils.config import CAMERA_SETTINGS
+    return [uuid for uuid, settings in CAMERA_SETTINGS.items() if settings.get('autostart', False)]
 
+
+def autostart_names(cameras=None):
+    """Camera names for the log."""
+    from utils.config import CAMERA_SETTINGS
+    return ', '.join(CAMERA_SETTINGS.get(uuid, {}).get('nickname') or uuid for uuid in (autostart_cameras() if cameras is None else cameras))
+
+
+async def autostart_detection(app_state):
+    """While a print runs, detection runs on every camera with autostart on - including one whose autostart is
+    turned on part way through the print. When the printer is idle again, detection stops on the cameras it was
+    started on, and the watcher waits for the next print. Runs until no camera has autostart on."""
     from printer_control import get_duet_printer_status
     from utils.stream_utils import start_live_detection, stop_live_detection, save_app_state_request
 
-    autostart_pending = True
-    names = ', '.join(settings.get('nickname') or uuid for uuid, settings in cameras.items())  # For the log
-
-    await send_autostart_running(True)
-    try:
-        while True:
-            logger.debug(f'Waiting for printer before autostarting detection loop for cameras: {names}')
+    started = []  # The cameras detection was started on, for this print
+    while True:
+        try:
             printer_status = get_duet_printer_status()
-            if printer_status == 'processing' and autostart_pending:
-                try:
-                    logger.info(f'Autostarting detection loop for cameras: {names}')
-                    for camera_uuid in cameras.keys():
-                        save_app_state_request(app_state)
-                        await start_live_detection(camera_uuid)
-                    autostart_pending = False
-                except Exception as e:
-                    logger.error(f'Error auto starting detection loop for cameras: {names}: {e}')
-            elif printer_status == 'idle' and not autostart_pending:
-                try:
-                    logger.debug(f'Autostopping detection loop for cameras: {names} as printer is not processing')
-                    for camera_uuid in cameras.keys():
-                        await stop_live_detection(camera_uuid)
-                except Exception as e:
-                    logger.error(f'Error auto stopping detection loop for cameras: {names}: {e}')
-                break
-
-            await asyncio.sleep(PRINTER_POLL_SECONDS)  # No need to poll to quickly
-    finally:
-        await send_autostart_running(False)
-        logger.info('Autostart Stopped')
-
-
-async def send_autostart_running(state):
-    """Send a direct autostart state SSE event to the browser.
-
-    This bypasses the ALERT model and the alert queueing path.
-    Only the camera state payload is sent to the SSE client.
-    """
-    try:
-        from routes.routes import managerSSE
-        payload = {
-                "event": "autostart_running",
-                "data": json.dumps({
-                        "state": state
-                })
-        }
-        await managerSSE.broadcast(payload)
-        logger.debug(f"Broadcast autostart_running to {state}")
-    except Exception as e:
-        logger.error("Failed to broadcast autostart_running SSE event =  %s: %s", state, e)
+            if printer_status == 'processing':
+                cameras = [uuid for uuid in autostart_cameras() if uuid not in started]
+                if cameras:
+                    logger.info('Autostart: a print is running - starting detection for cameras: %s', autostart_names(cameras))
+                    save_app_state_request(app_state)
+                    for camera_uuid in cameras:
+                        result = await start_live_detection(camera_uuid)
+                        if result and not result.get('success', True):
+                            logger.error('Autostart: could not start detection for camera %s: %s',
+                                         autostart_names([camera_uuid]), result.get('message'))
+                        started.append(camera_uuid)  # Not tried again until the next print
+            elif printer_status == 'idle' and started:
+                logger.info('Autostart: the print has finished - stopping detection for cameras: %s', autostart_names(started))
+                for camera_uuid in started:
+                    await stop_live_detection(camera_uuid)
+                started = []
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            logger.error('Autostart error: %s', e)
+        await asyncio.sleep(PRINTER_POLL_SECONDS)  # No need to poll too quickly
 
 
 def appstartup():

@@ -84,14 +84,20 @@ If the user does nothing within the configured `Countdown Time` - the `Countdown
 <img src="media/images/Plugin4.png" style="width:50%; height:auto;">
 
 ### Bottom Control section
- The bottom control section comprises one or two buttons.
+ The bottom control section has these buttons:
  - Reset Notification
- - Enable / Disable Autostart
+ - Terminate the Program (only when not running as a DWC plugin)
 
  Reset Notification resets all the notification counters to zero. I.e Notifications will be sent up to `Maximum Times` (per the Macro, ntfy and Pushover settings on the Configuration page)
 
- Enable / Disable Autostart will display if one or more cameras is configured for auto start.
-
- If autostart is enabled, detection will commence once a print job has started and will stop when the print job is complete.  This allows duetPrintGuard to run in the background but note: Once a print job has completed, autostart needs to be reenabled.  This was an implementation decision to avoid constant use of cpu between print jobs.
-
  <img src="media/images/Plugin5.png" style="width:50%; height:auto;">
+
+### Autostart
+ Autostart is set for each camera with its `Auto-start` switch on the Settings page. There is no button to turn it on.
+
+ While one or more cameras have `Auto-start` on, duetPrintGuard checks the printer every 10 seconds. When a print starts, detection starts on every camera with `Auto-start` on. When the print has finished (the printer is idle), detection stops on those cameras, and duetPrintGuard waits for the next print. This works from when duetPrintGuard starts, and for every print.
+
+ - Turning `Auto-start` on for a camera during a print starts detection on it within about 10 seconds.
+ - Turning `Auto-start` off for a camera does not stop detection already running on it. With `Auto-start` off on every camera, the printer is no longer checked.
+ - Detection can still be started and stopped by hand with each camera's buttons. A camera stopped by hand during a print is not started again until the next print.
+

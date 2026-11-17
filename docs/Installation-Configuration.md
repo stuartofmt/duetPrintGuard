@@ -110,7 +110,7 @@ When `Add Camera` is pressed, the plugin checks that video can be read from the 
 ### Camera Settings
 
 Each camera card shows the camera nickname and stream URL, and has these settings:
-- `Auto-start` - see Autostart in [Basic Operation](Basic-Operation.md#bottom-control-section)
+- `Auto-start` - detection starts on the camera when a print starts, and stops when it ends - see [Autostart](Basic-Operation.md#autostart)
 - `Detection Sensitivity` - how readily a frame counts as a failure (see below)
 - `Vote Threshold` and `Vote Window` - see Defect Settings below
 
@@ -136,7 +136,7 @@ If: There are at least "x" failure frames in the last "y" frames where:
 x == `Vote Threshold` (Majority Vote Threshold)
 y == `Vote Window` (Majority Vote Window)
 
-The window can never be smaller than the threshold (otherwise a defect could never be raised). Moving one slider past the other drags the other slider along with it.
+`Vote Threshold` is shown first, as a share of the window - for example "3 of 5 (60%)" - and its slider runs from 1 up to the window, so a fuller bar needs more of the frames to show a failure. `Vote Window` (1 to 100 frames) is below it. The threshold can never be more than the window (otherwise a defect could never be raised): making the window smaller than the threshold brings the threshold down with it.
 
 Optimal values for these settings depend on many factors such as the type and position of the camera, lighting conditions, nature and shape of the failure etc.
 

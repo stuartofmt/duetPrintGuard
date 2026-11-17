@@ -14,7 +14,7 @@ import { connectSSE } from "../sse.js";
 import { visibility } from "../visibility.js";
 import { errorText, serverText, t, valueText } from "../i18n.js";
 import {
-	mdiAutorenew, mdiAutorenewOff, mdiBellCheck, mdiBellOff, mdiPause, mdiPlay, mdiPower, mdiStop, mdiTimerSand,
+	mdiBellCheck, mdiBellOff, mdiPause, mdiPlay, mdiPower, mdiStop, mdiTimerSand,
 } from "../icons.js";
 
 const DEFAULT_ICON = "/static/images/default_icon.png";
@@ -65,7 +65,6 @@ const showNoCameras = computed({
 });
 const paused = ref(false);
 const countdown = reactive({ active: false, seconds: 0, action: null });
-const autostart = reactive({ enabled: false, running: false, waiting: false });
 const settingsUrl = pageUrl("/settings");
 // Set when a stream is opened in a new tab, until this page is shown or focused again
 const suspended = ref(false);
@@ -219,22 +218,8 @@ function onCountdown(data) {
 }
 
 // =========================
-// Autostart and notifications
+// Notifications
 // =========================
-async function toggleAutostart() {
-	try {
-		if (autostart.running) {
-			autostart.waiting = true;
-			await api.get("/printer/disableautostart");
-		} else {
-			await api.get("/printer/enableautostart");
-		}
-	} catch (err) {
-		autostart.waiting = false;
-		notify(t("detection.autostartFailed", { error: errorText(err) }), "error");
-	}
-}
-
 async function resetNotifications() {
 	try {
 		await api.get("/printer/resetnotifications");
@@ -267,13 +252,6 @@ const sseHandlers = {
 	camera_updated: (data) => {
 		const camera = findCamera(data?.camera_uuid);
 		if (camera && data.state) setState(camera, data.state);
-	},
-	autostart_updated: (data) => {
-		autostart.enabled = Boolean(data?.state);
-	},
-	autostart_running: (data) => {
-		autostart.running = Boolean(data?.state);
-		autostart.waiting = false;
 	},
 };
 
@@ -318,7 +296,6 @@ onMounted(async () => {
 		streamFailed: false,
 		busy: false,
 	}));
-	autostart.enabled = Object.values(list).some((camera) => camera.autostart);
 	noCameras.value = cameras.value.length === 0;
 
 	watch(active, (on) => (on ? connect() : disconnect()), { immediate: true });
@@ -404,11 +381,6 @@ onBeforeUnmount(() => {
 			<v-btn :prepend-icon="mdiBellCheck" @click="resetNotifications">{{ t("detection.resetNotifications") }}</v-btn>
 			<v-btn v-if="canTerminate" color="error" variant="tonal" :prepend-icon="mdiPower" :disabled="terminated"
 				   @click="terminateProgram">{{ t("detection.terminate") }}</v-btn>
-			<v-btn v-if="autostart.enabled" :color="autostart.waiting ? 'warning' : (autostart.running ? 'error' : 'success')"
-				   :loading="autostart.waiting" :prepend-icon="autostart.running ? mdiAutorenewOff : mdiAutorenew"
-				   @click="toggleAutostart">
-				{{ autostart.running ? t('detection.disableAutostart') : t('detection.enableAutostart') }}
-			</v-btn>
 		</div>
 
 		<!-- No cameras configured -->
