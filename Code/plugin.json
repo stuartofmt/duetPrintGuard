@@ -4,7 +4,7 @@
     "author": "Stuartofmt",
     "version": "2.2.0-beta.1",
     "license": "GPL-2.0-or-later",
-    "homepage": "https://github.com/stuartofmt/duetPrintGuard",
+    "homepage": "https://github.com/stuartofmt/duetPrintGuard/tree/main/docs/2.2",
 	"sbcRequired": true,
 	"dwcVersion": "3.7",
     "sbcDsfVersion": "3.7",
