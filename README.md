@@ -12,17 +12,18 @@ Each camera feed has separate settings to determine if there is sufficient evide
 
 At the end of the countdown period, if the user does not intervene, the countdown action (Ignore, Pause, Cancel) is executed.  If the user does intervene then the user's selected action is executed.
 
-## Choosing a release
+## Versions
 
-Each release is kept on its own branch. Use the one that matches your DWC / DSF version:
+Documentation for each version - installation, configuration, operation and change notes:
 
-| DWC / DSF version | Release | Configuration |
-| --- | --- | --- |
-| 3.7.x | [3.7.x branch](../../tree/3.7.x) | Through a Configuration page in the plugin UI |
-| 3.6.x | [3.6.x branch](../../tree/3.6.x) | Through a `duetPrintGuard.config` file accessible from DWC |
+| duetPrintGuard | For DWC / DSF | Documentation | Code |
+| --- | --- | --- | --- |
+| 2.2 | 3.7 | [docs/2.2](docs/2.2/README.md) - in development | [3.7.x](https://github.com/stuartofmt/duetPrintGuard/tree/3.7.x) branch |
+| 2.1 | 3.7 | [docs/2.1](docs/2.1/README.md) | [3.7.x](https://github.com/stuartofmt/duetPrintGuard/tree/3.7.x) branch, release `v2.1.0-dwc3.7` |
+| 1.0 | 3.6 | In the [3.6.x](https://github.com/stuartofmt/duetPrintGuard/tree/3.6.x) branch | [3.6.x](https://github.com/stuartofmt/duetPrintGuard/tree/3.6.x) branch |
 
-Both releases provide configurable actions when a defect is detected and several notification types (Duet Macro, ntfy, Pushover).
+The 3.7 versions are configured on a Configuration page in the plugin. The 3.6 version uses a `duetPrintGuard.config` file, edited from DWC. All versions have configurable actions when a defect is detected and several notification types (Duet Macro, ntfy, Pushover).
 
-**The plugin zip file and the instructions for installation, configuration and operation (in the `docs` folder) are on the branch for your release.**
+The plugin zip files are on the [releases](https://github.com/stuartofmt/duetPrintGuard/releases) page.
 
 > _The original project can be found [here](https://github.com/oliverbravery/PrintGuard)._

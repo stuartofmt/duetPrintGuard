@@ -1,0 +1,188 @@
+# duetPrintGuard - Getting Started
+
+
+## Installation
+duetPrintGuard is packaged as a DWC plugin and installed in the normal manner from the zip file attached to the release:
+
+[duetPrintGuard releases](https://github.com/stuartofmt/duetPrintGuard/releases) - `duetPrintGuard-2.2.<n>-3.7.zip`
+
+The plugin needs a Duet in SBC mode, because DWC plugins with a program run on the SBC.
+
+### Standalone boards
+A standalone Duet can not run duetPrintGuard itself, so it runs on another computer on the same network - for example a Raspberry Pi - and connects to the board over the network. It needs Python 3.11 or later and a copy of this repository's `3.7.x` branch:
+
+```bash
+git clone -b 3.7.x https://github.com/stuartofmt/duetPrintGuard.git
+cd duetPrintGuard
+python3 -m venv venv
+venv/bin/pip install -r Code/dsf/requirements.txt
+venv/bin/python -u Code/dsf/duetPrintGuard.py /path/to/a/folder
+```
+
+The folder holds `duetPrintGuard.json` and `duetPrintGuard.log`. If it is left out, they are kept with the program in `Code/dsf` (on Windows, in `%APPDATA%\duetPrintGuard`).
+
+The pages are then at `http://<COMPUTER_IP>:<PORT>` instead of inside DWC. The address and port are in the log file at startup. On the Configuration page, enter the board's address in the `Printer` card - see [Configuration Page](#configuration-page).
+
+The same way of running also works with an SBC, from another computer or from the SBC without installing the plugin.
+
+### How the printer is reached
+This is found automatically when connecting, and shown on the Configuration page:
+
+| Mode | When | How |
+|---|---|---|
+| plugin | The printer address is this computer, and it is an SBC running DSF | Directly through DSF (dsf-python) |
+| remote SBC | An SBC on another computer | The SBC's web api, with a WebSocket for live status |
+| remote standalone | A standalone board | The board's `rr_` web api, checked every 5 seconds |
+
+If DSF on this computer can not be used - e.g. no permission for its socket - the SBC's web api is used instead.
+
+### Windows
+duetPrintGuard can run on a 64-bit Intel or AMD Windows computer in the same way. Windows on ARM is not supported, because a required package is not available for it.
+
+1. Install Python 3.11 or later from [python.org](https://www.python.org/downloads/), ticking "Add python.exe to PATH".
+2. Get a copy of this repository's `3.7.x` branch, as above or as a zip file.
+3. Double-click `run.bat`. The first run creates a `venv` folder and installs the requirements, which takes a few minutes.
+
+To keep the settings and log in a particular folder, start it with `run.bat C:\path\to\a\folder`.
+
+When Windows Firewall asks, allow Python to communicate on your network, otherwise other devices can not open the pages. If detection fails with a "DLL load failed" error, install the [Microsoft Visual C++ Redistributable](https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist).
+
+
+## Configuration
+
+No configuration file needs to be created. On first start the plugin creates `duetPrintGuard.json` with default settings (and no cameras) in the `system/duetPrintGuard` directory (`/opt/dsf/sd/sys/duetPrintGuard`), alongside the log file `duetPrintGuard.log`.
+
+All settings are held in this one file: the general configuration, the camera settings and the defect countdown settings.
+
+The file is stored compressed and base64 encoded, with a checksum. Edit settings through the plugin's Configuration and Settings pages - do not edit the file by hand. If the file is edited, damaged or otherwise fails the checksum, it is deleted at startup and a new one is created from the defaults. **All settings, including any configured cameras, are lost when this happens** and will need to be set up again.
+
+Settings are changed from the Settings page (cameras and the defect countdown) and the Configuration page (everything else) - see below.
+
+The IP address is detected automatically and the address in use is saved to `duetPrintGuard.json`. When running as the plugin it is also passed to DWC, so the plugin page always connects to the right address.
+
+If `Port` is 0 or already in use, a free port is chosen at startup. The configured `Port` value is not changed, so a value of 0 picks a free port on every startup, and a busy port is tried again on the next startup. The Configuration page shows the port currently in use, and whether a different configured port will be used after a restart.
+
+
+## Logging
+
+When the plugin is run, a log file `duetPrintGuard.log`  is created in the `system/duetPrintGuard` directory.
+
+## Setup
+When the plugin is first accessed - the Detection page will display with a message stating that there are no cameras configured.  Press the "Settings" button (or the Settings tab) to configure one or more cameras.
+
+<img src="media/images/Plugin0.png" style="width:50%; height:auto;">
+
+## Camera Setup
+
+The Settings page is accessible from the Settings tab or via `http://localhost:<PORT>/settings` or `http://<IP>:<PORT>/settings`
+
+Where IP and PORT are the address shown on the Configuration page or in the log file at startup.
+
+This page allows you to configure the action to be taken on failure, the cameras and their detection settings.
+
+The left side shows a preview of the selected camera (click a camera card to select it, and the refresh button to update the preview) and the Countdown settings. The right side shows a card for each camera and the `Add a Camera` button.
+
+Changes on this page are saved as soon as they are made.
+
+<img src="media/images/Settings1.png" style="width:50%; height:auto;">
+  
+### Adding Cameras
+
+Multiple network cameras can be configured. Both HTTP (MJPEG) and RTSP streams are supported.
+
+Press `Add a Camera` to open the Add Camera dialog. If no cameras are configured, it opens automatically.
+
+<img src="media/images/AddCamera1.png" style="width:50%; height:auto;">
+
+- `Camera Nickname` - the name shown on the Detection page
+- `HTTP or RTSP Stream URL` - the camera stream
+- `HTTP Snapshot URL` - a URL that returns a single JPEG image. Required for HTTP cameras (it is used for detection and the Detection page snapshots). Not needed for RTSP cameras
+- `Show camera preview` - shows the camera stream, to check the URL is correct before adding the camera
+
+Each camera must have a unique nickname and a unique stream URL.
+
+When `Add Camera` is pressed, the plugin checks that video can be read from the stream URL and, if given, that the snapshot URL returns a JPEG image. This can take a few seconds. If either check fails, the camera is not added and an alert in the dialog says which URL did not work. Correct the URL and press `Add Camera` again.
+
+<img src="media/images/AddCamera2.png" style="width:50%; height:auto;">
+
+
+### Camera Settings
+
+Each camera card shows the camera nickname and stream URL, and has these settings:
+- `Auto-start` - detection starts on the camera when a print starts, and stops when it ends - see [Autostart](Basic-Operation.md#autostart)
+- `Detection Sensitivity` - how readily a frame counts as a failure (see below)
+- `Vote Threshold` and `Vote Window` - see Defect Settings below
+
+The delete button (top right of the card) removes the camera.
+
+<img src="media/images/Settings2.png" style="width:50%; height:auto;">
+
+### Detection Sensitivity
+
+Every frame is compared with the model's examples of a failed print and a good print, and is called a failure if it looks more like the failed print. `Detection Sensitivity` shifts that balance for each camera:
+
+- The middle (`Normal`, the default) - the frame is whichever it looks more like.
+- Left (`Less sensitive`) - a frame has to look much more like a failure to count as one. At the far left, almost nothing counts as a failure.
+- Right (`More sensitive`) - frames that look only partly like a failure count as one. At the far right, almost everything counts as a failure.
+
+Each step changes the balance by about a quarter, and the ends are about ten times either way. Normal views typically look 5 to 8 times more like a good print than a failure, so the first few steps to the right only affect borderline frames (e.g. a partial mess or poor lighting). `Reset` returns the slider to the middle. Changes apply straight away, including while the camera is detecting.
+
+## Defect Settings
+
+A DEFECT is raised when the camera detects a series of failure frames that satisfy this rule:
+
+If: There are at least "x" failure frames in the last "y" frames where:
+x == `Vote Threshold` (Majority Vote Threshold)
+y == `Vote Window` (Majority Vote Window)
+
+`Vote Threshold` is shown first, as a share of the window - for example "3 of 5 (60%)" - and its slider runs from 1 up to the window, so a fuller bar needs more of the frames to show a failure. `Vote Window` (1 to 100 frames) is below it. The threshold can never be more than the window (otherwise a defect could never be raised): making the window smaller than the threshold brings the threshold down with it.
+
+Optimal values for these settings depend on many factors such as the type and position of the camera, lighting conditions, nature and shape of the failure etc.
+
+
+## Defect Behavior
+
+When a defect is detected several things happen
+- Notifications are sent, depending on the settings on the Configuration page
+- A countdown timer, set by `Countdown Time`, is started
+- At the end of the countdown `Countdown Action` is sent to the printer
+
+
+<img src="media/images/Settings3.png" style="width:50%; height:auto;">
+
+`Countdown Action` allows the selection of one of three actions that will occur when a Defect is detected.  These are Ignore, Pause and Cancel.
+
+`Countdown Time` If there is no manual override within this time then the selected action will be sent to the printer.
+
+`Which Cameras` specifies if a DEFECT requires `Any` camera or `All` cameras to detect failures at the same time.
+
+## Configuration Page
+
+The Configuration page is accessible from the Configuration tab or via `http://<IP>:<PORT>/config`. Press `Save` at the bottom of any card to save changes - each Save button saves all the settings on the page. Settings marked `restart` take effect after duetPrintGuard is restarted. Other settings apply immediately.
+
+<img src="media/images/Config1.png" style="width:50%; height:auto;">
+
+`Printer` - how to reach the printer. Changes apply immediately. How the printer is reached is found when connecting (see [How the printer is reached](#how-the-printer-is-reached)), and the first field shows the connection and the printer's status.
+- `Printer Address` - IP address or name of the printer. Leave blank only if this computer is the printer's SBC. Not used when running as a DWC plugin, which is always on the same computer as its printer
+- `Printer Port` - the port DWC uses, normally 80
+- `Printer Password` - only if a password is set on the printer
+
+If the printer can not be reached, or does not accept the password, the Detection page shows a warning. The pages and detection keep running and the connection is tried again automatically, but pause, resume, cancel and macro alerts can not reach the printer until it is connected. ntfy and Pushover alerts do not go through the printer.
+
+`Web Interface`
+- `IP Address` - detected automatically at startup (read only)
+- `Port` - the port for the Detection, Settings and Configuration pages. Must not conflict with DWC or other plugins. Use 0 to pick a free port automatically (see Configuration above)
+- `Open Browser at Startup` - opens these pages in the computer's default browser when duetPrintGuard starts. On by default. Not used when running as a DWC plugin, or on Linux without a desktop (e.g. over ssh)
+- `Logging Level` - INFO or DEBUG
+
+`Printer Actions` - the commands sent to the printer for Pause (default `M25`), Resume (default `M24`) and Cancel (default `M2`). Leave blank to use the default.
+
+`Macro Alert` - a macro called when a defect is detected, e.g. to send MQTT. Enter just the path used in `M98 P"<path>"`. `Maximum Times` limits how many times it is called.
+
+`ntfy Alert` - sends an alert to an [ntfy](https://ntfy.sh) `Topic`. `Priority` is 1 to 5.
+
+`Pushover Alert` - sends an alert via [Pushover](https://pushover.net). Both the `API Token` and the `User / Group Key` are required.
+
+The ntfy and Pushover `Title` and `Message` fields can be left blank. When blank, a system generated title and message are sent. These are shown as the placeholder text in each field and follow the current camera and countdown settings (e.g. the camera nickname, the `Countdown Action` and the `Countdown Time`).
+
+`Maximum Times` limits how many alerts are sent. Use `Reset Notification` on the Detection page to reset the counts.
