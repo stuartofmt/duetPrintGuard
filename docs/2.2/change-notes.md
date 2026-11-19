@@ -7,6 +7,7 @@ What changed in 2.2 since 2.1, then everything that changed since the 3.6 versio
 - **Autostart needs no button.** Each camera's **Auto-start** switch (Settings page) is all there is. While any camera has it on, detection starts with every print on those cameras and stops when the printer is idle again - from when duetPrintGuard starts, and for every print. The Enable / Disable Autostart button on the Detection page is gone. See [Autostart](Basic-Operation.md#autostart).
 - **Vote settings shown as a share.** Vote Threshold comes first, as a share of the window, for example "3 of 5 (60%)", and its slider runs up to the window. Vote Window is below it, and making it smaller brings the threshold down with it.
 - **Previous log.** At each start the last log is kept as `duetPrintGuard.previous.log`. The Log page has a **Current log / Previous log** switch, and its download gets the log being shown.
+- **Detection page view.** A camera that's detecting shows the frame its last detection used, about once a second, instead of a live stream. The page adds no camera traffic (about 2 MB/s less per HTTP camera at 720p), and the picture is the one that was judged. Clicking it still opens the live stream.
 - **Logging.** The end of a defect countdown is logged at INFO, with the action taken. Autostart logs the cameras by name.
 - **Python package ranges.** `requirements1.txt` lists the tested range of versions of each package, with a section for each Python version from 3.11.
 
