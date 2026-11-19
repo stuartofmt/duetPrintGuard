@@ -39,7 +39,7 @@ from utils.detector import SENSITIVITY_STEPS
 from utils.mjpeg_source import is_http_source, check_mjpeg_stream, fetch_snapshot_bytes, stream_mjpeg
 from utils.stream_utils import (UI_countdown, default_notification_text, start_live_detection, stop_live_detection,
                                 save_app_state_request, create_optimized_frame_generator,
-                                pause_all_detection, stop_all_detection, resume_all_detection)
+                                pause_all_detection, stop_all_detection, resume_all_detection, DETECTION_FRAMES)
 
 router = APIRouter()
 
@@ -289,6 +289,15 @@ async def update_autostart(request: Request):
     return {"success": True, "autostart": autostart}
 
 
+@router.get('/camera/frame/{camera_uuid}', include_in_schema=False)
+async def camera_detection_frame(camera_uuid: str):
+    """The last frame detection used for this camera - shown on the Detection page while it is detecting."""
+    data = DETECTION_FRAMES.get(camera_uuid)
+    if data is None:
+        raise CodedHTTPException(404, Message("noFrame", "No detection frame yet"))
+    return Response(content=data, media_type="image/jpeg", headers={"Cache-Control": "no-store"})
+
+
 @router.get('/camera/snapshot/{camera_uuid}', include_in_schema=False)
 async def camera_snapshot(camera_uuid: str):
     if camera_uuid not in CAMERA_SETTINGS:
@@ -481,6 +490,7 @@ async def remove_camera_config(request: Request):
             await stop_live_detection(camera_uuid)
         get_shared_stream_manager().release_stream(camera_uuid)
         logger.debug("Released camera %s", camera_uuid)
+        DETECTION_FRAMES.pop(camera_uuid, None)
         delete_from_config({'camera_settings': camera_uuid})
         if camera_uuid in CAMERA_STATES:
             delete_from_config({'camera_states': camera_uuid})

@@ -291,6 +291,7 @@
 		"terminatePlugin": "Se está ejecutando como plugin - deténgalo desde el gestor de plugins de DWC",
 		"stopping": "duetPrintGuard se está cerrando",
 		"cameraNotFound": "Cámara no encontrada",
+		"noFrame": "Aún no hay imagen de detección",
 		"missingNicknameSource": "Falta el nombre o la fuente de la cámara.",
 		"missingSnapshot": "Falta la URL de imagen de la cámara.",
 		"cameraStream": "No se pudo leer vídeo desde la URL de transmisión {stream}.",

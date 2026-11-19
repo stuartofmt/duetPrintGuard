@@ -41,15 +41,12 @@ def fetch_snapshot_bytes(snapshot_url: str, timeout: float = 5) -> Optional[byte
         return None
 
 
-def fetch_snapshot_image(snapshot_url: str) -> Optional[Image.Image]:
-    """Fetch a snapshot and decode it to an RGB PIL image for detection."""
-    data = fetch_snapshot_bytes(snapshot_url)
-    if data is None:
-        return None
+def jpeg_to_image(data: bytes, source: str = '') -> Optional[Image.Image]:
+    """Decode a JPEG to an RGB PIL image for detection. Returns None if it cannot be decoded."""
     try:
         return Image.open(io.BytesIO(data)).convert('RGB')
     except OSError as e:
-        logger.warning("Could not decode snapshot from %s: %s", snapshot_url, e)
+        logger.warning("Could not decode snapshot from %s: %s", source, e)
         return None
 
 

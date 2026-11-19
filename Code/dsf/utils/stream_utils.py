@@ -13,7 +13,7 @@ from copy import deepcopy
 from .detector import CLASS_NAMES, DEFECT_IDX, sensitivity_factor
 
 from .shared_video_stream import get_shared_camera_frame
-from .mjpeg_source import fetch_snapshot_image
+from .mjpeg_source import fetch_snapshot_bytes, jpeg_to_image
 
 from .config import (STREAM_MAX_FPS,
                      STREAM_JPEG_QUALITY,
@@ -178,11 +178,17 @@ async def create_optimized_detection_loop(app_state, camera_uuid):
         # RTSP cameras: latest frame from the shared video stream
         snapshot_url = CAMERA_SETTINGS[camera_uuid].get('snapshot')
         try:
+            image = jpeg = None
             if snapshot_url:
-                image = await asyncio.to_thread(fetch_snapshot_image, snapshot_url)
+                jpeg = await asyncio.to_thread(fetch_snapshot_bytes, snapshot_url)
+                if jpeg is not None:
+                    image = jpeg_to_image(jpeg, snapshot_url)
             else:
                 frame = await asyncio.to_thread(get_shared_camera_frame, camera_uuid)
-                image = None if frame is None else Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+                if frame is not None:
+                    image = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+                    ok, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, STREAM_JPEG_QUALITY])
+                    jpeg = buffer.tobytes() if ok else None
         except Exception as e:
             logger.warning("Failed to get frame from camera %s - stopping detection: %s", camera_uuid, e)
             CAMERA_STATES[camera_uuid]['live_detection_running'] = 'no'
@@ -204,6 +210,8 @@ async def create_optimized_detection_loop(app_state, camera_uuid):
             numeric = None
 
         label = CLASS_NAMES[numeric] if numeric is not None else 'Error'
+        if jpeg is not None:
+            DETECTION_FRAMES[camera_uuid] = jpeg  # Shown on the Detection page - set before the UI is told
 
         CAMERA_STATES[camera_uuid]['last_time'] = time.time()
         CAMERA_STATES[camera_uuid]['last_result'] = label
@@ -237,6 +245,11 @@ async def create_optimized_detection_loop(app_state, camera_uuid):
                 await _raise_alert(camera_uuid)
 
         await asyncio.sleep(stream_optimizer.get_detection_interval())
+
+
+# The last frame each camera's detection used (JPEG bytes). The Detection page shows it instead of a live stream,
+# so the view adds no camera traffic - see /camera/frame/<uuid>
+DETECTION_FRAMES: Dict[str, bytes] = {}
 
 
 # Increases with every alert, so a countdown only acts on (and waits for) its own alert -

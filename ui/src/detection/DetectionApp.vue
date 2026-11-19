@@ -1,7 +1,8 @@
 <!--
-Detection page. A camera that is detecting shows its live stream. Otherwise it shows a snapshot taken when the
-page was shown (or when detection stopped). While the page is hidden, or a camera's stream is open in a new
-tab, the page closes its streams and event connection - see visibility.js.
+Detection page. A camera that is detecting shows the frame its last detection used (about once a second),
+so the page adds no camera traffic. Otherwise it shows a snapshot taken when the page was shown (or when
+detection stopped). Clicking the image opens the live stream in a new tab. While the page is hidden, or a
+stream is open in a new tab, the page closes its event connection and the image stops updating - see visibility.js.
 -->
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
@@ -42,9 +43,8 @@ function processSnapshotQueue() {
 }
 
 // Load the image off-screen first so the visible one only changes once the new frame is ready
-function loadSnapshot(camera) {
+function loadImage(camera, url) {
 	return new Promise((resolve) => {
-		const url = `/camera/snapshot/${camera.uuid}?t=${Date.now()}`;
 		const img = new Image();
 		img.onload = () => {
 			camera.snapshot = url;
@@ -93,30 +93,32 @@ const lastUpdate = (camera) => camera.state.last_time
 // =========================
 // Cameras
 // =========================
-const showStream = (camera) => active.value && isDetecting(camera) && !camera.streamFailed;
-const cameraView = (camera) => showStream(camera)
-	? `/camera/stream/${camera.uuid}`
-	: (camera.snapshot || DEFAULT_ICON);
+const cameraView = (camera) => camera.snapshot || DEFAULT_ICON;
 
+// A snapshot from the camera - for a camera that is not detecting
 function refreshSnapshot(camera) {
-	enqueueSnapshot(() => loadSnapshot(camera));
+	enqueueSnapshot(() => loadImage(camera, `/camera/snapshot/${camera.uuid}?t=${Date.now()}`));
 }
 
-// A stream that fails falls back to the snapshot until the page is shown again
-function onViewError(camera) {
-	if (showStream(camera)) {
-		camera.streamFailed = true;
-		refreshSnapshot(camera);
+// The frame the camera's last detection used - no camera traffic. Skipped while the previous one is loading.
+async function refreshFrame(camera) {
+	if (camera.frameLoading) return;
+	camera.frameLoading = true;
+	try {
+		await loadImage(camera, `/camera/frame/${camera.uuid}?t=${camera.state.last_time || Date.now()}`);
+	} finally {
+		camera.frameLoading = false;
 	}
 }
 
 function setState(camera, state) {
 	const wasDetecting = isDetecting(camera);
+	const lastTime = camera.state.last_time;
 	camera.state = state;
-	if (wasDetecting && !isDetecting(camera)) {
-		refreshSnapshot(camera); // The stream closes, so show the camera as it is now
-	} else if (!wasDetecting && isDetecting(camera)) {
-		camera.streamFailed = false;
+	if (isDetecting(camera)) {
+		if (state.last_time && state.last_time !== lastTime) refreshFrame(camera); // A new detection
+	} else if (wasDetecting) {
+		refreshSnapshot(camera); // Detection stopped, so show the camera as it is now
 	}
 }
 
@@ -259,9 +261,7 @@ function connect() {
 	if (closeSSE) return;
 	closeSSE = connectSSE(sseHandlers); // Sends the current countdown on connect
 	for (const camera of cameras.value) {
-		camera.streamFailed = false;
-		refreshState(camera);
-		refreshSnapshot(camera);
+		refreshState(camera).then(() => (isDetecting(camera) ? refreshFrame(camera) : refreshSnapshot(camera)));
 	}
 }
 
@@ -293,7 +293,7 @@ onMounted(async () => {
 		nickname: camera.nickname,
 		state: {},
 		snapshot: "",
-		streamFailed: false,
+		frameLoading: false,
 		busy: false,
 	}));
 	noCameras.value = cameras.value.length === 0;
@@ -370,7 +370,7 @@ onBeforeUnmount(() => {
 				</v-col>
 				<v-col cols="12" sm="7" md="8">
 					<div class="pg-media pg-media--compact pg-clickable" :title="t('detection.openStream')" @click="openStream(camera)">
-						<img :src="cameraView(camera)" :alt="camera.nickname" @error="onViewError(camera)" />
+						<img :src="cameraView(camera)" :alt="camera.nickname" />
 					</div>
 				</v-col>
 			</template>
